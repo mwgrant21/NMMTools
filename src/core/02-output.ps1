@@ -10,9 +10,8 @@ function Set-OutputSink {
         [Parameter(Mandatory)][ValidateSet('Console','Silent')][string]$Sink,
         [string]$LogDirectory
     )
-    $script:OutputSink = $Sink
     if ($LogDirectory) {
-        if (-not (Test-Path $LogDirectory)) {
+        if (-not (Test-Path $LogDirectory -PathType Container)) {
             New-Item -ItemType Directory -Force $LogDirectory | Out-Null
         }
         $name = 'NMMTools-{0}-{1:yyyyMMdd-HHmmss}.log' -f $env:COMPUTERNAME, (Get-Date)
@@ -20,6 +19,7 @@ function Set-OutputSink {
     } else {
         $script:LogFilePath = $null
     }
+    $script:OutputSink = $Sink
 }
 
 function Write-ToolOutput {
@@ -29,7 +29,12 @@ function Write-ToolOutput {
     )
     if ($script:LogFilePath) {
         $line = '[{0:HH:mm:ss}] [{1,-7}] {2}' -f (Get-Date), $Level, $Message
-        Add-Content -Path $script:LogFilePath -Value $line
+        try {
+            Add-Content -Path $script:LogFilePath -Value $line -ErrorAction Stop
+        } catch {
+            # Logging must never take down a tool run on a broken machine;
+            # drop the log line and keep going.
+        }
     }
     if ($script:OutputSink -eq 'Console') {
         $color = switch ($Level) {
@@ -46,20 +51,35 @@ function Write-ToolOutput {
 function Read-ToolChoice {
     param(
         [Parameter(Mandatory)][string]$Prompt,
-        [string[]]$Choices = @('Yes','No'),
+        [ValidateCount(1,100)][string[]]$Choices = @('Yes','No'),
         [Parameter(Mandatory)][string]$Default,
         [switch]$Silent
     )
+    if ($Choices -notcontains $Default) {
+        throw "Read-ToolChoice: Default '$Default' is not one of the choices ($($Choices -join '/'))."
+    }
     if ($Silent -or $script:OutputSink -eq 'Silent') {
         Write-ToolOutput "$Prompt -> $Default (auto-selected, silent mode)" -Level Detail
         return $Default
     }
     $choiceText = $Choices -join '/'
     while ($true) {
-        $answer = Read-Host "$Prompt [$choiceText] (default: $Default)"
+        try {
+            $answer = Read-Host "$Prompt [$choiceText] (default: $Default)"
+        } catch {
+            # Non-interactive host (PDQ, scheduled task): Read-Host throws.
+            # Fall back to the declared default instead of crashing the tool.
+            Write-ToolOutput "$Prompt -> $Default (auto-selected, non-interactive host)" -Level Detail
+            return $Default
+        }
         if ([string]::IsNullOrWhiteSpace($answer)) { return $Default }
-        $hit = $Choices | Where-Object { $_ -like "$answer*" } | Select-Object -First 1
-        if ($hit) { return $hit }
-        Write-ToolOutput "Invalid choice. Enter one of: $choiceText" -Level Warning
+        $needle = $answer.Trim().ToLower()
+        $hits = @($Choices | Where-Object { $_.ToLower().StartsWith($needle) })
+        if ($hits.Count -eq 1) { return $hits[0] }
+        if ($hits.Count -gt 1) {
+            Write-ToolOutput ('Ambiguous - did you mean: {0}? Type more letters.' -f ($hits -join ' or ')) -Level Warning
+        } else {
+            Write-ToolOutput "Invalid choice. Enter one of: $choiceText" -Level Warning
+        }
     }
 }
