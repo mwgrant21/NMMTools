@@ -1,4 +1,4 @@
-# NMM Toolkit v9
+﻿# NMM Toolkit v9
 
 Modular source for the NMM System Toolkit. Develop here; ship `dist\NMMTools.ps1`.
 
