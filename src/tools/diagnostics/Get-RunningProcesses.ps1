@@ -18,6 +18,7 @@ function Get-RunningProcesses {
             })
 
         Write-ToolOutput 'Top 10 processes by memory:'
+        # Table rows use Detail; headlines use Info
         foreach ($p in $processes) {
             Write-ToolOutput ('  {0,-36} PID {1,-8} {2,8} MB' -f
                 $p.ProcessName, $p.PID, $p.Memory_MB) -Level Detail
@@ -25,7 +26,7 @@ function Get-RunningProcesses {
 
         $top = $processes | Select-Object -First 1
         Complete-ToolRun $run -Status Success -Summary (
-            'Top 10 processes by memory listed; highest: {0} ({1} MB)' -f
+            'Highest: {0} ({1} MB); 10 shown' -f
             $top.ProcessName, $top.Memory_MB)
     }
     catch {

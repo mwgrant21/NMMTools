@@ -24,6 +24,7 @@ function Get-NetworkDiagnostics {
             return
         }
 
+        # Table rows use Detail; headlines use Info
         foreach ($a in $adapters) {
             Write-ToolOutput ('{0}  [{1}]  {2}  IP: {3}' -f
                 $a.Name, $a.Status, $a.LinkSpeed, $a.IPAddress) -Level Detail

@@ -9,10 +9,11 @@ function Get-SystemInformation {
         $os   = Get-CimInstance Win32_OperatingSystem
         $cs   = Get-CimInstance Win32_ComputerSystem
         $bios = Get-CimInstance Win32_BIOS
-        $proc = Get-CimInstance Win32_Processor
+        $proc = Get-CimInstance Win32_Processor | Select-Object -First 1   # first socket; multi-socket machines report socket 0's model
 
         $totalRamGB = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
 
+        # Primary data rows use Info; scan/table rows in other tools use Detail
         Write-ToolOutput ('Computer Name  : {0}' -f $cs.Name)
         Write-ToolOutput ('OS             : {0}' -f $os.Caption)
         Write-ToolOutput ('OS Build       : {0}' -f $os.Version)

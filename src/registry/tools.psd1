@@ -58,7 +58,7 @@
             RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'ReadOnly'
-            Tags          = @('network','ip','dns','adapter')
+            Tags          = @('network','ip','ipv4','adapter')
         }
         @{
             Id            = 'running-processes'
@@ -70,7 +70,7 @@
             RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'ReadOnly'
-            Tags          = @('process','cpu','memory')
+            Tags          = @('process','workingset','memory')
         }
         @{
             Id            = 'services-status'

@@ -18,6 +18,8 @@ function Get-DiskSpaceAnalysis {
                 }
             })
 
+        if (@($disks).Count -eq 0) { Complete-ToolRun $run -Status Warning -Summary 'No fixed disks with non-zero size found'; return }
+
         foreach ($d in $disks) {
             $line = '{0} [{1}]  {2} GB total  {3} GB free  ({4}% free)' -f
                 $d.Drive, $d.Label, $d.TotalSize_GB, $d.FreeSpace_GB, $d.PercentFree
@@ -35,7 +37,7 @@ function Get-DiskSpaceAnalysis {
 
         $summaryParts = $disks | ForEach-Object {
             $pctFull = [math]::Round(100 - $_.PercentFree, 1)
-            '{0}: {1}% full, {2} GB free' -f $_.Drive, $pctFull, $_.FreeSpace_GB
+            '{0} {1}% full, {2} GB free' -f $_.Drive, $pctFull, $_.FreeSpace_GB
         }
 
         if ($lowCount -gt 0) {
