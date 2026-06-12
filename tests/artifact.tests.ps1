@@ -43,4 +43,9 @@ Describe 'Built artifact' {
             -Tool does-not-exist -Silent | Out-Null
         $LASTEXITCODE | Should -Be 1
     }
+
+    It 'builds clean with the analyzer gate enabled' {
+        $repoRoot = Split-Path $PSScriptRoot -Parent
+        { & (Join-Path $repoRoot 'build.ps1') *> $null } | Should -Not -Throw
+    }
 }

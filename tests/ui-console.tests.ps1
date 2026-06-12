@@ -53,7 +53,7 @@ Describe 'Show-LandingMenu adaptive layout' {
         $map = $raw | Where-Object { $_ -is [hashtable] }
         $text = ($raw | Where-Object { $_ -isnot [hashtable] } | ForEach-Object { "$_" }) -join "`n"
         $map.Count | Should -Be 2
-        $map['1'] | Should -Be 'CategoryA'
+        $map['A'] | Should -Be 'CategoryA'
         $text | Should -Match 'CategoryA \(9 tools\)'
         $text | Should -Not -Match 'Fake Tool 11'   # tool names not listed in category mode
     }

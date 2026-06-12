@@ -29,15 +29,18 @@ function Show-LandingMenu {
         Write-Host '        T = save session summary (for tickets)   X = exit' -ForegroundColor Gray
     } else {
         # Category mode: list categories with counts
-        $index = 1
+        $index = 0
         foreach ($c in $categories) {
+            # Letters keep all legacy tool NUMBERS direct-runnable from the landing screen.
+            # Never assign letters T or X to categories (reserved; matched before the map).
+            $letter = [string][char](65 + $index)   # A, B, C...
             $count = @($tools | Where-Object { $_.Category -eq $c }).Count
-            Write-Host (' {0}. {1} ({2} tools)' -f $index, $c, $count)
-            $map["$index"] = $c
+            Write-Host (' {0}. {1} ({2} tools)' -f $letter, $c, $count)
+            $map[$letter] = $c
             $index++
         }
         Write-Host ''
-        Write-Host ' Enter: category number | tool number | search text' -ForegroundColor Gray
+        Write-Host ' Enter: category letter | tool number | search text' -ForegroundColor Gray
         Write-Host '        T = save session summary (for tickets)   X = exit' -ForegroundColor Gray
     }
     return $map
@@ -102,7 +105,7 @@ function Start-ConsoleMenu {
         if ($map.Count -eq 0) {
             $promptText = ' Select tool number, search text, or X to exit'
         } else {
-            $promptText = ' Select category or tool number, search text, or X to exit'
+            $promptText = ' Select category letter or tool number, search text, or X to exit'
         }
         $selection = Read-Host $promptText
         if ([string]::IsNullOrWhiteSpace($selection)) { continue }
@@ -123,8 +126,8 @@ function Start-ConsoleMenu {
             Read-Host ' Press Enter to continue' | Out-Null
             continue
         }
-        if ($map.ContainsKey($selection)) {
-            Show-CategoryTools -Category $map[$selection]
+        if ($map.ContainsKey($selection.ToUpper())) {
+            Show-CategoryTools -Category $map[$selection.ToUpper()]
             continue
         }
         Invoke-MenuSelection -Selection $selection

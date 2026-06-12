@@ -15,19 +15,19 @@ $parts.Add(('# NMM System Toolkit v{0} | built {1:yyyy-MM-dd HH:mm} | GENERATED 
 $parts.Add('# Source: NMMToolkit repo. Edit src\, then rebuild.')
 
 # 1. Param block must be the first statement in the artifact
-$parts.Add((Get-Content (Join-Path $root 'src\entry\00-param.ps1') -Raw))
+$parts.Add((Get-Content (Join-Path $root 'src\entry\00-param.ps1') -Raw -Encoding UTF8))
 
 # 2. Core, in numeric-prefix order
 foreach ($f in (Get-ChildItem (Join-Path $root 'src\core') -Filter *.ps1 | Sort-Object Name)) {
     $parts.Add(('#region core\{0}' -f $f.Name))
-    $parts.Add((Get-Content $f.FullName -Raw))
+    $parts.Add((Get-Content $f.FullName -Raw -Encoding UTF8))
     $parts.Add('#endregion')
 }
 
 # 3. Registry: psd1 content is a valid hashtable literal, assigned directly
 $parts.Add('#region registry')
 $parts.Add('$script:RegistryData =')
-$parts.Add((Get-Content (Join-Path $root 'src\registry\tools.psd1') -Raw))
+$parts.Add((Get-Content (Join-Path $root 'src\registry\tools.psd1') -Raw -Encoding UTF8))
 $parts.Add('#endregion')
 
 # 4. Tools
@@ -36,12 +36,12 @@ if ($toolFiles.Count -eq 0) { throw 'No .ps1 files found in src\tools - aborting
 # FullName groups tools by category dir then file; relative order is stable across machines
 foreach ($f in $toolFiles) {
     $parts.Add(('#region tools\{0}\{1}' -f $f.Directory.Name, $f.Name))
-    $parts.Add((Get-Content $f.FullName -Raw))
+    $parts.Add((Get-Content $f.FullName -Raw -Encoding UTF8))
     $parts.Add('#endregion')
 }
 
 # 5. Entry point last
-$parts.Add((Get-Content (Join-Path $root 'src\entry\99-main.ps1') -Raw))
+$parts.Add((Get-Content (Join-Path $root 'src\entry\99-main.ps1') -Raw -Encoding UTF8))
 
 Set-Content -Path $artifact -Value ($parts -join "`r`n") -Encoding UTF8
 
