@@ -84,5 +84,65 @@
             Risk          = 'ReadOnly'
             Tags          = @('services','automatic','stopped')
         }
+        @{
+            Id            = 'event-log-errors'
+            LegacyId      = '6'
+            Name          = 'Recent Event Log Errors'
+            Category      = 'Diagnostics'
+            Function      = 'Get-EventLogErrors'
+            Description   = 'Recent System/Application error events (Level 2) in the last 24 hours'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('events','errors','eventlog')
+        }
+        @{
+            Id            = 'performance-metrics'
+            LegacyId      = '7'
+            Name          = 'Performance Metrics'
+            Category      = 'Diagnostics'
+            Function      = 'Get-PerformanceMetrics'
+            Description   = 'Memory usage percentage and running process count; warns if memory exceeds 80%'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('performance','cpu','memory','counters')
+        }
+        @{
+            Id            = 'installed-software'
+            LegacyId      = '8'
+            Name          = 'Installed Software List'
+            Category      = 'Diagnostics'
+            Function      = 'Get-InstalledSoftware'
+            Description   = 'Installed applications from registry uninstall keys'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('software','installed','apps','programs')
+        }
+        @{
+            Id            = 'windows-updates'
+            LegacyId      = '9'
+            Name          = 'Windows Updates Status'
+            Category      = 'Diagnostics'
+            Function      = 'Get-WindowsUpdates'
+            Description   = 'Most recent installed hotfix from Get-HotFix'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('updates','hotfix','patch','kb')
+        }
+        @{
+            Id            = 'user-accounts'
+            LegacyId      = '10'
+            Name          = 'User Account Information'
+            Category      = 'Diagnostics'
+            Function      = 'Get-UserAccounts'
+            Description   = 'Local user accounts: name, enabled state, and last logon time'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('users','accounts','groups')
+        }
     )
 }
