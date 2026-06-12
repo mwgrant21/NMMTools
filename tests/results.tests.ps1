@@ -18,12 +18,14 @@ AfterAll {
 }
 
 Describe 'Tool run tracking' {
+    BeforeEach { $script:ToolRuns = New-Object System.Collections.ArrayList }
+
     It 'records a completed run with status and duration' {
         $run = New-ToolRun -Id 'fake-tool'
         Complete-ToolRun $run -Status Success -Summary 'all good'
         $run.Status | Should -Be 'Success'
         $run.Summary | Should -Be 'all good'
-        $run.Duration | Should -Not -BeNullOrEmpty
+        $run.Duration | Should -BeOfType [TimeSpan]
         $script:ToolRuns | Should -Contain $run
     }
 
@@ -32,9 +34,28 @@ Describe 'Tool run tracking' {
         $run.Name | Should -Be 'Fake Tool'
         Complete-ToolRun $run -Status Skipped -Summary ''
     }
+
+    It 'falls back to the Id when the tool is not in the registry' {
+        $run = New-ToolRun -Id 'not-registered'
+        $run.Name | Should -Be 'not-registered'
+        Complete-ToolRun $run -Status Skipped
+    }
+
+    It 'warns instead of throwing when the run reference is null' {
+        { Complete-ToolRun $null -Status Failed -Summary 'x' } | Should -Not -Throw
+    }
+
+    It 'formats hour-plus durations with an hours component' {
+        $run = New-ToolRun -Id 'fake-tool'
+        Complete-ToolRun $run -Status Success -Summary 'long run'
+        $run.Duration = New-TimeSpan -Minutes 65
+        Export-TicketSummary | Should -Match '1:05:00'
+    }
 }
 
 Describe 'Export-TicketSummary' {
+    BeforeEach { $script:ToolRuns = New-Object System.Collections.ArrayList }
+
     It 'renders machine, user, and each run line' {
         $run = New-ToolRun -Id 'fake-tool'
         Complete-ToolRun $run -Status Failed -Summary 'simulated failure'
@@ -45,10 +66,15 @@ Describe 'Export-TicketSummary' {
         $text | Should -Match 'simulated failure'
     }
 
+    It 'notes an empty session' {
+        Export-TicketSummary | Should -Match 'No tools were run this session\.'
+    }
+
     It 'writes the summary to a file when -Path is given' {
         $file = Join-Path $env:TEMP "nmm-ticket-$(Get-Random).txt"
         Export-TicketSummary -Path $file | Out-Null
         Test-Path $file | Should -BeTrue
+        Get-Content $file -Raw | Should -Match 'NMM Toolkit Session Summary'
         Remove-Item $file -Force
     }
 }

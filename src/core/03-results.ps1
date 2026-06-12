@@ -25,10 +25,14 @@ function New-ToolRun {
 
 function Complete-ToolRun {
     param(
-        [Parameter(Mandatory)]$Run,
+        $Run,
         [Parameter(Mandatory)][ValidateSet('Success','Failed','Warning','Skipped')][string]$Status,
         [string]$Summary = ''
     )
+    if ($null -eq $Run) {
+        Write-ToolOutput '[WARNING] Complete-ToolRun: run reference is null - was New-ToolRun called?' -Level Warning
+        return
+    }
     $Run.Status = $Status
     $Run.Summary = $Summary
     $Run.Duration = (Get-Date) - $Run.Started
@@ -53,11 +57,23 @@ function Export-TicketSummary {
     }
     foreach ($run in $script:ToolRuns) {
         $dur = '--:--'
-        if ($run.Duration) { $dur = '{0:mm\:ss}' -f $run.Duration }
+        if ($run.Duration) {
+            if ($run.Duration.TotalHours -ge 1) {
+                $dur = '{0:h\:mm\:ss}' -f $run.Duration
+            } else {
+                $dur = '{0:mm\:ss}' -f $run.Duration
+            }
+        }
         [void]$sb.AppendLine(('[{0}] {1} ({2})' -f $run.Status.ToUpper(), $run.Name, $dur))
         if ($run.Summary) { [void]$sb.AppendLine('    ' + $run.Summary) }
     }
     $text = $sb.ToString()
-    if ($Path) { Set-Content -Path $Path -Value $text -Encoding UTF8 }
+    if ($Path) {
+        try {
+            Set-Content -Path $Path -Value $text -Encoding UTF8 -ErrorAction Stop
+        } catch {
+            Write-ToolOutput "Warning: could not write ticket summary to '$Path' - $_" -Level Warning
+        }
+    }
     return $text
 }
