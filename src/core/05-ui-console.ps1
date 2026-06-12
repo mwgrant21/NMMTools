@@ -13,6 +13,9 @@ function Show-LandingMenu {
         Write-Host (' Recent: {0}' -f ($recent -join ' | ')) -ForegroundColor DarkGray
     }
     $map = @{}
+    # Flat mode until there are enough tools AND categories to make grouping useful.
+    # During porting this flips in one step: the batch that adds a second category
+    # past 15 total tools switches the landing layout to category mode.
     if ($categories.Count -le 1 -or @($tools).Count -le 15) {
         # Flat mode: list all tools directly, sorted by numeric LegacyId
         $sorted = $tools | Sort-Object { [int]$_.LegacyId }
@@ -42,7 +45,7 @@ function Show-LandingMenu {
 
 function Show-CategoryTools {
     param([Parameter(Mandatory)][string]$Category)
-    $tools = Get-NmmTools | Where-Object { $_.Category -eq $Category } | Sort-Object Name
+    $tools = Get-NmmTools | Where-Object { $_.Category -eq $Category } | Sort-Object { [int]$_.LegacyId }
     Write-Host ''
     Write-Host (' --- {0} ---' -f $Category) -ForegroundColor Cyan
     foreach ($t in $tools) {

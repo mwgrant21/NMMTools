@@ -28,6 +28,8 @@ Describe 'Show-LandingMenu adaptive layout' {
         $raw = Show-LandingMenu 6>&1
         $map = $raw | Where-Object { $_ -is [hashtable] }
         $text = ($raw | Where-Object { $_ -isnot [hashtable] } | ForEach-Object { "$_" }) -join "`n"
+        $null -eq $map | Should -BeFalse       # guard: a missing return would also give Count 0
+        $map -is [hashtable] | Should -BeTrue
         $map.Count | Should -Be 0
         $text | Should -Match 'Fake Tool 11'
         $text | Should -Match 'Fake Tool 20'
@@ -62,6 +64,8 @@ Describe 'Show-LandingMenu adaptive layout' {
         $script:RegistryData = @{ Tools = $tools }
         $raw = Show-LandingMenu 6>&1
         $map = $raw | Where-Object { $_ -is [hashtable] }
+        $null -eq $map | Should -BeFalse       # guard: a missing return would also give Count 0
+        $map -is [hashtable] | Should -BeTrue
         $map.Count | Should -Be 0
     }
 }
