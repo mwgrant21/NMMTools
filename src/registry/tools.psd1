@@ -54,7 +54,7 @@
             Name          = 'Network Diagnostics'
             Category      = 'Diagnostics'
             Function      = 'Get-NetworkDiagnostics'
-            Description   = 'Adapter, IP, gateway, and DNS configuration overview'
+            Description   = 'Active network adapters: name, status, link speed, and IPv4 address'
             RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'ReadOnly'
@@ -66,7 +66,7 @@
             Name          = 'Running Processes'
             Category      = 'Diagnostics'
             Function      = 'Get-RunningProcesses'
-            Description   = 'Top processes by CPU and memory usage'
+            Description   = 'Top 10 processes by memory (WorkingSet)'
             RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'ReadOnly'
@@ -78,7 +78,7 @@
             Name          = 'Windows Services Status'
             Category      = 'Diagnostics'
             Function      = 'Get-ServicesStatus'
-            Description   = 'Stopped automatic services and key service health'
+            Description   = 'All services grouped by status with counts'
             RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'ReadOnly'
