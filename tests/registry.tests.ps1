@@ -40,4 +40,26 @@ Describe 'Tool registry structure' {
             $t.Id | Should -Match '^[a-z0-9]+(-[a-z0-9]+)*$'
         }
     }
+
+    It 'every string field is non-empty' {
+        $stringFields = 'Id','LegacyId','Name','Category','Function','Description'
+        foreach ($t in $script:Tools) {
+            foreach ($k in $stringFields) {
+                [string]::IsNullOrWhiteSpace($t[$k]) | Should -BeFalse `
+                    -Because "entry '$($t.Id)' field $k must not be blank"
+            }
+        }
+    }
+
+    It 'uses numeric strings for LegacyId' {
+        foreach ($t in $script:Tools) {
+            $t.LegacyId | Should -Match '^\d+$' -Because "entry '$($t.Id)' LegacyId must be a plain number string"
+        }
+    }
+
+    It 'declares Tags as an array' {
+        foreach ($t in $script:Tools) {
+            $t.Tags -is [array] | Should -BeTrue -Because "entry '$($t.Id)' Tags must be an array"
+        }
+    }
 }
