@@ -3,7 +3,7 @@
 
 function Show-LandingMenu {
     $tools = Get-NmmTools
-    $categories = $tools | ForEach-Object { $_.Category } | Sort-Object -Unique
+    $categories = @($tools | ForEach-Object { $_.Category } | Sort-Object -Unique)
     Write-Host ''
     Write-Host ('=' * 66) -ForegroundColor Cyan
     Write-Host (' NMM System Toolkit v9      {0}\{1}' -f $env:COMPUTERNAME, $env:USERNAME) -ForegroundColor Cyan
@@ -12,17 +12,31 @@ function Show-LandingMenu {
         $recent = @($script:ToolRuns | Select-Object -Last 3 | ForEach-Object { $_.Name })
         Write-Host (' Recent: {0}' -f ($recent -join ' | ')) -ForegroundColor DarkGray
     }
-    $index = 1
     $map = @{}
-    foreach ($c in $categories) {
-        $count = @($tools | Where-Object { $_.Category -eq $c }).Count
-        Write-Host (' {0}. {1} ({2} tools)' -f $index, $c, $count)
-        $map["$index"] = $c
-        $index++
+    if ($categories.Count -le 1 -or @($tools).Count -le 15) {
+        # Flat mode: list all tools directly, sorted by numeric LegacyId
+        $sorted = $tools | Sort-Object { [int]$_.LegacyId }
+        foreach ($t in $sorted) {
+            $admin = ''
+            if ($t.RequiresAdmin) { $admin = ' [admin]' }
+            Write-Host (' {0,4}. {1}{2}' -f $t.LegacyId, $t.Name, $admin)
+        }
+        Write-Host ''
+        Write-Host ' Enter: tool number | search text' -ForegroundColor Gray
+        Write-Host '        T = save session summary (for tickets)   X = exit' -ForegroundColor Gray
+    } else {
+        # Category mode: list categories with counts
+        $index = 1
+        foreach ($c in $categories) {
+            $count = @($tools | Where-Object { $_.Category -eq $c }).Count
+            Write-Host (' {0}. {1} ({2} tools)' -f $index, $c, $count)
+            $map["$index"] = $c
+            $index++
+        }
+        Write-Host ''
+        Write-Host ' Enter: category number | tool number | search text' -ForegroundColor Gray
+        Write-Host '        T = save session summary (for tickets)   X = exit' -ForegroundColor Gray
     }
-    Write-Host ''
-    Write-Host ' Enter: category number | tool number | search text' -ForegroundColor Gray
-    Write-Host '        T = ticket summary   X = exit' -ForegroundColor Gray
     return $map
 }
 
@@ -82,7 +96,12 @@ function Start-ConsoleMenu {
     }
     while ($true) {
         $map = Show-LandingMenu
-        $selection = Read-Host ' Select'
+        if ($map.Count -eq 0) {
+            $promptText = ' Select tool number, search text, or X to exit'
+        } else {
+            $promptText = ' Select category or tool number, search text, or X to exit'
+        }
+        $selection = Read-Host $promptText
         if ([string]::IsNullOrWhiteSpace($selection)) { continue }
         $selection = $selection.Trim()
         if ($selection -match '^[Xx]$') { return }
