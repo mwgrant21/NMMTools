@@ -2,8 +2,9 @@ function Start-TempFilesCleanup {
     [CmdletBinding()]
     param([switch]$Silent)
 
-    $run = New-ToolRun -Id 'temp-cleanup'
+    $run = $null
     try {
+        $run = New-ToolRun -Id 'temp-cleanup'
         $targets = @($env:TEMP, (Join-Path $env:SystemRoot 'Temp')) |
             Sort-Object -Unique | Where-Object { Test-Path $_ }
 
@@ -42,7 +43,7 @@ function Start-TempFilesCleanup {
 
         $after = & $measure $targets
         $freedMB = [math]::Max(0, ($before - $after) / 1MB)
-        Complete-ToolRun $run -Status Success -Summary ('Freed {0:N1} MB ({1} items in use, skipped)' -f
+        Complete-ToolRun $run -Status Success -Summary ('Freed {0:N1} MB ({1} top-level paths in use, skipped)' -f
             $freedMB, $locked)
     }
     catch {

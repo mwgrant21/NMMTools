@@ -45,6 +45,14 @@ Describe 'Tool run tracking' {
         { Complete-ToolRun $null -Status Failed -Summary 'x' } | Should -Not -Throw
     }
 
+    It 'ignores a duplicate completion instead of overwriting the result' {
+        $run = New-ToolRun -Id 'fake-tool'
+        Complete-ToolRun $run -Status Success -Summary 'first'
+        Complete-ToolRun $run -Status Failed -Summary 'second'
+        $run.Status | Should -Be 'Success'
+        $run.Summary | Should -Be 'first'
+    }
+
     It 'formats hour-plus durations with an hours component' {
         $run = New-ToolRun -Id 'fake-tool'
         Complete-ToolRun $run -Status Success -Summary 'long run'

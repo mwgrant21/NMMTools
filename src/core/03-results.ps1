@@ -33,6 +33,10 @@ function Complete-ToolRun {
         Write-ToolOutput '[WARNING] Complete-ToolRun: run reference is null - was New-ToolRun called?' -Level Warning
         return
     }
+    if ($Run.Status -ne 'Running') {
+        Write-ToolOutput ("[WARNING] Complete-ToolRun: '{0}' already completed as {1}; ignoring duplicate completion." -f $Run.Name, $Run.Status) -Level Warning
+        return
+    }
     $Run.Status = $Status
     $Run.Summary = $Summary
     $Run.Duration = (Get-Date) - $Run.Started

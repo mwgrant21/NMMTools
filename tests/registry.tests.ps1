@@ -69,9 +69,13 @@ Describe 'Registry-to-function mapping' {
         $repoRoot = Split-Path $PSScriptRoot -Parent
         $toolFiles = Get-ChildItem (Join-Path $repoRoot 'src\tools') -Recurse -Filter *.ps1
         $script:DefinedFunctions = foreach ($f in $toolFiles) {
+            $parseErrors = $null
             $ast = [System.Management.Automation.Language.Parser]::ParseFile(
-                $f.FullName, [ref]$null, [ref]$null)
-            $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true) |
+                $f.FullName, [ref]$null, [ref]$parseErrors)
+            if ($parseErrors -and $parseErrors.Count -gt 0) {
+                throw ("Tool file {0} has {1} parse error(s): {2}" -f $f.Name, $parseErrors.Count, $parseErrors[0].Message)
+            }
+            $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false) |
                 ForEach-Object { $_.Name }
         }
     }
