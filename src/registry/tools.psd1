@@ -106,7 +106,7 @@
             RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'ReadOnly'
-            Tags          = @('performance','cpu','memory','counters')
+            Tags          = @('performance','memory','counters')
         }
         @{
             Id            = 'installed-software'
@@ -142,7 +142,7 @@
             RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'ReadOnly'
-            Tags          = @('users','accounts','groups')
+            Tags          = @('users','accounts')
         }
     )
 }
