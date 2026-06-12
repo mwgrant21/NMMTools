@@ -19,7 +19,7 @@
             Category      = 'Diagnostics'
             Function      = 'Start-TempFilesCleanup'
             Description   = 'Clears user and system temp folders and reports space reclaimed'
-            RequiresAdmin = $true
+            RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'Modifies'
             Tags          = @('temp','cleanup','disk','space')

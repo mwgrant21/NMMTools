@@ -28,3 +28,14 @@ Modular source for the NMM System Toolkit. Develop here; ship `dist\NMMTools.ps1
 3. `.\build.ps1` — registry tests fail if the two don't match.
 
 v8 monolith (`C:\Users\IT\Desktop\NMMTools.ps1`) is the feature-frozen reference.
+
+## CLI / PDQ usage
+
+    NMMTools.ps1 -ListTools
+    NMMTools.ps1 -Tool system-uptime -Silent
+    NMMTools.ps1 -Tool 20 -Silent                      # legacy v8 menu number
+    NMMTools.ps1 -Tool temp-cleanup -Silent -LogPath C:\Logs
+
+Exit code 0 = Success/Warning/Skipped, 1 = Failed/Refused/unknown tool.
+`-Silent` refuses tools registered `SilentCapable = $false`, and refuses
+`Risk = 'Disruptive'` tools unless `-Force` is added.
