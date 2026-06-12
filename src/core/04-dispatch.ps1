@@ -16,10 +16,11 @@ function Resolve-NmmTool {
 
 function Search-NmmTools {
     param([Parameter(Mandatory)][string]$Term)
+    $lower = $Term.ToLower()
     Get-NmmTools | Where-Object {
-        $_.Name -like "*$Term*" -or
-        $_.Description -like "*$Term*" -or
-        $_.Tags -contains $Term.ToLower()
+        $_.Name.ToLower().IndexOf($lower)        -ge 0 -or
+        $_.Description.ToLower().IndexOf($lower) -ge 0 -or
+        $_.Tags -contains $lower
     }
 }
 
@@ -41,7 +42,15 @@ function Invoke-NmmTool {
         Write-ToolOutput ("'{0}' requires administrator rights. Re-launch elevated." -f $Tool.Name) -Level Error
         return 'Refused'
     }
-    & $Tool.Function -Silent:$Silent
+    try {
+        & $Tool.Function -Silent:$Silent
+    } catch [System.Management.Automation.CommandNotFoundException] {
+        Write-ToolOutput ("'{0}': function '{1}' not found - registry/implementation drift." -f $Tool.Name, $Tool.Function) -Level Error
+        return 'Failed'
+    } catch {
+        Write-ToolOutput ("'{0}': unhandled error - {1}" -f $Tool.Name, $_) -Level Error
+        return 'Failed'
+    }
     $run = $script:ToolRuns | Where-Object { $_.Id -eq $Tool.Id } | Select-Object -Last 1
     if ($run) { return $run.Status }
     return 'Unknown'

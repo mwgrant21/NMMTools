@@ -15,6 +15,10 @@ BeforeAll {
                Function = 'Invoke-LoudTool'; Description = 'needs a human'
                RequiresAdmin = $false; SilentCapable = $false; Risk = 'Disruptive'
                Tags = @('loud') }
+            @{ Id = 'risky-tool'; LegacyId = '77'; Name = 'Risky Tool'; Category = 'Test'
+               Function = 'Invoke-RiskyTool'; Description = 'silent-capable but disruptive'
+               RequiresAdmin = $false; SilentCapable = $true; Risk = 'Disruptive'
+               Tags = @('risky') }
         )
     }
     function Invoke-SafeTool {
@@ -23,6 +27,11 @@ BeforeAll {
         Complete-ToolRun $run -Status Success -Summary 'ran fine'
     }
     function Invoke-LoudTool { param([switch]$Silent) }
+    function Invoke-RiskyTool {
+        param([switch]$Silent)
+        $run = New-ToolRun -Id 'risky-tool'
+        Complete-ToolRun $run -Status Success -Summary 'risky but fine'
+    }
 }
 
 AfterAll {
@@ -48,6 +57,12 @@ Describe 'Search-NmmTools' {
     It 'matches by partial name' {
         @(Search-NmmTools -Term 'loud').Id | Should -Contain 'loud-tool'
     }
+    It 'does not throw on bracket metacharacters in the term' {
+        { Search-NmmTools -Term '[x' } | Should -Not -Throw
+    }
+    It 'matches by description substring' {
+        @(Search-NmmTools -Term 'human').Id | Should -Contain 'loud-tool'
+    }
 }
 
 Describe 'Invoke-NmmTool guards' {
@@ -69,5 +84,19 @@ Describe 'Invoke-NmmTool guards' {
         $needsAdmin.RequiresAdmin = $true
         Invoke-NmmTool -Tool $needsAdmin | Should -Be 'Refused'
         $script:IsAdmin = $true
+    }
+    It 'refuses -Silent for a disruptive tool without -Force' {
+        $tool = Resolve-NmmTool -Query 'risky-tool'
+        Invoke-NmmTool -Tool $tool -Silent | Should -Be 'Refused'
+    }
+    It 'runs a disruptive silent-capable tool with -Silent -Force' {
+        $tool = Resolve-NmmTool -Query 'risky-tool'
+        Invoke-NmmTool -Tool $tool -Silent -Force | Should -Be 'Success'
+    }
+    It 'returns Failed instead of throwing when the tool function does not exist' {
+        $ghost = @{ Id = 'ghost'; LegacyId = '0'; Name = 'Ghost'; Category = 'Test'
+                    Function = 'Invoke-DoesNotExist'; Description = 'x'
+                    RequiresAdmin = $false; SilentCapable = $true; Risk = 'ReadOnly'; Tags = @('x') }
+        Invoke-NmmTool -Tool $ghost -Silent | Should -Be 'Failed'
     }
 }
