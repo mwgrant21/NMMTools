@@ -5,6 +5,10 @@ if ($LogPath) {
     Set-OutputSink -Sink Console -LogDirectory $LogPath
 }
 
+if ($ListTools -and $Tool) {
+    Write-ToolOutput "Warning: -Tool '$Tool' is ignored when -ListTools is specified." -Level Warning
+}
+
 if ($ListTools) {
     Get-NmmTools | ForEach-Object { [PSCustomObject]$_ } |
         Sort-Object Category, Name |

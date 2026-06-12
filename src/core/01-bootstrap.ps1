@@ -19,6 +19,7 @@ function Invoke-ElevationCheck {
         if ([string]::IsNullOrWhiteSpace($scriptPath)) {
             throw 'Unable to determine script path for elevation.'
         }
+        # TODO (GUI/cutover phase): forward $PSBoundParameters so interactive flags (-LogPath etc.) survive elevation relaunch
         $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
         Start-Process -FilePath 'PowerShell.exe' -ArgumentList $arguments -Verb RunAs
     } catch {

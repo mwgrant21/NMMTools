@@ -31,7 +31,10 @@ $parts.Add((Get-Content (Join-Path $root 'src\registry\tools.psd1') -Raw))
 $parts.Add('#endregion')
 
 # 4. Tools
-foreach ($f in (Get-ChildItem (Join-Path $root 'src\tools') -Recurse -Filter *.ps1 | Sort-Object FullName)) {
+$toolFiles = @(Get-ChildItem (Join-Path $root 'src\tools') -Recurse -Filter *.ps1 | Sort-Object FullName)
+if ($toolFiles.Count -eq 0) { throw 'No .ps1 files found in src\tools - aborting build' }
+# FullName groups tools by category dir then file; relative order is stable across machines
+foreach ($f in $toolFiles) {
     $parts.Add(('#region tools\{0}\{1}' -f $f.Directory.Name, $f.Name))
     $parts.Add((Get-Content $f.FullName -Raw))
     $parts.Add('#endregion')
