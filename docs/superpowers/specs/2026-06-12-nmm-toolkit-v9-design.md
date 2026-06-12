@@ -157,7 +157,7 @@ NMMTools.ps1 -Tool disk-cleanup -Silent -LogPath C:\Logs
 - v8.0 feature-frozen the day porting starts.
 - 7 category batches; build + smoke test after each.
 - Parity checklist tracks all 106 v8 tools: **ported / consolidated / retired**.
-  Known consolidation candidates: duplicate credential-manager tools (26 / 60 / 92-area),
+  Known consolidation candidates: duplicate credential-manager tools (26 / 60),
   overlapping Office repair entries (22 / 99), Outlook search (76 / 106).
   Each consolidation or retirement is an explicit decision with Matt, not a silent drop.
 - Cutover: v9 becomes the copy on the share/PDQ; v8 kept as
