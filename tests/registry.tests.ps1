@@ -63,3 +63,30 @@ Describe 'Tool registry structure' {
         }
     }
 }
+
+Describe 'Registry-to-function mapping' {
+    BeforeAll {
+        $repoRoot = Split-Path $PSScriptRoot -Parent
+        $toolFiles = Get-ChildItem (Join-Path $repoRoot 'src\tools') -Recurse -Filter *.ps1
+        $script:DefinedFunctions = foreach ($f in $toolFiles) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $f.FullName, [ref]$null, [ref]$null)
+            $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true) |
+                ForEach-Object { $_.Name }
+        }
+    }
+
+    It 'every registry Function exists in a tools file' {
+        foreach ($t in $script:Tools) {
+            $script:DefinedFunctions | Should -Contain $t.Function `
+                -Because "registry entry '$($t.Id)' points at $($t.Function)"
+        }
+    }
+
+    It 'every tool-file function has a registry entry' {
+        foreach ($fn in $script:DefinedFunctions) {
+            @($script:Tools | Where-Object { $_.Function -eq $fn }).Count |
+                Should -Be 1 -Because "$fn must be registered exactly once"
+        }
+    }
+}
