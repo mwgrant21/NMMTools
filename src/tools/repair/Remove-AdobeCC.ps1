@@ -40,7 +40,7 @@ function Remove-AdobeCC {
             'Creative Cloud', 'AdobeDesktopService', 'AdobeIPCBroker', 'AdobeUpdateService',
             'AGMService', 'AGSService', 'CCXProcess', 'CCLibrary', 'AdobeGCClient',
             'AdobeGCInvoker', 'acrobat', 'acrocef', 'acrord32', 'AdobeARM',
-            'AdobeCollabSync', 'node'
+            'AdobeCollabSync'
         )
         foreach ($proc in $adobeProcs) {
             $running = Get-Process -Name $proc -ErrorAction SilentlyContinue

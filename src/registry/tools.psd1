@@ -462,7 +462,7 @@
             Name          = 'Remove Windows.old'
             Category      = 'Repair'
             Function      = 'Remove-WindowsOld'
-            Description   = 'Removes Windows.old via DISM ResetBase (ends OS rollback - irreversible; typed confirm)'
+            Description   = 'Removes the C:\Windows.old folder (rmdir + DISM component cleanup); ends OS rollback - irreversible; typed confirm'
             RequiresAdmin = $true
             SilentCapable = $true
             Risk          = 'Disruptive'

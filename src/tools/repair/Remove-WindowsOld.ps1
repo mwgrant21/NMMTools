@@ -23,7 +23,7 @@ function Remove-WindowsOld {
         } catch { $sizeMB = 0 }
 
         Write-ToolOutput ("Windows.old detected - approximate size: {0} MB" -f $sizeMB)
-        Write-ToolOutput 'DISM /StartComponentCleanup /ResetBase will remove Windows.old and superseded components.'
+        Write-ToolOutput 'C:\Windows.old will be removed via rmdir; DISM /StartComponentCleanup will then reclaim component-store space.'
         Write-ToolOutput 'WARNING: This operation is IRREVERSIBLE. The previous Windows version cannot be restored.' `
             -Level Warning
 
@@ -39,21 +39,27 @@ function Remove-WindowsOld {
             return
         }
 
-        Write-ToolOutput 'Running DISM /StartComponentCleanup /ResetBase (may take several minutes)...' -Level Info
+        # Step 1: Remove Windows.old folder via rmdir (primary removal)
+        if (Test-Path 'C:\Windows.old') {
+            Write-ToolOutput 'Removing C:\Windows.old via rmdir (may take several minutes)...' -Level Info
+            & cmd.exe /c 'rmdir /s /q C:\Windows.old' 2>$null
+        }
 
+        # Step 2: DISM /StartComponentCleanup to reclaim component-store space
+        Write-ToolOutput 'Running DISM /StartComponentCleanup (component store cleanup)...' -Level Info
         $dism = Start-Process -FilePath 'dism.exe' `
-            -ArgumentList '/Online /Cleanup-Image /StartComponentCleanup /ResetBase' `
+            -ArgumentList '/Online /Cleanup-Image /StartComponentCleanup' `
             -NoNewWindow -PassThru -Wait -ErrorAction SilentlyContinue
-
         $exitCode = if ($null -ne $dism) { $dism.ExitCode } else { -1 }
         Write-ToolOutput ("DISM exited with code: {0}" -f $exitCode) -Level Detail
 
-        if ($exitCode -eq 0) {
+        # Step 3: Outcome based on whether folder is gone
+        if (-not (Test-Path 'C:\Windows.old')) {
             Complete-ToolRun $run -Status Success `
-                -Summary ("Windows.old removed via DISM ResetBase (approx {0} MB freed)" -f $sizeMB)
+                -Summary ("Windows.old removed (rollback no longer available); approx {0} MB freed" -f $sizeMB)
         } else {
             Complete-ToolRun $run -Status Warning `
-                -Summary ("DISM exited {0} - Windows.old removal may be incomplete; check CBS.log" -f $exitCode)
+                -Summary ('Windows.old could not be fully removed - some files may be locked; a reboot + retry or Disk Cleanup ''Previous Windows installation(s)'' may be needed')
         }
     }
     catch {
