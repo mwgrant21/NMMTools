@@ -336,5 +336,41 @@
             Risk          = 'Modifies'
             Tags          = @('gpupdate','grouppolicy','gpo','domain')
         }
+        @{
+            Id            = 'office-repair'
+            LegacyId      = '22'
+            Name          = 'Office 365 Health and Repair'
+            Category      = 'Cloud'
+            Function      = 'Repair-Office365'
+            Description   = 'Triggers Office Click-to-Run update/repair and optionally clears cached Office credentials'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('office','m365','repair','clicktorun')
+        }
+        @{
+            Id            = 'onedrive-repair'
+            LegacyId      = '23'
+            Name          = 'OneDrive Health and Reset'
+            Category      = 'Cloud'
+            Function      = 'Repair-OneDriveClient'
+            Description   = 'Restarts OneDrive, or resets it (/reset wipes the local sync database - full re-sync)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('onedrive','sync','reset','restart')
+        }
+        @{
+            Id            = 'teams-cache'
+            LegacyId      = '24'
+            Name          = 'Teams Cache Clear and Reset'
+            Category      = 'Cloud'
+            Function      = 'Clear-TeamsCache'
+            Description   = 'Clears classic + New Teams cache after closing Teams (drops active calls)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('teams','cache','reset','newteams')
+        }
     )
 }
