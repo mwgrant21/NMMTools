@@ -2,21 +2,23 @@ function Test-M365Connectivity {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
-    # Private TCP helper: timeout-bounded connect; avoids Test-NetConnection 20s hang per host
+    # Reusable timeout-bounded TCP probe pattern for network tools.
     function Test-TcpEndpoint {
         param([string]$HostName, [int]$Port, [int]$TimeoutMs = 3000)
         $client = New-Object System.Net.Sockets.TcpClient
+        $iar = $null
         try {
             $iar = $client.BeginConnect($HostName, $Port, $null, $null)
-            $ok  = $iar.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
-            if ($ok -and $client.Connected) {
-                $client.EndConnect($iar)
-                return $true
+            $ok = $iar.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
+            if ($ok) {
+                try { $client.EndConnect($iar) } catch { }
+                return $client.Connected
             }
             return $false
         } catch {
             return $false
         } finally {
+            if ($iar -and $iar.AsyncWaitHandle) { $iar.AsyncWaitHandle.Dispose() }
             $client.Close()
         }
     }
@@ -51,10 +53,10 @@ function Test-M365Connectivity {
         }
 
         if ($unreachableNames.Count -eq 0) {
-            Complete-ToolRun $run -Status Success -Summary '4/4 endpoints reachable'
+            Complete-ToolRun $run -Status Success -Summary ('{0}/{1} endpoints reachable' -f $reachableCount, $endpoints.Count)
         } else {
             Complete-ToolRun $run -Status Warning -Summary (
-                '{0}/4 reachable; unreachable: {1}' -f $reachableCount, ($unreachableNames -join ', '))
+                '{0}/{1} reachable; unreachable: {2}' -f $reachableCount, $endpoints.Count, ($unreachableNames -join ', '))
         }
     }
     catch {
