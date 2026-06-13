@@ -8,8 +8,14 @@ function Invoke-SFCRepair {
 
         # sfc /scannow is synchronous - tech must see it is working
         Write-ToolOutput 'Running sfc /scannow - this may take 10-15 minutes...'
-        $sfcLines = @(& sfc.exe /scannow 2>&1)
-        $sfcExit = $LASTEXITCODE
+        $savedEnc = [Console]::OutputEncoding
+        try {
+            [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+            $sfcLines = @(& sfc.exe /scannow 2>&1)
+            $sfcExit = $LASTEXITCODE
+        } finally {
+            [Console]::OutputEncoding = $savedEnc
+        }
 
         # sfc output may be UTF-16-encoded in console; stringify each element best-effort
         foreach ($line in $sfcLines) {

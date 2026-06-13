@@ -30,9 +30,9 @@ function Invoke-ChkDskRepair {
             if ($scheduled) {
                 Complete-ToolRun $run -Status Success `
                     -Summary 'ChkDsk /F /R scheduled at next reboot on C: - reboot to run the check'
-            } elseif ($chkExit -eq 0) {
+            } elseif ($chkExit -eq 0 -or $chkExit -eq 2) {
                 Complete-ToolRun $run -Status Success `
-                    -Summary 'ChkDsk /F /R completed: no errors found on C: (exit 0)'
+                    -Summary ('ChkDsk /F /R completed: no errors found on C: (exit {0})' -f $chkExit)
             } elseif ($chkExit -eq 1) {
                 Complete-ToolRun $run -Status Success `
                     -Summary 'ChkDsk /F /R: errors found and corrected on C: (exit 1)'
@@ -52,8 +52,8 @@ function Invoke-ChkDskRepair {
                 }
             }
 
-            if ($chkExit -eq 0) {
-                Complete-ToolRun $run -Status Success -Summary 'ChkDsk scan: no errors found on C: (exit 0)'
+            if ($chkExit -eq 0 -or $chkExit -eq 2) {
+                Complete-ToolRun $run -Status Success -Summary ('ChkDsk scan: no errors found on C: (exit {0})' -f $chkExit)
             } elseif ($chkExit -eq 1) {
                 Complete-ToolRun $run -Status Warning `
                     -Summary 'ChkDsk scan: errors found on C: (exit 1) - run Fix mode to repair'
