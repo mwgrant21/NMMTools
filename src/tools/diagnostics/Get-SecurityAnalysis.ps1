@@ -44,7 +44,12 @@ function Get-SecurityAnalysis {
         }
 
         # --- Verdict ----------------------------------------------------------
-        if ($findings.Count -gt 0) {
+        # Deliberate improvement over v8: when neither check could run, report Warning
+        # instead of Success — Success with no real data is misleading.
+        if ($firewallStatus -eq 'Unable to check' -and $defenderStatus -eq 'Unable to check') {
+            Complete-ToolRun $run -Status Warning -Summary (
+                'Could not assess posture: firewall and Defender checks unavailable (restricted access?)')
+        } elseif ($findings.Count -gt 0) {
             Complete-ToolRun $run -Status Warning -Summary (
                 '{0} concern(s): {1}' -f $findings.Count, ($findings -join '; '))
         } else {
