@@ -115,7 +115,7 @@ function Get-BitLockerStatus {
                             Write-ToolOutput ('Recovery key file written: {0}' -f $keyFile) -Level Success
 
                             # ACL-restrict to current user only; report if it fails
-                            & icacls $keyFile /inheritance:r /grant:r "$($env:USERNAME):F" | Out-Null
+                            & icacls "$keyFile" /inheritance:r /grant:r "$($env:USERNAME):F" | Out-Null
                             $icaclsExit = $LASTEXITCODE
                             if ($icaclsExit -ne 0) {
                                 Write-ToolOutput ('WARNING: icacls ACL-lock failed (exit {0}); file is NOT restricted to current user.' -f $icaclsExit) -Level Warning
