@@ -57,7 +57,7 @@ function Repair-WindowsUpdateLocal {
         }
 
         # Re-register 36 Windows Update DLLs
-        Write-ToolOutput 'Re-registering Windows Update DLLs (36 components)...' -Level Info
+        Write-ToolOutput 'Re-registering Windows Update DLLs...' -Level Info
         $dlls = @(
             'atl.dll',      'urlmon.dll',   'mshtml.dll',   'shdocvw.dll',  'browseui.dll',
             'jscript.dll',  'vbscript.dll', 'scrrun.dll',   'msxml.dll',    'msxml3.dll',
@@ -71,7 +71,7 @@ function Repair-WindowsUpdateLocal {
         foreach ($dll in $dlls) {
             & regsvr32.exe /s $dll 2>&1 | Out-Null
         }
-        Write-ToolOutput '36 DLLs re-registered.' -Level Info
+        Write-ToolOutput 'Windows Update DLLs re-registered.' -Level Info
 
         # Restart services
         Write-ToolOutput 'Restarting Windows Update services...' -Level Info

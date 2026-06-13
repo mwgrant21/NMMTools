@@ -342,7 +342,7 @@
             Name          = 'Office 365 Health and Repair'
             Category      = 'Cloud'
             Function      = 'Repair-Office365'
-            Description   = 'Triggers Office Click-to-Run update/repair and optionally clears cached Office credentials'
+            Description   = 'Office Click-to-Run update, silent forced update, full online repair, or clear cached Office credentials'
             RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'Disruptive'
@@ -550,7 +550,7 @@
             RequiresAdmin = $true
             SilentCapable = $true
             Risk          = 'Disruptive'
-            Tags          = @('display','gpu','adapter','ddu')
+            Tags          = @('display','gpu','adapter','pnp')
         }
         @{
             Id            = 'repair-suite'

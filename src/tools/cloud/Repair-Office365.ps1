@@ -34,7 +34,7 @@ function Repair-Office365 {
         }
 
         $choice = Read-ToolChoice -Prompt 'Office action' `
-            -Choices @('UpdateRepair', 'ClearCreds', 'Skip') `
+            -Choices @('UpdateRepair', 'SilentForcedUpdate', 'FullRepair', 'ClearCreds', 'Skip') `
             -Default 'Skip' `
             -Silent:$Silent
 
@@ -49,6 +49,28 @@ function Repair-Office365 {
                 Start-Process $c2r -ArgumentList '/update user'
                 Complete-ToolRun $run -Status Success `
                     -Summary 'Office update/repair launched (OfficeC2RClient /update user)'
+            }
+            'SilentForcedUpdate' {
+                if (-not $c2r) {
+                    Complete-ToolRun $run -Status Warning `
+                        -Summary 'OfficeC2RClient.exe not found; cannot launch silent forced update'
+                    return
+                }
+                # Fire-and-forget: force-closes Office apps, no UI
+                Start-Process $c2r -ArgumentList '/update user displaylevel=false forceappshutdown=true'
+                Complete-ToolRun $run -Status Success `
+                    -Summary 'Office silent forced update launched (Office apps will close)'
+            }
+            'FullRepair' {
+                if (-not $c2r) {
+                    Complete-ToolRun $run -Status Warning `
+                        -Summary 'OfficeC2RClient.exe not found; cannot launch full online repair'
+                    return
+                }
+                # Fire-and-forget: full online repair (~1-2 GB download), closes Office apps
+                Start-Process $c2r -ArgumentList '/scenario RepairAll /displaylevel True /shutdownapps True /forceappshutdown True'
+                Complete-ToolRun $run -Status Success `
+                    -Summary 'Office full online repair launched (closes Office; may download 1-2 GB)'
             }
             'ClearCreds' {
                 $credLines = cmdkey /list | Select-String 'MicrosoftOffice'
