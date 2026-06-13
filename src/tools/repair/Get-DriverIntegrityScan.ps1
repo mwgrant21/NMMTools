@@ -7,7 +7,7 @@ function Get-DriverIntegrityScan {
         $run = New-ToolRun -Id 'driver-integrity-scan'
 
         # This scan calls DISM and can take 1-3 minutes on a large driver store
-        Write-ToolOutput 'Scanning Windows driver store via DISM (may take 1-3 min)...' -Level Detail
+        Write-ToolOutput 'Scanning Windows driver store via DISM (may take 1-3 min)...'
 
         $allDrivers = @(Get-WindowsDriver -Online -All -ErrorAction SilentlyContinue)
 
@@ -119,14 +119,20 @@ function Get-DriverIntegrityScan {
             $lines.Add(('Duplicates        : {0}' -f $duplicateDrivers.Count))
             $lines.Add(('Stale (3yr+)      : {0}' -f $staleDrivers.Count))
             $lines.Add('')
-            $lines.Add('=== UNKNOWN PUBLISHER ===')
-            foreach ($d in $unknownPublisherDrivers) { $lines.Add(('  {0}  [{1}]  {2}' -f $d.Driver, $d.Class, $d.Publisher)) }
-            $lines.Add('')
-            $lines.Add('=== DUPLICATES ===')
-            foreach ($d in $duplicateDrivers) { $lines.Add(('  {0}  count:{1}  versions:{2}' -f $d.Driver, $d.Count, $d.Versions)) }
-            $lines.Add('')
-            $lines.Add('=== STALE ===')
-            foreach ($d in $staleDrivers) { $lines.Add(('  {0}  [{1}]  {2}' -f $d.Driver, $d.Class, $d.Date)) }
+            if ($unknownPublisherDrivers.Count -gt 0) {
+                $lines.Add('=== UNKNOWN PUBLISHER ===')
+                foreach ($d in $unknownPublisherDrivers) { $lines.Add(('  {0}  [{1}]  {2}' -f $d.Driver, $d.Class, $d.Publisher)) }
+                $lines.Add('')
+            }
+            if ($duplicateDrivers.Count -gt 0) {
+                $lines.Add('=== DUPLICATES ===')
+                foreach ($d in $duplicateDrivers) { $lines.Add(('  {0}  count:{1}  versions:{2}' -f $d.Driver, $d.Count, $d.Versions)) }
+                $lines.Add('')
+            }
+            if ($staleDrivers.Count -gt 0) {
+                $lines.Add('=== STALE ===')
+                foreach ($d in $staleDrivers) { $lines.Add(('  {0}  [{1}]  {2}' -f $d.Driver, $d.Class, $d.Date)) }
+            }
             try {
                 $lines | Out-File -FilePath $reportFile -Encoding UTF8 -ErrorAction Stop
                 Write-ToolOutput ('Report: {0}' -f $reportFile)

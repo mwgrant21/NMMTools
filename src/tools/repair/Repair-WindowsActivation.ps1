@@ -66,7 +66,7 @@ function Repair-WindowsActivation {
         if ($lic2 -and [int]$lic2.LicenseStatus -eq 1) {
             Complete-ToolRun $run -Status Success -Summary 'Activated via slmgr /ato'
         } else {
-            $postStatus = if ($lic2) { $statusMap[[int]$lic2.LicenseStatus] } else { 'Unknown' }
+            $postStatus = if ($lic2) { if ($statusMap.ContainsKey([int]$lic2.LicenseStatus)) { $statusMap[[int]$lic2.LicenseStatus] } else { ('Unknown ({0})' -f [int]$lic2.LicenseStatus) } } else { 'Unknown' }
             Complete-ToolRun $run -Status Warning -Summary (
                 'Not activated after slmgr /ato ({0}); verify KMS connectivity or product key' -f $postStatus)
         }

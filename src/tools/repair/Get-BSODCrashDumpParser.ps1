@@ -52,8 +52,11 @@ function Get-BSODCrashDumpParser {
             try {
                 $fileStream = [System.IO.File]::OpenRead($dumpFile.FullName)
                 $buffer     = New-Object byte[] 4096
-                $null       = $fileStream.Read($buffer, 0, 4096)
-                $fileStream.Close()
+                try {
+                    $null = $fileStream.Read($buffer, 0, 4096)
+                } finally {
+                    $fileStream.Close()
+                }
 
                 # Scan ASCII bytes for 0x-prefixed uppercase hex strings (v8 regex pattern)
                 $fileContent = [System.Text.Encoding]::ASCII.GetString($buffer)
