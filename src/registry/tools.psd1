@@ -660,5 +660,53 @@
             Risk          = 'Disruptive'
             Tags          = @('network','winsock','tcpip','reset')
         }
+        @{
+            Id            = 'webcam-audio-test'
+            LegacyId      = '41'
+            Name          = 'Webcam and Audio Device Test'
+            Category      = 'Laptop'
+            Function      = 'Test-WebcamAudio'
+            Description   = 'Lists camera and sound devices; opens test apps; optional close-conflicting-apps (confirmed)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('webcam','camera','audio','microphone')
+        }
+        @{
+            Id            = 'bluetooth-devices'
+            LegacyId      = '45'
+            Name          = 'Bluetooth Device Management'
+            Category      = 'Laptop'
+            Function      = 'Get-BluetoothDevices'
+            Description   = 'Bluetooth adapter and paired device list; optional bthserv restart (drops BT briefly)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('bluetooth','bthserv','pairing','wireless')
+        }
+        @{
+            Id            = 'docking-displays'
+            LegacyId      = '44'
+            Name          = 'Docking Station and Displays'
+            Category      = 'Laptop'
+            Function      = 'Get-DockingDisplays'
+            Description   = 'Connected monitors; optional display topology switch (extend/clone/external/internal)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('docking','display','monitor','displayswitch')
+        }
+        @{
+            Id            = 'storage-health'
+            LegacyId      = '46'
+            Name          = 'Storage Health (SSD/NVMe)'
+            Category      = 'Laptop'
+            Function      = 'Get-StorageHealth'
+            Description   = 'Physical disk health, wear, temperature; optional Optimize-Volume (TRIM) or online scan'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('storage','ssd','nvme','disk')
+        }
     )
 }
