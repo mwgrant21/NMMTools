@@ -27,14 +27,14 @@ function Get-WindowsHelloStatus {
             Write-ToolOutput 'No biometric devices found' -Level Detail
         }
 
-        # Verdict covers Hello policy + hardware (MFA-readiness); Warning unless both are present
-        $policyState = if ($helloPolicy) { 'policy configured' } else { 'no policy' }
-        $bioSummary  = if ($bioDevices.Count -gt 0) { '{0} biometric device(s)' -f $bioDevices.Count } else { 'no biometric devices' }
-
-        if ($helloPolicy -and $bioDevices.Count -gt 0) {
-            Complete-ToolRun $run -Status Success -Summary ('Windows Hello/MFA ready: {0}; {1}' -f $policyState, $bioSummary)
+        # Verdict keys on biometric hardware, not GPO policy. Absent PassportForWork
+        # policy is normal (Hello is often set up via Settings/Intune, not Group Policy).
+        if ($bioDevices.Count -gt 0) {
+            if ($helloPolicy) { $policyNote = 'policy enforced via GPO' } else { $policyNote = 'no GPO policy (per-user/Intune config is normal)' }
+            Complete-ToolRun $run -Status Success -Summary ('{0} biometric device(s); {1}' -f $bioDevices.Count, $policyNote)
         } else {
-            Complete-ToolRun $run -Status Warning -Summary ('Windows Hello/MFA: {0}; {1}' -f $policyState, $bioSummary)
+            if ($helloPolicy) { $noteNoHw = 'policy configured but no biometric hardware present' } else { $noteNoHw = 'no GPO policy and no biometric hardware' }
+            Complete-ToolRun $run -Status Warning -Summary ('Windows Hello: {0}' -f $noteNoHw)
         }
     }
     catch {
