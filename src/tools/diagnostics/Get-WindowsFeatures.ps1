@@ -9,7 +9,7 @@ function Get-WindowsFeatures {
         # v8: Get-WindowsOptionalFeature -Online — requires admin; filters to Enabled features
         $features = @(Get-WindowsOptionalFeature -Online |
             Where-Object { $_.State -eq 'Enabled' } |
-            Select-Object FeatureName, State |
+            Select-Object FeatureName |
             Sort-Object FeatureName)
 
         if ($features.Count -eq 0) {
