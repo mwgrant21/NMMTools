@@ -564,5 +564,53 @@
             Risk          = 'Disruptive'
             Tags          = @('suite','dism','sfc','cleanup','repair')
         }
+        @{
+            Id            = 'battery-health'
+            LegacyId      = '38'
+            Name          = 'Battery Health Check'
+            Category      = 'Laptop'
+            Function      = 'Get-BatteryHealth'
+            Description   = 'Battery design vs full-charge capacity, wear %, and a powercfg battery report'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('battery','health','wear','powercfg')
+        }
+        @{
+            Id            = 'thermal-health'
+            LegacyId      = '63'
+            Name          = 'Thermal and Fan Health Check'
+            Category      = 'Laptop'
+            Function      = 'Get-ThermalHealth'
+            Description   = 'CPU temperature, load, and throttling-risk snapshot from ACPI thermal zone'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('thermal','temperature','fan','cpu')
+        }
+        @{
+            Id            = 'wifi-environment'
+            LegacyId      = '70'
+            Name          = 'Wi-Fi Environment Snapshot'
+            Category      = 'Laptop'
+            Function      = 'Get-WiFiEnvironment'
+            Description   = 'Passive scan of nearby Wi-Fi networks (signal, channel, congestion)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('wifi','scan','channel','environment')
+        }
+        @{
+            Id            = 'travel-readiness'
+            LegacyId      = '71'
+            Name          = 'Laptop Readiness for Travel'
+            Category      = 'Laptop'
+            Function      = 'Test-LaptopTravelReadiness'
+            Description   = 'Quick read-only pre-flight: disk space, battery wear, BitLocker, Wi-Fi adapter, VPN service presence'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('travel','readiness','preflight','laptop')
+        }
     )
 }
