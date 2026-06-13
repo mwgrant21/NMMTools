@@ -697,6 +697,54 @@
             Tags          = @('docking','display','monitor','displayswitch')
         }
         @{
+            Id            = 'power-management'
+            LegacyId      = '43'
+            Name          = 'Power Management and Plans'
+            Category      = 'Laptop'
+            Function      = 'Get-PowerManagement'
+            Description   = 'Active power plan and battery; optional plan switch or USB-selective-suspend change'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('power','powercfg','plan','battery')
+        }
+        @{
+            Id            = 'sleep-hibernate'
+            LegacyId      = '64'
+            Name          = 'Sleep / Hibernate / Lid-Close Repair'
+            Category      = 'Laptop'
+            Function      = 'Repair-SleepHibernate'
+            Description   = 'Reports sleep states and wake blockers; optionally applies standard lid/sleep/hibernate timers (confirmed)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('sleep','hibernate','lid','powercfg')
+        }
+        @{
+            Id            = 'touchpad-keyboard'
+            LegacyId      = '62'
+            Name          = 'Touchpad and Keyboard Troubleshooter'
+            Category      = 'Laptop'
+            Function      = 'Repair-TouchpadKeyboard'
+            Description   = 'Re-enables errored HID touchpad/keyboard devices; optionally clears Filter/Sticky Keys'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('touchpad','keyboard','hid','input')
+        }
+        @{
+            Id            = 'hotkey-fn'
+            LegacyId      = '68'
+            Name          = 'Input and Hotkey / Fn Key Check'
+            Category      = 'Laptop'
+            Function      = 'Repair-HotkeyFnKeys'
+            Description   = 'Checks OEM hotkey services (Lenovo/Dell/HP/Synaptics/ELAN); optionally starts/enables stopped ones'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('hotkey','fnkey','oem','service')
+        }
+        @{
             Id            = 'storage-health'
             LegacyId      = '46'
             Name          = 'Storage Health (SSD/NVMe)'

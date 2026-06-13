@@ -29,10 +29,10 @@ function Get-StorageHealth {
                     if ($null -ne $smart.Temperature -and $smart.Temperature -gt 0) {
                         Write-ToolOutput ('  Temperature: {0} C' -f $smart.Temperature) -Level Detail
                     }
-                    if ($null -ne $smart.Wear -and $smart.Wear -gt 0) {
+                    if ($null -ne $smart.Wear) {
                         Write-ToolOutput ('  Wear: {0}%' -f $smart.Wear) -Level Detail
                     }
-                    if ($null -ne $smart.PowerOnHours -and $smart.PowerOnHours -gt 0) {
+                    if ($null -ne $smart.PowerOnHours) {
                         Write-ToolOutput ('  Power-On Hours: {0}' -f $smart.PowerOnHours) -Level Detail
                     }
                 }
