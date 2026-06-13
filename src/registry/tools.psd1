@@ -714,7 +714,7 @@
             Name          = 'Sleep / Hibernate / Lid-Close Repair'
             Category      = 'Laptop'
             Function      = 'Repair-SleepHibernate'
-            Description   = 'Reports sleep states and wake blockers; optionally applies standard lid/sleep/hibernate timers (confirmed)'
+            Description   = 'Reports sleep states and wake blockers; optionally applies standard sleep timers or clears wake blockers (confirmed)'
             RequiresAdmin = $true
             SilentCapable = $true
             Risk          = 'Modifies'
@@ -743,6 +743,18 @@
             SilentCapable = $true
             Risk          = 'Modifies'
             Tags          = @('hotkey','fnkey','oem','service')
+        }
+        @{
+            Id            = 'bitlocker-status'
+            LegacyId      = '42'
+            Name          = 'BitLocker Status and Recovery'
+            Category      = 'Laptop'
+            Function      = 'Get-BitLockerStatus'
+            Description   = 'BitLocker encryption/protection status; AAD/Intune or hardened file key backup; suspend/resume'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('bitlocker','encryption','recovery','key')
         }
         @{
             Id            = 'storage-health'
