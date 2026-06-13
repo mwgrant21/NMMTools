@@ -345,7 +345,7 @@
             Description   = 'Triggers Office Click-to-Run update/repair and optionally clears cached Office credentials'
             RequiresAdmin = $false
             SilentCapable = $true
-            Risk          = 'Modifies'
+            Risk          = 'Disruptive'
             Tags          = @('office','m365','repair','clicktorun')
         }
         @{
