@@ -144,5 +144,65 @@
             Risk          = 'ReadOnly'
             Tags          = @('users','accounts')
         }
+        @{
+            Id            = 'network-connectivity'
+            LegacyId      = '12'
+            Name          = 'Network Connectivity Tests'
+            Category      = 'Diagnostics'
+            Function      = 'Test-NetworkConnectivity'
+            Description   = 'Ping/DNS reachability tests to Google DNS, Cloudflare DNS, and microsoft.com'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('network','ping','connectivity','dns')
+        }
+        @{
+            Id            = 'system-health'
+            LegacyId      = '13'
+            Name          = 'System Health Check'
+            Category      = 'Diagnostics'
+            Function      = 'Get-SystemHealthCheck'
+            Description   = 'Disk and memory health; warns if any volume is below 10% free or RAM exceeds 90%'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('health','check','overview')
+        }
+        @{
+            Id            = 'security-analysis'
+            LegacyId      = '14'
+            Name          = 'Security Analysis'
+            Category      = 'Diagnostics'
+            Function      = 'Get-SecurityAnalysis'
+            Description   = 'Defender and firewall posture; reports Unable to check when access is restricted'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('security','defender','firewall')
+        }
+        @{
+            Id            = 'driver-info'
+            LegacyId      = '15'
+            Name          = 'Driver Information'
+            Category      = 'Diagnostics'
+            Function      = 'Get-DriverInformation'
+            Description   = 'Signed driver inventory sorted by install date; shows first 15 of total'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('drivers','devices','pnp')
+        }
+        @{
+            Id            = 'startup-programs'
+            LegacyId      = '16'
+            Name          = 'Startup Programs'
+            Category      = 'Diagnostics'
+            Function      = 'Get-StartupPrograms'
+            Description   = 'Auto-start entries from HKLM and HKCU Run registry keys'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('startup','autorun','boot')
+        }
     )
 }
