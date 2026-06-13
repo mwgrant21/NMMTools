@@ -1,6 +1,6 @@
 # NMM Toolkit v8 → v9 Parity Checklist
 
-Generated at batch 1 close-out; updated batch 3 close-out. **47 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 65, 69, 72, 73, 75, 87-90, 94, 100, 102, 104). Items 26, 27, 37, 99 consolidated.
+Generated at batch 1 close-out; updated batch 4 close-out. **64 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-47, 62-64, 65, 67-73, 75, 87-90, 94, 100, 102, 104). Items 26, 27, 37, 99 consolidated.
 
 > **Known consolidation candidates — decide at their batch, with Matt:**
 > - **26 / 60** — Credential Manager Cleanup (appears in both Cloud & Common User Issues)
@@ -87,23 +87,23 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 
 | v8 # | v8 Menu Name | Status | v9 Id |
 |-----:|---|---|---|
-| 38 | Battery Health Check | pending (batch 4) | — |
-| 39 | Wi-Fi Diagnostics | pending (batch 4) | — |
-| 40 | VPN Health and Connection | pending (batch 4) | — |
-| 41 | Webcam and Audio Device Test | pending (batch 4) | — |
-| 42 | BitLocker Status and Recovery | pending (batch 4) | — |
-| 43 | Power Management and Plans | pending (batch 4) | — |
-| 44 | Docking Station and Displays | pending (batch 4) | — |
-| 45 | Bluetooth Device Management | pending (batch 4) | — |
-| 46 | Storage Health (SSD/NVMe) | pending (batch 4) | — |
-| 47 | Network Profile Cleanup | pending (batch 4) | — |
-| 62 | Touchpad & Keyboard Troubleshooter | pending (batch 4) | — |
-| 63 | Thermal & Fan Health Check | pending (batch 4) | — |
-| 64 | Sleep / Hibernate / Lid-Close Repair | pending (batch 4) | — |
-| 67 | Advanced Network Stack Deep Reset (Offline) | pending (batch 4) | — |
-| 68 | Input & Hotkey / Fn Key Check | pending (batch 4) | — |
-| 70 | Wi-Fi Environment Snapshot | pending (batch 4) | — |
-| 71 | Laptop Readiness for Travel | pending (batch 4) | — |
+| 38 | Battery Health Check | ported (batch 4) | battery-health |
+| 39 | Wi-Fi Diagnostics | ported (batch 4) | wifi-diagnostics |
+| 40 | VPN Health and Connection | ported (batch 4) | vpn-health |
+| 41 | Webcam and Audio Device Test | ported (batch 4) | webcam-audio-test |
+| 42 | BitLocker Status and Recovery | ported (batch 4) | bitlocker-status |
+| 43 | Power Management and Plans | ported (batch 4) | power-management |
+| 44 | Docking Station and Displays | ported (batch 4) | docking-displays |
+| 45 | Bluetooth Device Management | ported (batch 4) | bluetooth-devices |
+| 46 | Storage Health (SSD/NVMe) | ported (batch 4) | storage-health |
+| 47 | Network Profile Cleanup | ported (batch 4) | network-profile-cleanup |
+| 62 | Touchpad & Keyboard Troubleshooter | ported (batch 4) | touchpad-keyboard |
+| 63 | Thermal & Fan Health Check | ported (batch 4) | thermal-health |
+| 64 | Sleep / Hibernate / Lid-Close Repair | ported (batch 4) | sleep-hibernate |
+| 67 | Advanced Network Stack Deep Reset (Offline) | ported (batch 4) | network-stack-reset |
+| 68 | Input & Hotkey / Fn Key Check | ported (batch 4) | hotkey-fn |
+| 70 | Wi-Fi Environment Snapshot | ported (batch 4) | wifi-environment |
+| 71 | Laptop Readiness for Travel | ported (batch 4) | travel-readiness |
 
 ---
 
