@@ -32,6 +32,7 @@ The kebab-case slug must be identical in: (1) the registry `Id`, (2) the tool's
   Skipped = user declined; Failed = could not do the thing. Summary goes on the ticket — write it for a tech.
 - Registry fields: `Risk` = ReadOnly | Modifies | Disruptive (Disruptive needs -Force under -Silent).
   `SilentCapable = $false` only when the tool is meaningless without interaction.
+  `SilentCapable = $true` means the tool will not HANG in an unattended host - NOT that it will complete its primary action under -Silent. A Disruptive/destructive tool with Default 'No'/'Skip' is correctly SilentCapable yet does nothing (Skipped) unless run interactively or with -Force.
 - Preserve v8 BEHAVIOR (what it checks/fixes/reports), not v8 code. Drop v8's Add-ToolResult,
   colors, Write-Host formatting; keep thresholds, registry paths, command invocations.
 - File: `src\tools\<category>\<Verb-Noun>.ps1`, UTF-8 with BOM, one function per file

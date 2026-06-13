@@ -53,13 +53,15 @@ function Clear-TeamsCache {
                 (Join-Path $classicDir 'databases'),
                 (Join-Path $classicDir 'GPUcache')
             )
+            $classicCacheFound = $false
             foreach ($p in $classicCaches) {
                 if (Test-Path $p) {
+                    $classicCacheFound = $true
                     $freedBytes += & $measureSize $p
                     Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue
                 }
             }
-            $variantsCleared += 'classic'
+            if ($classicCacheFound) { $variantsCleared += 'classic' }
         }
 
         # New Teams: clear LocalCache contents only

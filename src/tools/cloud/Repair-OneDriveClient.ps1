@@ -31,7 +31,8 @@ function Repair-OneDriveClient {
             Write-ToolOutput 'OneDrive is not currently running.' -Level Detail
         }
 
-        $choice = Read-ToolChoice -Prompt 'OneDrive action' `
+        $choice = Read-ToolChoice `
+            -Prompt 'OneDrive action - Reset wipes the local sync DB and forces a full re-sync' `
             -Choices @('Restart', 'Reset') `
             -Default 'Restart' `
             -Silent:$Silent
@@ -52,6 +53,9 @@ function Repair-OneDriveClient {
                 Start-Sleep -Seconds 5
                 Start-Process $odExe
                 Complete-ToolRun $run -Status Success -Summary 'OneDrive reset (full re-sync will follow)'
+            }
+            default {
+                Complete-ToolRun $run -Status Failed -Summary ('Unhandled choice: ' + $choice)
             }
         }
     }

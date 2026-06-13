@@ -21,9 +21,12 @@ function Repair-Office365 {
 
         # Locate Click-to-Run client (64-bit and 32-bit Program Files paths)
         $c2rCandidates = @(
-            'C:\Program Files\Common Files\microsoft shared\ClickToRun\OfficeC2RClient.exe',
-            'C:\Program Files (x86)\Common Files\microsoft shared\ClickToRun\OfficeC2RClient.exe'
+            (Join-Path $env:ProgramFiles 'Common Files\microsoft shared\ClickToRun\OfficeC2RClient.exe')
         )
+        $x86PF = ${env:ProgramFiles(x86)}
+        if ($x86PF) {
+            $c2rCandidates += Join-Path $x86PF 'Common Files\microsoft shared\ClickToRun\OfficeC2RClient.exe'
+        }
         $c2r = $c2rCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
         if (-not $c2r) {
@@ -54,7 +57,7 @@ function Repair-Office365 {
                     $target = ($cred.Line -replace '.*Target:\s*', '').Trim()
                     if ($target) {
                         cmdkey /delete:$target | Out-Null
-                        $count++
+                        if ($LASTEXITCODE -eq 0) { $count++ }
                     }
                 }
                 Complete-ToolRun $run -Status Success `
@@ -62,6 +65,9 @@ function Repair-Office365 {
             }
             'Skip' {
                 Complete-ToolRun $run -Status Skipped -Summary 'No action selected (silent default)'
+            }
+            default {
+                Complete-ToolRun $run -Status Failed -Summary ('Unhandled choice: ' + $choice)
             }
         }
     }
