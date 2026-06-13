@@ -564,5 +564,209 @@
             Risk          = 'Disruptive'
             Tags          = @('suite','dism','sfc','cleanup','repair')
         }
+        @{
+            Id            = 'battery-health'
+            LegacyId      = '38'
+            Name          = 'Battery Health Check'
+            Category      = 'Laptop'
+            Function      = 'Get-BatteryHealth'
+            Description   = 'Battery design vs full-charge capacity, wear %, and a powercfg battery report'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('battery','health','wear','powercfg')
+        }
+        @{
+            Id            = 'thermal-health'
+            LegacyId      = '63'
+            Name          = 'Thermal and Fan Health Check'
+            Category      = 'Laptop'
+            Function      = 'Get-ThermalHealth'
+            Description   = 'CPU temperature, load, and throttling-risk snapshot from ACPI thermal zone'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('thermal','temperature','fan','cpu')
+        }
+        @{
+            Id            = 'wifi-environment'
+            LegacyId      = '70'
+            Name          = 'Wi-Fi Environment Snapshot'
+            Category      = 'Laptop'
+            Function      = 'Get-WiFiEnvironment'
+            Description   = 'Passive scan of nearby Wi-Fi networks (signal, channel, congestion)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('wifi','scan','channel','environment')
+        }
+        @{
+            Id            = 'travel-readiness'
+            LegacyId      = '71'
+            Name          = 'Laptop Readiness for Travel'
+            Category      = 'Laptop'
+            Function      = 'Test-LaptopTravelReadiness'
+            Description   = 'Quick read-only pre-flight: disk space, battery wear, BitLocker, Wi-Fi adapter, VPN service presence'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('travel','readiness','preflight','laptop')
+        }
+        @{
+            Id            = 'wifi-diagnostics'
+            LegacyId      = '39'
+            Name          = 'Wi-Fi Diagnostics'
+            Category      = 'Laptop'
+            Function      = 'Get-WiFiDiagnostics'
+            Description   = 'Wi-Fi adapter/SSID/signal report; optional adapter restart or forget-network actions'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('wifi','wireless','adapter','signal')
+        }
+        @{
+            Id            = 'vpn-health'
+            LegacyId      = '40'
+            Name          = 'VPN Health and Connection'
+            Category      = 'Laptop'
+            Function      = 'Test-VPNHealth'
+            Description   = 'Windows VPN profile status + reachability (timeout-bounded); optional reconnect/disconnect'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('vpn','rasdial','connection','reachability')
+        }
+        @{
+            Id            = 'network-profile-cleanup'
+            LegacyId      = '47'
+            Name          = 'Network Profile Cleanup'
+            Category      = 'Laptop'
+            Function      = 'Clear-NetworkProfiles'
+            Description   = 'Lists saved Wi-Fi profiles; delete (typed confirm), show saved password (warned), or stack reset'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('wifi','profile','cleanup','credential')
+        }
+        @{
+            Id            = 'network-stack-reset'
+            LegacyId      = '67'
+            Name          = 'Advanced Network Stack Deep Reset'
+            Category      = 'Laptop'
+            Function      = 'Reset-NetworkStack'
+            Description   = 'Flush DNS + winsock + TCP/IP reset + cycle all active adapters (typed RESET; reboot to finish)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('network','winsock','tcpip','reset')
+        }
+        @{
+            Id            = 'webcam-audio-test'
+            LegacyId      = '41'
+            Name          = 'Webcam and Audio Device Test'
+            Category      = 'Laptop'
+            Function      = 'Test-WebcamAudio'
+            Description   = 'Lists camera and sound devices; opens test apps; optional close-conflicting-apps (confirmed)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('webcam','camera','audio','microphone')
+        }
+        @{
+            Id            = 'bluetooth-devices'
+            LegacyId      = '45'
+            Name          = 'Bluetooth Device Management'
+            Category      = 'Laptop'
+            Function      = 'Get-BluetoothDevices'
+            Description   = 'Bluetooth adapter and paired device list; optional bthserv restart (drops BT briefly)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('bluetooth','bthserv','pairing','wireless')
+        }
+        @{
+            Id            = 'docking-displays'
+            LegacyId      = '44'
+            Name          = 'Docking Station and Displays'
+            Category      = 'Laptop'
+            Function      = 'Get-DockingDisplays'
+            Description   = 'Connected monitors; optional display topology switch (extend/clone/external/internal)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('docking','display','monitor','displayswitch')
+        }
+        @{
+            Id            = 'power-management'
+            LegacyId      = '43'
+            Name          = 'Power Management and Plans'
+            Category      = 'Laptop'
+            Function      = 'Get-PowerManagement'
+            Description   = 'Active power plan and battery; optional plan switch or USB-selective-suspend change'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('power','powercfg','plan','battery')
+        }
+        @{
+            Id            = 'sleep-hibernate'
+            LegacyId      = '64'
+            Name          = 'Sleep / Hibernate / Lid-Close Repair'
+            Category      = 'Laptop'
+            Function      = 'Repair-SleepHibernate'
+            Description   = 'Reports sleep states and wake blockers; optionally applies standard sleep timers or clears wake blockers (confirmed)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('sleep','hibernate','lid','powercfg')
+        }
+        @{
+            Id            = 'touchpad-keyboard'
+            LegacyId      = '62'
+            Name          = 'Touchpad and Keyboard Troubleshooter'
+            Category      = 'Laptop'
+            Function      = 'Repair-TouchpadKeyboard'
+            Description   = 'Re-enables errored HID touchpad/keyboard devices; optionally clears Filter/Sticky Keys'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('touchpad','keyboard','hid','input')
+        }
+        @{
+            Id            = 'hotkey-fn'
+            LegacyId      = '68'
+            Name          = 'Input and Hotkey / Fn Key Check'
+            Category      = 'Laptop'
+            Function      = 'Repair-HotkeyFnKeys'
+            Description   = 'Checks OEM hotkey services (Lenovo/Dell/HP/Synaptics/ELAN); optionally starts/enables stopped ones'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('hotkey','fnkey','oem','service')
+        }
+        @{
+            Id            = 'bitlocker-status'
+            LegacyId      = '42'
+            Name          = 'BitLocker Status and Recovery'
+            Category      = 'Laptop'
+            Function      = 'Get-BitLockerStatus'
+            Description   = 'BitLocker encryption/protection status; AAD/Intune or hardened file key backup; suspend/resume'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('bitlocker','encryption','recovery','key')
+        }
+        @{
+            Id            = 'storage-health'
+            LegacyId      = '46'
+            Name          = 'Storage Health (SSD/NVMe)'
+            Category      = 'Laptop'
+            Function      = 'Get-StorageHealth'
+            Description   = 'Physical disk health, wear, temperature; optional Optimize-Volume (TRIM) or online scan'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('storage','ssd','nvme','disk')
+        }
     )
 }
