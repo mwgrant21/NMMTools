@@ -276,5 +276,41 @@
             Risk          = 'ReadOnly'
             Tags          = @('hardware','summary','export','ticket')
         }
+        @{
+            Id            = 'azure-ad-health'
+            LegacyId      = '21'
+            Name          = 'Azure AD Health Check'
+            Category      = 'Cloud'
+            Function      = 'Get-AzureADHealthCheck'
+            Description   = 'Entra/Azure AD + domain join state from dsregcmd (AzureAdJoined, DomainJoined, DeviceId)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('azuread','entra','join','dsregcmd')
+        }
+        @{
+            Id            = 'intune-health'
+            LegacyId      = '29'
+            Name          = 'Intune/MDM Health Check'
+            Category      = 'Cloud'
+            Function      = 'Get-IntuneHealthCheck'
+            Description   = 'MDM enrollment status from HKLM Enrollments (UPN, provider); notes if access is restricted'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('intune','mdm','enrollment','management')
+        }
+        @{
+            Id            = 'windows-hello'
+            LegacyId      = '30'
+            Name          = 'Windows Hello / MFA Status'
+            Category      = 'Cloud'
+            Function      = 'Get-WindowsHelloStatus'
+            Description   = 'Windows Hello / Passport-for-Work policy and biometric device status (covers MFA-readiness check)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('hello','mfa','biometric','passport')
+        }
     )
 }
