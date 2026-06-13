@@ -480,5 +480,41 @@
             Risk          = 'Disruptive'
             Tags          = @('adobe','creativecloud','removal','uninstall')
         }
+        @{
+            Id            = 'powershell7-install'
+            LegacyId      = '87'
+            Name          = 'Install / Upgrade PowerShell 7'
+            Category      = 'Repair'
+            Function      = 'Install-PowerShell7'
+            Description   = 'Installs or updates PowerShell 7 via winget or GitHub MSI (also enables PS Remoting)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('powershell7','pwsh','install','winget')
+        }
+        @{
+            Id            = 'win11-feature-unlock'
+            LegacyId      = '88'
+            Name          = 'Win11 Feature Update Unlock'
+            Category      = 'Repair'
+            Function      = 'Invoke-Win11FeatureUpdateUnlock'
+            Description   = 'Break-glass: removes version-lock GPO keys and stages a Win11 feature upgrade (can reboot); typed confirm'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('win11','featureupdate','unlock','upgrade')
+        }
+        @{
+            Id            = 'oem-driver-update'
+            LegacyId      = '35'
+            Name          = 'OEM Driver/Firmware Update'
+            Category      = 'Repair'
+            Function      = 'Invoke-OEMDriverUpdate'
+            Description   = 'Launches the vendor updater (Dell Command Update / Lenovo System Update / HP Support Assistant) to scan for driver and firmware updates'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('driver','firmware','oem','vendor')
+        }
     )
 }
