@@ -444,5 +444,41 @@
             Risk          = 'Disruptive'
             Tags          = @('chkdsk','disk','filesystem','badsector')
         }
+        @{
+            Id            = 'deep-disk-cleanup'
+            LegacyId      = '34'
+            Name          = 'Deep Disk Cleanup'
+            Category      = 'Repair'
+            Function      = 'Invoke-DeepDiskCleanup'
+            Description   = 'Tiered cleanup: temp/WU cache/CBS/WER (Conservative); plus Windows.old (Full tier, typed confirm)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('cleanup','disk','space','windowsold')
+        }
+        @{
+            Id            = 'windows-old-removal'
+            LegacyId      = '102'
+            Name          = 'Remove Windows.old'
+            Category      = 'Repair'
+            Function      = 'Remove-WindowsOld'
+            Description   = 'Removes Windows.old via DISM ResetBase (ends OS rollback - irreversible; typed confirm)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('windowsold','rollback','dism','cleanup')
+        }
+        @{
+            Id            = 'adobe-cc-removal'
+            LegacyId      = '89'
+            Name          = 'Adobe Creative Cloud Force Removal'
+            Category      = 'Repair'
+            Function      = 'Remove-AdobeCC'
+            Description   = 'Force-removes all Adobe apps, services, tasks, files, and registry (clears Adobe user data; typed confirm)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('adobe','creativecloud','removal','uninstall')
+        }
     )
 }
