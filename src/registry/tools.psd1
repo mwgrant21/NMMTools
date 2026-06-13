@@ -312,5 +312,29 @@
             Risk          = 'ReadOnly'
             Tags          = @('hello','mfa','biometric','passport')
         }
+        @{
+            Id            = 'm365-connectivity'
+            LegacyId      = '25'
+            Name          = 'M365 Connectivity Test'
+            Category      = 'Cloud'
+            Function      = 'Test-M365Connectivity'
+            Description   = 'TCP reachability (3s timeout per host) to login.microsoftonline.com, outlook, onedrive, teams'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('m365','connectivity','network','endpoints')
+        }
+        @{
+            Id            = 'group-policy-update'
+            LegacyId      = '28'
+            Name          = 'Group Policy Update'
+            Category      = 'Cloud'
+            Function      = 'Update-GroupPolicy'
+            Description   = 'Runs gpupdate /force (user policy always; machine policy needs admin + domain)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('gpupdate','grouppolicy','gpo','domain')
+        }
     )
 }
