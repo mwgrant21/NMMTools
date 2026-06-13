@@ -1,10 +1,10 @@
 # NMM Toolkit v8 → v9 Parity Checklist
 
-Generated at batch 1 close-out; updated batch 2 close-out. **31 of ~111 items ported** (items 1–20, 21–25, 28–30, 69, 94, 104). Items 26 and 27 consolidated.
+Generated at batch 1 close-out; updated batch 3 close-out. **47 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 65, 69, 72, 73, 75, 87-90, 94, 100, 102, 104). Items 26, 27, 37, 99 consolidated.
 
 > **Known consolidation candidates — decide at their batch, with Matt:**
 > - **26 / 60** — Credential Manager Cleanup (appears in both Cloud & Common User Issues)
-> - **22 / 99** — Office Repair (Office 365 Health & Repair vs Click-to-Run Online Repair)
+> - **22 / 99** — Office Repair (Office 365 Health & Repair vs Click-to-Run Online Repair) [resolved batch 3: 99 consolidated -> tool 22]
 > - **76 / 106** — Outlook Search (Fix Outlook Search vs Repair Outlook Search Index)
 
 ---
@@ -60,24 +60,24 @@ Generated at batch 1 close-out; updated batch 2 close-out. **31 of ~111 items po
 
 | v8 # | v8 Menu Name | Status | v9 Id |
 |-----:|---|---|---|
-| 31 | DISM System Image Repair | pending (batch 3) | — |
-| 32 | System File Checker (SFC) | pending (batch 3) | — |
-| 33 | Check Disk (ChkDsk) | pending (batch 3) | — |
-| 34 | Deep Disk Cleanup | pending (batch 3) | — |
-| 35 | OEM Driver/Firmware Update | pending (batch 3) | — |
-| 36 | Complete Repair Suite (DISM+SFC+Cleanup) | pending (batch 3) | — |
-| 37 | Check System Reboot Status | pending (batch 3) | — |
-| 65 | Local Windows Update Repair (Offline) | pending (batch 3) | — |
-| 72 | Driver Integrity Scan | pending (batch 3) | — |
-| 73 | Display Driver Cleaner (Safe Mode) | pending (batch 3) | — |
-| 75 | BSOD Crash Dump Parser (Mini) | pending (batch 3) | — |
-| 87 | Install / Upgrade PowerShell 7 | pending (batch 3) | — |
-| 88 | Win11 Feature Update Unlock & Trigger | pending (batch 3) | — |
-| 89 | Adobe Creative Cloud Force Removal | pending (batch 3) | — |
-| 90 | Windows Activation Status & Repair | pending (batch 3) | — |
-| 99 | Office Click-to-Run Online Repair | pending (batch 3) | — |
-| 100 | Proxy / Internet Settings Repair | pending (batch 3) | — |
-| 102 | Remove Windows.old (Post-Upgrade Cleanup) | pending (batch 3) | — |
+| 31 | DISM System Image Repair | ported (batch 3) | dism-repair |
+| 32 | System File Checker (SFC) | ported (batch 3) | sfc-repair |
+| 33 | Check Disk (ChkDsk) | ported (batch 3) | chkdsk-repair |
+| 34 | Deep Disk Cleanup | ported (batch 3) | deep-disk-cleanup |
+| 35 | OEM Driver/Firmware Update | ported (batch 3) | oem-driver-update |
+| 36 | Complete Repair Suite (DISM+SFC+Cleanup) | ported (batch 3) | repair-suite |
+| 37 | Check System Reboot Status | consolidated -> tools 20 + 94 | — |
+| 65 | Local Windows Update Repair (Offline) | ported (batch 3) | windows-update-repair |
+| 72 | Driver Integrity Scan | ported (batch 3) | driver-integrity-scan |
+| 73 | Display Driver Cleaner (Safe Mode) | ported (batch 3) [renamed to 'Reset Display Adapter'] | display-adapter-reset |
+| 75 | BSOD Crash Dump Parser (Mini) | ported (batch 3) | bsod-crash-parser |
+| 87 | Install / Upgrade PowerShell 7 | ported (batch 3) | powershell7-install |
+| 88 | Win11 Feature Update Unlock & Trigger | ported (batch 3) | win11-feature-unlock |
+| 89 | Adobe Creative Cloud Force Removal | ported (batch 3) | adobe-cc-removal |
+| 90 | Windows Activation Status & Repair | ported (batch 3) | windows-activation |
+| 99 | Office Click-to-Run Online Repair | consolidated -> tool 22 (office-repair) | — |
+| 100 | Proxy / Internet Settings Repair | ported (batch 3) | proxy-reset |
+| 102 | Remove Windows.old (Post-Upgrade Cleanup) | ported (batch 3) | windows-old-removal |
 
 ---
 
