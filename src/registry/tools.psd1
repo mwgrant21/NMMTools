@@ -768,5 +768,17 @@
             Risk          = 'Modifies'
             Tags          = @('storage','ssd','nvme','disk')
         }
+        @{
+            Id            = 'browser-backup-restore'
+            LegacyId      = '48'
+            Name          = 'Browser Backup and Restore'
+            Category      = 'Browser'
+            Function      = 'Invoke-BrowserBackupRestore'
+            Description   = 'Back up or restore Chrome/Edge/Firefox/Brave bookmarks, passwords, and preferences; backup is ACL-locked'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('browser','backup','restore','bookmarks')
+        }
     )
 }
