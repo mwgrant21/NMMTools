@@ -14,6 +14,7 @@ function Get-UserAccounts {
         }
 
         # Scan rows use Detail; each user account is a table row
+        Write-ToolOutput ('Local users: {0}' -f $users.Count)
         foreach ($u in $users) {
             $lastLogonStr = if ($u.LastLogon) { '{0:g}' -f $u.LastLogon } else { 'never' }
             Write-ToolOutput ('{0,-24} Enabled: {1,-5} LastLogon: {2}' -f

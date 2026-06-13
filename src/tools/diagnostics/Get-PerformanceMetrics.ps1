@@ -11,6 +11,7 @@ function Get-PerformanceMetrics {
 
         $memUsed    = $os.TotalVisibleMemorySize - $os.FreePhysicalMemory
         $memPercent = [math]::Round(($memUsed / $os.TotalVisibleMemorySize) * 100, 2)
+        # TotalVisibleMemorySize is in KB; dividing KB by 1MB (=1048576) yields GB
         $memUsedGB  = [math]::Round($memUsed / 1MB, 2)
         $memTotalGB = [math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
         $procCount  = (Get-Process).Count
