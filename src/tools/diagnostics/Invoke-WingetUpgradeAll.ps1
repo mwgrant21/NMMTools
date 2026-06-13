@@ -39,7 +39,13 @@ function Invoke-WingetUpgradeAll {
         }
 
         Write-ToolOutput ("winget upgrade exited with code: $exitCode") -Level Detail
-        Complete-ToolRun $run -Status Success -Summary "winget upgrade --all completed (exit $exitCode)"
+        if ($exitCode -eq 0) {
+            Complete-ToolRun $run -Status Success -Summary 'winget upgrade --all completed successfully'
+        } elseif ($exitCode -eq -1978335189) {   # 0x8A15002B: no applicable updates
+            Complete-ToolRun $run -Status Success -Summary 'winget upgrade --all: no applicable updates found'
+        } else {
+            Complete-ToolRun $run -Status Warning -Summary ('winget upgrade --all exited {0} (see detail output)' -f $exitCode)
+        }
     }
     catch {
         Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message

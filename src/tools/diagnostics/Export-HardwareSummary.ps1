@@ -80,18 +80,31 @@ function Export-HardwareSummary {
             $report += ''
         }
 
-        $report | Out-File -FilePath $reportFile -Encoding UTF8
-
-        # Summary rows — model/serial are the first two data points a tech checks; CPU/RAM are Detail
+        # Summary rows — emit BEFORE file write so console output is never swallowed by a write failure
         Write-ToolOutput ('Computer  : {0} ({1} {2})' -f $cs.Name, $cs.Manufacturer, $cs.Model)
         Write-ToolOutput ('Serial    : {0}' -f $bios.SerialNumber)
         Write-ToolOutput ('CPU       : {0}' -f $proc.Name) -Level Detail
         Write-ToolOutput ('RAM       : {0} GB' -f $totalRAM) -Level Detail
-        Write-ToolOutput ('Report    : {0}' -f $reportFile)
 
-        Complete-ToolRun $run -Status Success -Summary (
-            '{0} | {1} | SN {2} | {3} GB RAM | Report: {4}' -f
-            $cs.Name, $cs.Model, $bios.SerialNumber, $totalRAM, (Split-Path $reportFile -Leaf))
+        $reportWritten = $false
+        try {
+            $report | Out-File -FilePath $reportFile -Encoding UTF8 -ErrorAction Stop
+            $reportWritten = $true
+            Write-ToolOutput ('Report    : {0}' -f $reportFile)
+        }
+        catch {
+            Write-ToolOutput ('Could not write report to {0}: {1}' -f $reportFile, $_.Exception.Message) -Level Warning
+        }
+
+        if ($reportWritten) {
+            Complete-ToolRun $run -Status Success -Summary (
+                '{0} | {1} | SN {2} | {3} GB RAM | Report: {4}' -f
+                $cs.Name, $cs.Model, $bios.SerialNumber, $totalRAM, (Split-Path $reportFile -Leaf))
+        } else {
+            Complete-ToolRun $run -Status Warning -Summary (
+                '{0} | {1} | SN {2} | {3} GB RAM | Report: file write failed' -f
+                $cs.Name, $cs.Model, $bios.SerialNumber, $totalRAM)
+        }
     }
     catch {
         Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message
