@@ -408,5 +408,41 @@
             Risk          = 'Modifies'
             Tags          = @('activation','license','slmgr','kms')
         }
+        @{
+            Id            = 'dism-repair'
+            LegacyId      = '31'
+            Name          = 'DISM System Image Repair'
+            Category      = 'Repair'
+            Function      = 'Invoke-DISMRepair'
+            Description   = 'DISM CheckHealth/ScanHealth then optional RestoreHealth (repairs the component store; may contact Windows Update)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('dism','image','restorehealth','corruption')
+        }
+        @{
+            Id            = 'sfc-repair'
+            LegacyId      = '32'
+            Name          = 'System File Checker'
+            Category      = 'Repair'
+            Function      = 'Invoke-SFCRepair'
+            Description   = 'sfc /scannow - scans and repairs protected system files from the local cache'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('sfc','scannow','systemfile','corruption')
+        }
+        @{
+            Id            = 'chkdsk-repair'
+            LegacyId      = '33'
+            Name          = 'Check Disk'
+            Category      = 'Repair'
+            Function      = 'Invoke-ChkDskRepair'
+            Description   = 'chkdsk scan, or /F /R which schedules a boot-time check on the system drive'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('chkdsk','disk','filesystem','badsector')
+        }
     )
 }
