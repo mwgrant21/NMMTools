@@ -34,7 +34,7 @@ function Get-SystemHealthCheck {
 
         Write-ToolOutput ('Memory: {0}% used' -f $memPercent)
         if ($memPercent -gt 90) {
-            Write-ToolOutput ('High memory usage: {0}%' -f $memPercent) -Level Warning
+            Write-ToolOutput 'Memory usage exceeds 90% threshold' -Level Warning
             $issues += ('High memory usage: {0}%' -f $memPercent)
         }
 

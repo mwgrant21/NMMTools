@@ -46,15 +46,19 @@ function Get-SecurityAnalysis {
         # --- Verdict ----------------------------------------------------------
         # Deliberate improvement over v8: when neither check could run, report Warning
         # instead of Success — Success with no real data is misleading.
+        $unavailableSuffix = ''
+        if ($firewallStatus -eq 'Unable to check') { $unavailableSuffix += '; firewall check unavailable' }
+        if ($defenderStatus -eq 'Unable to check') { $unavailableSuffix += '; Defender check unavailable' }
+
         if ($firewallStatus -eq 'Unable to check' -and $defenderStatus -eq 'Unable to check') {
             Complete-ToolRun $run -Status Warning -Summary (
                 'Could not assess posture: firewall and Defender checks unavailable (restricted access?)')
         } elseif ($findings.Count -gt 0) {
             Complete-ToolRun $run -Status Warning -Summary (
-                '{0} concern(s): {1}' -f $findings.Count, ($findings -join '; '))
+                '{0} concern(s): {1}{2}' -f $findings.Count, ($findings -join '; '), $unavailableSuffix)
         } else {
             Complete-ToolRun $run -Status Success -Summary (
-                'Firewall: {0}; Defender: {1}' -f $firewallStatus, $defenderStatus)
+                'Firewall: {0}; Defender: {1}{2}' -f $firewallStatus, $defenderStatus, $unavailableSuffix)
         }
     }
     catch {

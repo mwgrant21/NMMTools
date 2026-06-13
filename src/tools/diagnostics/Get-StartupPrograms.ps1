@@ -6,6 +6,8 @@ function Get-StartupPrograms {
     try {
         $run = New-ToolRun -Id 'startup-programs'
 
+        # Note: when run as SYSTEM (PDQ context), HKCU maps to SYSTEM's hive (HKU\S-1-5-18),
+        # not the logged-on user's. [User] entries then reflect SYSTEM's autorun keys.
         $regPaths = @(
             [PSCustomObject]@{ Path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; Location = 'Machine' }
             [PSCustomObject]@{ Path = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; Location = 'User'    }
