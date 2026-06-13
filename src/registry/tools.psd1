@@ -240,5 +240,41 @@
             Risk          = 'ReadOnly'
             Tags          = @('features','windows-features','optional','dism')
         }
+        @{
+            Id            = 'pending-reboot'
+            LegacyId      = '94'
+            Name          = 'Pending Reboot Status'
+            Category      = 'Diagnostics'
+            Function      = 'Get-PendingRebootStatus'
+            Description   = 'Pending-reboot indicators from WU, CBS, PendingFileRename, computer rename, and SCCM'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('reboot','pending','restart')
+        }
+        @{
+            Id            = 'winget-upgrade'
+            LegacyId      = '104'
+            Name          = 'winget App Update Sweep'
+            Category      = 'Diagnostics'
+            Function      = 'Invoke-WingetUpgradeAll'
+            Description   = 'Upgrades all winget-managed apps (can close or replace running applications)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('winget','upgrade','apps','updates')
+        }
+        @{
+            Id            = 'hardware-summary'
+            LegacyId      = '69'
+            Name          = 'Offline Hardware Summary'
+            Category      = 'Diagnostics'
+            Function      = 'Export-HardwareSummary'
+            Description   = 'Exports a hardware summary file for ticket attachments'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('hardware','summary','export','ticket')
+        }
     )
 }
