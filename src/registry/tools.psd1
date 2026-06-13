@@ -223,7 +223,7 @@
             Category      = 'Diagnostics'
             Function      = 'Start-FileSystemCheck'
             Description   = 'Volume health report via Get-Volume (DriveLetter, FileSystem, HealthStatus); flags Unhealthy volumes'
-            RequiresAdmin = $true
+            RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'ReadOnly'
             Tags          = @('filesystem','disk','volume','health','chkdsk')
