@@ -372,5 +372,41 @@
             Risk          = 'Disruptive'
             Tags          = @('teams','cache','reset','newteams')
         }
+        @{
+            Id            = 'driver-integrity-scan'
+            LegacyId      = '72'
+            Name          = 'Driver Integrity Scan'
+            Category      = 'Repair'
+            Function      = 'Get-DriverIntegrityScan'
+            Description   = 'Inventories installed drivers; flags duplicates, unknown publishers, and stale (3yr+) drivers'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('driver','integrity','scan','inventory')
+        }
+        @{
+            Id            = 'bsod-crash-parser'
+            LegacyId      = '75'
+            Name          = 'BSOD Crash Dump Parser'
+            Category      = 'Repair'
+            Function      = 'Get-BSODCrashDumpParser'
+            Description   = 'Parses minidumps for bug-check codes and likely causes; optional report export'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('bsod','crashdump','minidump','bugcheck')
+        }
+        @{
+            Id            = 'windows-activation'
+            LegacyId      = '90'
+            Name          = 'Windows Activation Status and Repair'
+            Category      = 'Repair'
+            Function      = 'Repair-WindowsActivation'
+            Description   = 'Reports license/activation status; attempts online activation (slmgr /ato) if unlicensed'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('activation','license','slmgr','kms')
+        }
     )
 }
