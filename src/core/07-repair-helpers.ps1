@@ -59,6 +59,10 @@ function Invoke-ConservativeTempCleanup {
     $tempPaths = @($env:TEMP, 'C:\Windows\Temp')
     $totalFreed = [int64]0
     foreach ($path in $tempPaths) {
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            Write-ToolOutput '  (skipped empty temp path)' -Level Detail
+            continue
+        }
         if (-not (Test-Path $path)) {
             Write-ToolOutput ('  {0}: not present, skipped' -f $path) -Level Detail
             continue

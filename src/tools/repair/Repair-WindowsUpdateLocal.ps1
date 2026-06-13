@@ -34,8 +34,12 @@ function Repair-WindowsUpdateLocal {
                 Remove-Item $sdOldPath -Recurse -Force -ErrorAction SilentlyContinue
             }
             Rename-Item -Path $sdPath -NewName 'SoftwareDistribution.old' -ErrorAction SilentlyContinue
-            $sdRenamed = $true
-            Write-ToolOutput 'SoftwareDistribution renamed to SoftwareDistribution.old.' -Level Info
+            $sdRenamed = -not (Test-Path $sdPath)
+            if ($sdRenamed) {
+                Write-ToolOutput 'SoftwareDistribution renamed to SoftwareDistribution.old.' -Level Info
+            } else {
+                Write-ToolOutput 'SoftwareDistribution rename failed (folder may be locked).' -Level Warning
+            }
         } else {
             Write-ToolOutput 'SoftwareDistribution folder not found - skipped rename.' -Level Warning
         }
@@ -50,8 +54,12 @@ function Repair-WindowsUpdateLocal {
                 Remove-Item $catOldPath -Recurse -Force -ErrorAction SilentlyContinue
             }
             Rename-Item -Path $catPath -NewName 'Catroot2.old' -ErrorAction SilentlyContinue
-            $catRenamed = $true
-            Write-ToolOutput 'Catroot2 renamed to Catroot2.old.' -Level Info
+            $catRenamed = -not (Test-Path $catPath)
+            if ($catRenamed) {
+                Write-ToolOutput 'Catroot2 renamed to Catroot2.old.' -Level Info
+            } else {
+                Write-ToolOutput 'Catroot2 rename failed (folder may be locked).' -Level Warning
+            }
         } else {
             Write-ToolOutput 'Catroot2 folder not found - skipped rename.' -Level Warning
         }
