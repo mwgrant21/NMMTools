@@ -11,13 +11,6 @@ function Get-WiFiEnvironment {
 
         $rawText = $raw -join "`n"
 
-        if ($rawText -match 'There is no wireless interface' -or
-            $rawText -match 'is not running' -or
-            $rawText -match 'not found' -or
-            $rawText -match 'hosted network') {
-            # No adapter or adapter disabled
-        }
-
         # Check for no-adapter / WLAN service not running
         if ($rawText -match 'There is no wireless interface' -or
             ($rawText -match 'The Wireless LAN') -or

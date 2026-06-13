@@ -612,5 +612,53 @@
             Risk          = 'ReadOnly'
             Tags          = @('travel','readiness','preflight','laptop')
         }
+        @{
+            Id            = 'wifi-diagnostics'
+            LegacyId      = '39'
+            Name          = 'Wi-Fi Diagnostics'
+            Category      = 'Laptop'
+            Function      = 'Get-WiFiDiagnostics'
+            Description   = 'Wi-Fi adapter/SSID/signal report; optional adapter restart or forget-network actions'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('wifi','wireless','adapter','signal')
+        }
+        @{
+            Id            = 'vpn-health'
+            LegacyId      = '40'
+            Name          = 'VPN Health and Connection'
+            Category      = 'Laptop'
+            Function      = 'Test-VPNHealth'
+            Description   = 'Windows VPN profile status + reachability (timeout-bounded); optional reconnect/disconnect'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('vpn','rasdial','connection','reachability')
+        }
+        @{
+            Id            = 'network-profile-cleanup'
+            LegacyId      = '47'
+            Name          = 'Network Profile Cleanup'
+            Category      = 'Laptop'
+            Function      = 'Clear-NetworkProfiles'
+            Description   = 'Lists saved Wi-Fi profiles; delete (typed confirm), show saved password (warned), or stack reset'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('wifi','profile','cleanup','credential')
+        }
+        @{
+            Id            = 'network-stack-reset'
+            LegacyId      = '67'
+            Name          = 'Advanced Network Stack Deep Reset'
+            Category      = 'Laptop'
+            Function      = 'Reset-NetworkStack'
+            Description   = 'Flush DNS + winsock + TCP/IP reset + cycle all active adapters (typed RESET; reboot to finish)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('network','winsock','tcpip','reset')
+        }
     )
 }
