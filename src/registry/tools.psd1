@@ -516,5 +516,53 @@
             Risk          = 'Modifies'
             Tags          = @('driver','firmware','oem','vendor')
         }
+        @{
+            Id            = 'windows-update-repair'
+            LegacyId      = '65'
+            Name          = 'Local Windows Update Repair'
+            Category      = 'Repair'
+            Function      = 'Repair-WindowsUpdateLocal'
+            Description   = 'Resets Windows Update: stops services, renames SoftwareDistribution and Catroot2, re-registers DLLs'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('windowsupdate','wuauserv','softwaredistribution','reset')
+        }
+        @{
+            Id            = 'proxy-reset'
+            LegacyId      = '100'
+            Name          = 'Proxy / Internet Settings Repair'
+            Category      = 'Repair'
+            Function      = 'Repair-ProxySettings'
+            Description   = 'Resets WinHTTP/WinINET proxy, clears PAC, flushes DNS, resets Winsock (reboot to finish)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('proxy','winhttp','winsock','internet')
+        }
+        @{
+            Id            = 'display-adapter-reset'
+            LegacyId      = '73'
+            Name          = 'Reset Display Adapter'
+            Category      = 'Repair'
+            Function      = 'Reset-DisplayAdapter'
+            Description   = 'Disables and re-enables the display adapter (brief black screen) to clear display glitches'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('display','gpu','adapter','ddu')
+        }
+        @{
+            Id            = 'repair-suite'
+            LegacyId      = '36'
+            Name          = 'Complete Repair Suite'
+            Category      = 'Repair'
+            Function      = 'Invoke-SystemRepairSuite'
+            Description   = 'One-click DISM RestoreHealth + SFC + temp cleanup, run in sequence'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('suite','dism','sfc','cleanup','repair')
+        }
     )
 }
