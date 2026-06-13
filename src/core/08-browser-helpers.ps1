@@ -4,7 +4,9 @@
 
 function Get-BrowserCatalog {
     # Chromium (Chrome/Edge/Brave) share identical file-sets and profile layout.
-    $chromiumBackup = @('Bookmarks','Bookmarks.bak','Preferences','History','Login Data','Web Data')
+    # Some files (History; Firefox cookies.sqlite) are in BOTH backup and clear sets by design: archived, then removed.
+    $chromiumBackup = @('Bookmarks','Bookmarks.bak','Preferences','Secure Preferences',
+                        'History','Login Data','Login Data For Account','Web Data')
     $chromiumClearF = @('Cookies','Cookies-journal','History','History-journal',
                         'History Provider Cache','Top Sites','Top Sites-journal','Visited Links')
     $chromiumClearD = @('Cache','Code Cache','GPUCache','Service Worker\CacheStorage',
@@ -45,7 +47,7 @@ function Get-BrowserCatalog {
 
 function Get-BrowserProfiles {
     # Returns the installed profile directories for one browser (empty array if absent).
-    param([Parameter(Mandatory)]$Browser)
+    param([Parameter(Mandatory)][hashtable]$Browser)
     if (-not (Test-Path -LiteralPath $Browser.BasePath)) { return @() }
     $dirs = @()
     foreach ($glob in $Browser.ProfileGlobs) {

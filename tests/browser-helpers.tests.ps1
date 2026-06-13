@@ -29,6 +29,12 @@ Describe 'browser-clear preserve invariant' {
             $overlap | Should -BeNullOrEmpty -Because "$($b.Name) must not clear a preserved file"
         }
     }
+    It 'never clears a preserved directory (ClearDirs intersect PreserveFiles is empty)' {
+        foreach ($b in $script:Catalog) {
+            $overlap = @($b.ClearDirs | Where-Object { $b.PreserveFiles -contains $_ })
+            $overlap | Should -BeNullOrEmpty -Because "$($b.Name) must not clear a preserved directory"
+        }
+    }
     It 'preserves Chromium passwords, autofill, and bookmarks' {
         foreach ($b in @($script:Catalog | Where-Object { $_.Family -eq 'Chromium' })) {
             foreach ($keep in @('Login Data','Web Data','Bookmarks')) {
@@ -61,5 +67,24 @@ Describe 'Get-BrowserProfiles' {
     It 'returns an empty array when the base path is absent' {
         $fake = @{ BasePath = 'Z:\NoSuchBrowser\User Data'; ProfileGlobs = @('Default','Profile*') }
         @(Get-BrowserProfiles -Browser $fake).Count | Should -Be 0
+    }
+}
+
+Describe 'Get-BrowserBackupRoot' {
+    It 'returns the preferred root under an existing drive' {
+        $existingRoot = Join-Path $env:SystemDrive 'BrowserBackups'
+        $result = Get-BrowserBackupRoot -PreferredRoot $existingRoot
+        $result | Should -Be (Join-Path $existingRoot $env:USERNAME)
+    }
+    It 'falls back to the Desktop when the preferred drive is absent' {
+        $result = Get-BrowserBackupRoot -PreferredRoot 'Z:\BrowserBackups'
+        $expected = Join-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'BrowserBackups') $env:USERNAME
+        $result | Should -Be $expected
+    }
+}
+
+Describe 'Close-Browsers' {
+    It 'returns an empty array when no target process is running' {
+        @(Close-Browsers -ProcessNames @('NoSuchProcess_NMM_abc123')).Count | Should -Be 0
     }
 }
