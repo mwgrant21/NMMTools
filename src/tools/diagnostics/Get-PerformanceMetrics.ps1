@@ -1,4 +1,4 @@
-function Get-PerformanceMetrics {
+﻿function Get-PerformanceMetrics {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
@@ -22,7 +22,7 @@ function Get-PerformanceMetrics {
 
         if ($memPercent -gt 80) {
             Write-ToolOutput 'Memory usage is high (>80%).' -Level Warning
-            Complete-ToolRun $run -Status Warning -Summary ('RAM: {0}%; {1} processes — high memory' -f $memPercent, $procCount)
+            Complete-ToolRun $run -Status Warning -Summary ('RAM: {0}%; {1} processes - high memory' -f $memPercent, $procCount)
         }
         else {
             Complete-ToolRun $run -Status Success -Summary ('RAM: {0}%; {1} processes' -f $memPercent, $procCount)

@@ -1,4 +1,4 @@
-function Start-FileSystemCheck {
+﻿function Start-FileSystemCheck {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
@@ -7,7 +7,7 @@ function Start-FileSystemCheck {
         $run = New-ToolRun -Id 'file-system-check'
 
         # v8: non-admin path used Get-Volume to show DriveLetter, FileSystem, HealthStatus.
-        # Admin path only printed "File system check requires system restart" — no check was
+        # Admin path only printed "File system check requires system restart" - no check was
         # scheduled or executed. Port preserves the read-only volume-health report.
         $volumes = @(Get-Volume | Where-Object { $_.DriveLetter })
 
@@ -36,7 +36,7 @@ function Start-FileSystemCheck {
                 '{0} unhealthy volume(s): {1}' -f $unhealthy.Count, ($unhealthy -join ' '))
         } else {
             Complete-ToolRun $run -Status Success -Summary (
-                '{0} volume(s) checked — all Healthy' -f $volumes.Count)
+                '{0} volume(s) checked - all Healthy' -f $volumes.Count)
         }
     }
     catch {

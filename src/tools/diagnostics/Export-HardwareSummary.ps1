@@ -1,4 +1,4 @@
-function Export-HardwareSummary {
+﻿function Export-HardwareSummary {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
@@ -8,7 +8,7 @@ function Export-HardwareSummary {
 
         Write-ToolOutput 'Collecting hardware information...'
 
-        # Singleton CIM queries — Select-Object -First 1 guards against unexpected multi-instance results
+        # Singleton CIM queries - Select-Object -First 1 guards against unexpected multi-instance results
         $cs   = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1
         $os   = Get-CimInstance Win32_OperatingSystem | Select-Object -First 1
         $bios = Get-CimInstance Win32_BIOS            | Select-Object -First 1
@@ -19,7 +19,7 @@ function Export-HardwareSummary {
 
         $disks = @(Get-CimInstance Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 })
 
-        # Optional hardware sections — Detail level; present only when the device is detected
+        # Optional hardware sections - Detail level; present only when the device is detected
         $battery   = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1
         $bitlocker = Get-BitLockerVolume -ErrorAction SilentlyContinue |
             Where-Object { $_.VolumeType -eq 'OperatingSystem' } | Select-Object -First 1
@@ -80,7 +80,7 @@ function Export-HardwareSummary {
             $report += ''
         }
 
-        # Summary rows — emit BEFORE file write so console output is never swallowed by a write failure
+        # Summary rows - emit BEFORE file write so console output is never swallowed by a write failure
         Write-ToolOutput ('Computer  : {0} ({1} {2})' -f $cs.Name, $cs.Manufacturer, $cs.Model)
         Write-ToolOutput ('Serial    : {0}' -f $bios.SerialNumber)
         Write-ToolOutput ('CPU       : {0}' -f $proc.Name) -Level Detail

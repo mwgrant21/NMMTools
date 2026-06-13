@@ -1,4 +1,4 @@
-function Invoke-WingetUpgradeAll {
+﻿function Invoke-WingetUpgradeAll {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
@@ -14,7 +14,7 @@ function Invoke-WingetUpgradeAll {
             return
         }
 
-        # List available upgrades — Detail level; output can be voluminous
+        # List available upgrades - Detail level; output can be voluminous
         Write-ToolOutput 'Checking for available upgrades...'
         $upgradeList = & winget upgrade 2>&1
         $upgradeList | ForEach-Object {
@@ -22,14 +22,14 @@ function Invoke-WingetUpgradeAll {
             if ($str.Trim()) { Write-ToolOutput $str -Level Detail }
         }
 
-        # Confirm before proceeding — Default 'No': upgrading all apps can close/replace running software
+        # Confirm before proceeding - Default 'No': upgrading all apps can close/replace running software
         $choice = Read-ToolChoice -Prompt 'Upgrade all apps now?' -Default 'No' -Silent:$Silent
         if ($choice -ne 'Yes') {
             Complete-ToolRun $run -Status Skipped -Summary 'User declined upgrade'
             return
         }
 
-        # Run upgrade — args verbatim from v8
+        # Run upgrade - args verbatim from v8
         Write-ToolOutput 'Running winget upgrade --all --silent --accept-source-agreements --accept-package-agreements...'
         $upgradeOutput = & winget upgrade --all --silent --accept-source-agreements --accept-package-agreements 2>&1
         $exitCode = $LASTEXITCODE

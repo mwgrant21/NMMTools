@@ -12,7 +12,7 @@ if ($ListTools -and $Tool) {
 if ($ListTools) {
     Get-NmmTools | ForEach-Object { [PSCustomObject]$_ } |
         Sort-Object Category, Name |
-        Format-Table Id, LegacyId, Name, Category, Risk, SilentCapable -AutoSize
+        Format-Table Id, LegacyId, Name, Category, Risk, SilentCapable, RequiresAdmin -AutoSize
     exit 0
 }
 

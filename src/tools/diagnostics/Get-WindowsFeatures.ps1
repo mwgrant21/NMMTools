@@ -1,4 +1,4 @@
-function Get-WindowsFeatures {
+﻿function Get-WindowsFeatures {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
@@ -6,7 +6,7 @@ function Get-WindowsFeatures {
     try {
         $run = New-ToolRun -Id 'windows-features'
 
-        # v8: Get-WindowsOptionalFeature -Online — requires admin; filters to Enabled features
+        # v8: Get-WindowsOptionalFeature -Online - requires admin; filters to Enabled features
         $features = @(Get-WindowsOptionalFeature -Online |
             Where-Object { $_.State -eq 'Enabled' } |
             Select-Object FeatureName |

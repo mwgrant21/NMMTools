@@ -42,3 +42,22 @@ The kebab-case slug must be identical in: (1) the registry `Id`, (2) the tool's
     Import-Module Pester -MinimumVersion 5.0; Invoke-Pester .\tests
 Both must be green before commit. Smoke at least one ported read-only tool via:
     .\dist\NMMTools.ps1 -Tool <slug> -Silent
+
+## Conventions hardened after batch 1
+
+- **Encoding:** Source .ps1 must be ASCII-only (use `-` not the em-dash). `tests\encoding.tests.ps1`
+  enforces this. The build writes a BOM'd artifact; source stays ASCII so no read path can mojibake.
+
+- **Tag vocabulary:** singular nouns, no redundant tags (e.g. don't list both 'features' and
+  'windows-features'); search is tag-driven so spelling consistency matters.
+
+- **Risk taxonomy:** ReadOnly = inspects state and MAY emit a report artifact to disk (e.g.
+  hardware-summary, ticket export) but changes NO system configuration; Modifies = changes system
+  state reversibly/routinely; Disruptive = can close/replace running software or force a reboot
+  (requires -Force under -Silent).
+
+- **Network calls (batch 2+):** every call to a remote/cloud service (Azure AD, M365, Teams, DNS)
+  must have an explicit timeout and/or `-ErrorAction` guard and degrade to a Warning summary on
+  unreachable/denied - never let a hang or throw become an unhandled Failed. Mirror
+  `Get-SecurityAnalysis` ('Unable to check' -> Warning) and `Test-NetworkConnectivity`
+  (per-target failure) patterns.

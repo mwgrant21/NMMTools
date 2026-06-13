@@ -1,4 +1,4 @@
-function Get-SecurityAnalysis {
+﻿function Get-SecurityAnalysis {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
@@ -23,7 +23,7 @@ function Get-SecurityAnalysis {
                 $findings += $firewallStatus
             }
         } catch {
-            # Access restricted or NetSecurity module unavailable — report at Detail, not a finding
+            # Access restricted or NetSecurity module unavailable - report at Detail, not a finding
             Write-ToolOutput 'Firewall: Unable to check' -Level Detail
         }
 
@@ -39,13 +39,13 @@ function Get-SecurityAnalysis {
                 $findings += 'Windows Defender disabled'
             }
         } catch {
-            # Defender cmdlet unavailable or access restricted — report at Detail, not a finding
+            # Defender cmdlet unavailable or access restricted - report at Detail, not a finding
             Write-ToolOutput 'Windows Defender: Unable to check' -Level Detail
         }
 
         # --- Verdict ----------------------------------------------------------
         # Deliberate improvement over v8: when neither check could run, report Warning
-        # instead of Success — Success with no real data is misleading.
+        # instead of Success - Success with no real data is misleading.
         $unavailableSuffix = ''
         if ($firewallStatus -eq 'Unable to check') { $unavailableSuffix += '; firewall check unavailable' }
         if ($defenderStatus -eq 'Unable to check') { $unavailableSuffix += '; Defender check unavailable' }

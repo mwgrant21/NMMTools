@@ -1,4 +1,4 @@
-function Get-ScheduledTasksReview {
+﻿function Get-ScheduledTasksReview {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
@@ -6,7 +6,7 @@ function Get-ScheduledTasksReview {
     try {
         $run = New-ToolRun -Id 'scheduled-tasks'
 
-        # v8: Get-ScheduledTask | Where-Object { $_.State -ne 'Disabled' } — all tasks, not filtered to non-Microsoft
+        # v8: Get-ScheduledTask | Where-Object { $_.State -ne 'Disabled' } - all tasks, not filtered to non-Microsoft
         # No cap - v8 enumerated all active tasks; output volume is accepted parity behavior
         # TaskPath omitted per v8; duplicate TaskNames are expected (same name in different scheduler folders)
         $tasks = @(Get-ScheduledTask | Where-Object { $_.State -ne 'Disabled' } | Sort-Object TaskName)

@@ -1,4 +1,4 @@
-function Test-NetworkConnectivity {
+﻿function Test-NetworkConnectivity {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
@@ -14,7 +14,7 @@ function Test-NetworkConnectivity {
 
         Write-ToolOutput ('Testing {0} targets...' -f $targets.Count)
 
-        # PS 5.1 uses ResponseTime; PS 6+ uses Latency — keep v8 version check for forward compat
+        # PS 5.1 uses ResponseTime; PS 6+ uses Latency - keep v8 version check for forward compat
         $responseTimeProp = if ($PSVersionTable.PSVersion.Major -ge 6) { 'Latency' } else { 'ResponseTime' }
 
         $reachableCount = 0
@@ -27,7 +27,7 @@ function Test-NetworkConnectivity {
                 $avgMs = [math]::Round(
                     ($ping | Select-Object -ExpandProperty $responseTimeProp |
                         Measure-Object -Average).Average, 2)
-                Write-ToolOutput ('{0,-20}  OK — {1}ms' -f $target.Name, $avgMs) -Level Detail
+                Write-ToolOutput ('{0,-20}  OK - {1}ms' -f $target.Name, $avgMs) -Level Detail
                 $reachableCount++
             } else {
                 Write-ToolOutput ('{0,-20}  FAILED' -f $target.Name) -Level Warning

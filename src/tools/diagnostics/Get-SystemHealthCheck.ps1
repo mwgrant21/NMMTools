@@ -1,4 +1,4 @@
-function Get-SystemHealthCheck {
+﻿function Get-SystemHealthCheck {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
@@ -41,10 +41,10 @@ function Get-SystemHealthCheck {
         # --- Verdict ----------------------------------------------------------
         if ($issues.Count -gt 0) {
             Complete-ToolRun $run -Status Warning -Summary (
-                'Needs Attention — {0} issue(s): {1}' -f $issues.Count, ($issues -join '; '))
+                'Needs Attention - {0} issue(s): {1}' -f $issues.Count, ($issues -join '; '))
         } else {
             Complete-ToolRun $run -Status Success -Summary (
-                'Healthy — disk and memory within thresholds')
+                'Healthy - disk and memory within thresholds')
         }
     }
     catch {
