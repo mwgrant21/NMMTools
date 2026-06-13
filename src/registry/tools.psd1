@@ -204,5 +204,41 @@
             Risk          = 'ReadOnly'
             Tags          = @('startup','autorun','boot')
         }
+        @{
+            Id            = 'scheduled-tasks'
+            LegacyId      = '17'
+            Name          = 'Scheduled Tasks Review'
+            Category      = 'Diagnostics'
+            Function      = 'Get-ScheduledTasksReview'
+            Description   = 'Active (non-Disabled) scheduled tasks with name and current state'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('tasks','scheduler','scheduled')
+        }
+        @{
+            Id            = 'file-system-check'
+            LegacyId      = '18'
+            Name          = 'File System Check'
+            Category      = 'Diagnostics'
+            Function      = 'Start-FileSystemCheck'
+            Description   = 'Volume health report via Get-Volume (DriveLetter, FileSystem, HealthStatus); flags Unhealthy volumes'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('filesystem','disk','volume','health','chkdsk')
+        }
+        @{
+            Id            = 'windows-features'
+            LegacyId      = '19'
+            Name          = 'Windows Features Status'
+            Category      = 'Diagnostics'
+            Function      = 'Get-WindowsFeatures'
+            Description   = 'Enabled Windows optional features via Get-WindowsOptionalFeature -Online (requires admin)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('features','windows-features','optional','dism')
+        }
     )
 }
