@@ -10,7 +10,7 @@ function Get-WindowsHelloStatus {
         $helloPolicy = Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\PassportForWork' -ErrorAction SilentlyContinue
 
         if ($helloPolicy) {
-            Write-ToolOutput 'Hello policy: Enabled via Group Policy (PassportForWork key present)'
+            Write-ToolOutput 'Hello policy: Managed via Group Policy (PassportForWork key present)'
         } else {
             Write-ToolOutput 'Hello policy: Not configured via Group Policy' -Level Warning
         }

@@ -6,6 +6,11 @@ function Get-AzureADHealthCheck {
     try {
         $run = New-ToolRun -Id 'azure-ad-health'
 
+        if (-not (Get-Command dsregcmd -ErrorAction SilentlyContinue)) {
+            Complete-ToolRun $run -Status Warning -Summary 'dsregcmd not available on this system'
+            return
+        }
+
         # Run dsregcmd and extract the four join-state fields - offline-valid, no network needed
         $dsregOutput = & dsregcmd /status
         $matched = @($dsregOutput | Select-String 'AzureAdJoined', 'DomainJoined', 'WorkplaceJoined', 'DeviceId')
@@ -16,6 +21,7 @@ function Get-AzureADHealthCheck {
         }
 
         # Emit each matched join-state line at Detail level
+        Write-ToolOutput ('Join state ({0} fields):' -f $matched.Count)
         foreach ($line in $matched) {
             Write-ToolOutput $line.Line.Trim() -Level Detail
         }
@@ -28,7 +34,7 @@ function Get-AzureADHealthCheck {
         $parts = @()
         if ($azJoined)  { $parts += 'Azure AD joined' }   else { $parts += 'not Azure AD joined' }
         if ($domJoined) { $parts += 'domain joined' }      else { $parts += 'not domain joined' }
-        if ($wpJoined)  { $parts += 'workplace joined' }
+        if ($wpJoined)  { $parts += 'workplace joined' }   else { $parts += 'not workplace joined' }
 
         Complete-ToolRun $run -Status Success -Summary ($parts -join '; ')
     }

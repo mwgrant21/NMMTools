@@ -17,6 +17,7 @@ function Get-IntuneHealthCheck {
         }
 
         # Report provider and UPN for each matched enrollment record
+        Write-ToolOutput ('{0} MDM enrollment(s) found:' -f $mdmEnrollments.Count)
         foreach ($enrollment in $mdmEnrollments) {
             $upn      = if ($enrollment.UPN)        { $enrollment.UPN }        else { '(UPN not set)' }
             $provider = if ($enrollment.ProviderID) { $enrollment.ProviderID } else { '(provider unknown)' }
