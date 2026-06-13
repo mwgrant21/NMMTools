@@ -1,6 +1,6 @@
 # NMM Toolkit v8 → v9 Parity Checklist
 
-Generated at batch 1 close-out. **23 of ~111 items ported** (items 1–20, 69, 94, 104).
+Generated at batch 1 close-out; updated batch 2 close-out. **31 of ~111 items ported** (items 1–20, 21–25, 28–30, 69, 94, 104). Items 26 and 27 consolidated.
 
 > **Known consolidation candidates — decide at their batch, with Matt:**
 > - **26 / 60** — Credential Manager Cleanup (appears in both Cloud & Common User Issues)
@@ -43,16 +43,16 @@ Generated at batch 1 close-out. **23 of ~111 items ported** (items 1–20, 69, 9
 
 | v8 # | v8 Menu Name | Status | v9 Id |
 |-----:|---|---|---|
-| 21 | Azure AD Health Check | pending (batch 2) | — |
-| 22 | Office 365 Health and Repair | pending (batch 2) | — |
-| 23 | OneDrive Health and Reset | pending (batch 2) | — |
-| 24 | Teams Cache Clear and Reset | pending (batch 2) | — |
-| 25 | M365 Connectivity Test | pending (batch 2) | — |
-| 26 | Credential Manager Cleanup | pending (batch 2) | — |
-| 27 | MFA Status Check | pending (batch 2) | — |
-| 28 | Group Policy Update | pending (batch 2) | — |
-| 29 | Intune/MDM Health Check | pending (batch 2) | — |
-| 30 | Windows Hello Status | pending (batch 2) | — |
+| 21 | Azure AD Health Check | ported (batch 2) | azure-ad-health |
+| 22 | Office 365 Health and Repair | ported (batch 2) | office-repair |
+| 23 | OneDrive Health and Reset | ported (batch 2) | onedrive-repair |
+| 24 | Teams Cache Clear and Reset | ported (batch 2) | teams-cache |
+| 25 | M365 Connectivity Test | ported (batch 2) | m365-connectivity |
+| 26 | Credential Manager Cleanup | consolidated -> tool 60 (batch 6) | — |
+| 27 | MFA Status Check | consolidated -> tool 30 (windows-hello) | — |
+| 28 | Group Policy Update | ported (batch 2) | group-policy-update |
+| 29 | Intune/MDM Health Check | ported (batch 2) | intune-health |
+| 30 | Windows Hello Status | ported (batch 2) | windows-hello |
 
 ---
 
