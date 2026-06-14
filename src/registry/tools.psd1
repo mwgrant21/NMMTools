@@ -1080,5 +1080,17 @@
             Risk          = 'Modifies'
             Tags          = @('defender','antivirus','security','threats','signatures')
         }
+        @{
+            Id            = 'rdp-config'
+            LegacyId      = '101'
+            Name          = 'Remote Desktop Configuration'
+            Category      = 'Security'
+            Function      = 'Set-RemoteDesktop'
+            Description   = 'Report Remote Desktop state (fDenyTSConnections, NLA, firewall, TermService), then enable RDP (typed ENABLE - increases exposure) or disable it (re-deny + close firewall)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('rdp','remotedesktop','firewall','nla','termservice')
+        }
     )
 }
