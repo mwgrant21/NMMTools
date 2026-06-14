@@ -1032,5 +1032,65 @@
             Risk          = 'Modifies'
             Tags          = @('outlook','addin','onbase','loadbehavior','resiliency')
         }
+        @{
+            Id            = 'domain-trust-repair'
+            LegacyId      = '51'
+            Name          = 'Domain Trust and Connection Repair'
+            Category      = 'Security'
+            Function      = 'Repair-DomainTrust'
+            Description   = 'Report domain join, secure channel, DC list, DNS and time, then test/repair the secure channel, reset the machine password, resync time, purge Kerberos tickets, rejoin the domain (typed REJOIN), or show detailed domain info'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('domain','kerberos','securechannel','nltest','ad')
+        }
+        @{
+            Id            = 'time-sync-repair'
+            LegacyId      = '91'
+            Name          = 'Time Sync Repair'
+            Category      = 'Security'
+            Function      = 'Repair-TimeSync'
+            Description   = 'Report w32tm status and NTP peers, then resync the clock or full-repair the Windows Time service (re-register, configure source, resync); Kerberos fails past 5 min drift'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('time','w32tm','ntp','kerberos','sync')
+        }
+        @{
+            Id            = 'local-admin-audit'
+            LegacyId      = '92'
+            Name          = 'Local Admin Account Audit'
+            Category      = 'Security'
+            Function      = 'Get-LocalAdminAudit'
+            Description   = 'Audit the local Administrators group, flag unexpected active accounts and the built-in Administrator, then optionally disable the unexpected LOCAL accounts'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('admin','audit','localgroup','security','accounts')
+        }
+        @{
+            Id            = 'defender-status'
+            LegacyId      = '93'
+            Name          = 'Windows Defender Security Status'
+            Category      = 'Security'
+            Function      = 'Get-DefenderStatus'
+            Description   = 'Report Windows Defender real-time protection, definition age, last scan, threats and tamper protection, then optionally update signatures; warns if a third-party AV is active'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('defender','antivirus','security','threats','signatures')
+        }
+        @{
+            Id            = 'rdp-config'
+            LegacyId      = '101'
+            Name          = 'Remote Desktop Configuration'
+            Category      = 'Security'
+            Function      = 'Set-RemoteDesktop'
+            Description   = 'Report Remote Desktop state (fDenyTSConnections, NLA, firewall, TermService), then enable RDP (typed ENABLE - increases exposure) or disable it (re-deny + close firewall)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('rdp','remotedesktop','firewall','nla','termservice')
+        }
     )
 }

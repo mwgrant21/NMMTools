@@ -1,6 +1,6 @@
 # NMM Toolkit v8 → v9 Parity Checklist
 
-Generated at batch 1 close-out; updated batch 6a close-out (batch 6 complete). **86 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 52, 53, 54, 55, 56, 57-60, 62-64, 65, 66, 67-73, 75, 76, 79-82, 83, 84, 85, 87-90, 94, 95, 96, 100, 102, 104). Items 26, 27, 37, 49, 61, 77, 78, 97, 98, 99, 106 consolidated.
+Generated at batch 1 close-out; updated batch 7 close-out. **91 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 51, 52, 53, 54, 55, 56, 57-60, 62-64, 65, 66, 67-73, 75, 76, 79-82, 83, 84, 85, 87-93, 94, 95, 96, 100, 101, 102, 104). Items 26, 27, 37, 49, 61, 77, 78, 97, 98, 99, 106 consolidated. **Only Quick Fixes Q1-Q9 remain.**
 
 > **Known consolidation candidates — decide at their batch, with Matt:**
 > - **26 / 60** — Credential Manager Cleanup (appears in both Cloud & Common User Issues)
@@ -154,11 +154,11 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 
 | v8 # | v8 Menu Name | Status | v9 Id |
 |-----:|---|---|---|
-| 51 | Domain Trust and Connection Repair | pending (batch 7) | — |
-| 91 | Time Sync Repair | pending (batch 7) | — |
-| 92 | Local Admin Account Audit | pending (batch 7) | — |
-| 93 | Windows Defender / Security Status | pending (batch 7) | — |
-| 101 | Enable Remote Desktop | pending (batch 7) | — |
+| 51 | Domain Trust and Connection Repair | ported (batch 7) | domain-trust-repair |
+| 91 | Time Sync Repair | ported (batch 7) | time-sync-repair |
+| 92 | Local Admin Account Audit | ported (batch 7) | local-admin-audit |
+| 93 | Windows Defender / Security Status | ported (batch 7) | defender-status |
+| 101 | Enable Remote Desktop | ported (batch 7) | rdp-config |
 
 ---
 
