@@ -5,12 +5,15 @@
     $run = $null
     try {
         $run = New-ToolRun -Id 'domain-trust-repair'
-        $domain = $env:USERDNSDOMAIN
 
         # --- Report ---
         $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
         Write-ToolOutput ('Computer: {0}' -f $cs.Name) -Level Info
         Write-ToolOutput ('Domain: {0}  (PartOfDomain={1})' -f $cs.Domain, $cs.PartOfDomain) -Level Detail
+
+        # Prefer USERDNSDOMAIN (interactive); fall back to the machine's domain (SYSTEM/PDQ context)
+        $domain = $env:USERDNSDOMAIN
+        if (-not $domain) { $domain = $cs.Domain }
 
         if (-not $cs.PartOfDomain) {
             Write-ToolOutput 'This computer is not joined to a domain; domain-trust repair does not apply.' -Level Warning
