@@ -6,6 +6,10 @@
     function Invoke-SpoolerFolderReset {
         Stop-Service -Name 'Spooler' -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 2
+        $stopped = (Get-Service -Name 'Spooler' -ErrorAction SilentlyContinue).Status -eq 'Stopped'
+        if (-not $stopped) {
+            return @{ Status = 'Warning'; Text = 'Spooler did not stop; spool folder not cleared (try again or check the service)' }
+        }
         $spoolDir = Join-Path $env:SystemRoot 'System32\spool\PRINTERS'
         $files = 0
         if (Test-Path -LiteralPath $spoolDir) {
