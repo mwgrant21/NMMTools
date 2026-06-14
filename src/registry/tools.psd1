@@ -1164,5 +1164,17 @@
             Risk          = 'Disruptive'
             Tags          = @('quickfix','vpn','network','dns')
         }
+        @{
+            Id            = 'av-prep-quick-fix'
+            LegacyId      = 'Q7'
+            Name          = 'Quick Fix: Audio/Video Prep'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-AvPrepQuickFix'
+            Description   = 'One-click meeting prep: close meeting apps and browsers to free the camera/mic, restart the audio service, and open the Camera app; see also webcam-audio-test and teams-camera-repair'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('quickfix','audio','camera','meeting')
+        }
     )
 }
