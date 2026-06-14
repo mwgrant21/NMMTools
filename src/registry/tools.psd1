@@ -792,5 +792,17 @@
             Risk          = 'Disruptive'
             Tags          = @('browser','cache','cookies','privacy')
         }
+        @{
+            Id            = 'windows-search-rebuild'
+            LegacyId      = '54'
+            Name          = 'Windows Search Rebuild'
+            Category      = 'User'
+            Function      = 'Reset-WindowsSearch'
+            Description   = 'Restart the Windows Search service, rebuild the search index, or open Indexing Options'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('search','wsearch','index','cortana')
+        }
     )
 }
