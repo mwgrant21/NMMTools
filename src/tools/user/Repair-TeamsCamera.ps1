@@ -146,6 +146,7 @@
                     Complete-ToolRun $run -Status Warning -Summary 'No camera devices found; nothing to reinstall'
                 } else {
                     Write-ToolOutput 'WARNING: this REMOVES the camera driver - a REBOOT is required and the camera is offline until then.' -Level Warning
+                    Write-ToolOutput 'It will also CLOSE camera-using apps (Teams, browsers, Camera app) to release the device.' -Level Warning
                     $confirm = Read-ToolChoice -Prompt 'Remove the camera driver(s) and let Windows reinstall on reboot?' `
                         -Choices @('Yes','No') -Default 'No' -Silent:$Silent
                     if ($confirm -ne 'Yes') {
