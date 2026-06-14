@@ -828,5 +828,17 @@
             Risk          = 'Modifies'
             Tags          = @('explorer','shell','thumbnail','iconcache')
         }
+        @{
+            Id            = 'default-apps'
+            LegacyId      = '59'
+            Name          = 'Default Apps and File Types'
+            Category      = 'User'
+            Function      = 'Set-DefaultApps'
+            Description   = 'Report current file-type associations and open Default Apps settings (Windows protects per-user defaults; per-type changes are made in Settings)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('defaultapps','fileassociation','fta','settings')
+        }
     )
 }
