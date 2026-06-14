@@ -1128,5 +1128,17 @@
             Risk          = 'Modifies'
             Tags          = @('quickfix','teams','cache')
         }
+        @{
+            Id            = 'login-quick-fix'
+            LegacyId      = 'Q4'
+            Name          = 'Quick Fix: Login Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-LoginQuickFix'
+            Description   = 'One-click login fix: clear Office/M365 sign-in credentials and report the device join state; see also credential-manager and m365-auth-reset'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('quickfix','login','credentials','signin')
+        }
     )
 }
