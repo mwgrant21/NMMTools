@@ -867,14 +867,14 @@
         @{
             Id            = 'teams-camera-repair'
             LegacyId      = '84'
-            Name          = 'Teams Camera and Mic Repair'
+            Name          = 'Camera and Mic Repair'
             Category      = 'User'
             Function      = 'Repair-TeamsCamera'
-            Description   = 'Fix Teams camera/mic: set Windows privacy access to Allow (FixPermissions) or reset the media stack - close hogging apps, clear media cache, restart FrameServer, cycle the camera device (ResetMediaStack)'
+            Description   = 'Fix camera/mic: set Windows privacy access to Allow (FixPermissions), reset the media stack (ResetMediaStack - close hogging apps, clear cache, cycle the device), or remove and reinstall the camera driver (ReinstallDriver - reboot required)'
             RequiresAdmin = $true
             SilentCapable = $true
             Risk          = 'Modifies'
-            Tags          = @('teams','camera','microphone','media')
+            Tags          = @('teams','camera','microphone','media','webcam','driver')
         }
         @{
             Id            = 'network-drives'
