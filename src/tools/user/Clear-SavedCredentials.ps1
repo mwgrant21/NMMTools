@@ -7,7 +7,7 @@
         $l = (cmdkey /list 2>&1) | Out-String
         @(($l -split "`r?`n") |
             Where-Object { $_ -match 'Target:' } |
-            ForEach-Object { ($_ -replace '.*Target:\s*', '').Trim() } |
+            ForEach-Object { ($_ -replace '^\s*Target:\s*', '').Trim() } |
             Where-Object { $_ })
     }
 
@@ -32,7 +32,7 @@
                 foreach ($t in (Get-CredTargets)) {
                     if ($t -like '*\\*' -or $t -like 'Domain:*' -or $t -like '*smb*' -or $t -like '*cifs*') {
                         cmdkey "/delete:$t" *>$null
-                        $removed++
+                        if ($LASTEXITCODE -eq 0) { $removed++ }
                     }
                 }
                 Complete-ToolRun $run -Status Success -Summary ('Cleared {0} network/share credential(s)' -f $removed)
@@ -43,7 +43,7 @@
                 foreach ($t in (Get-CredTargets)) {
                     if ($t -like '*http*' -or $t -like '*.com' -or $t -like '*.net' -or $t -like '*.org' -or $t -like 'WindowsLive:*') {
                         cmdkey "/delete:$t" *>$null
-                        $removed++
+                        if ($LASTEXITCODE -eq 0) { $removed++ }
                     }
                 }
                 Complete-ToolRun $run -Status Success -Summary ('Cleared {0} web credential(s)' -f $removed)
@@ -54,7 +54,7 @@
                 foreach ($t in (Get-CredTargets)) {
                     if ($t -match 'MicrosoftOffice') {
                         cmdkey "/delete:$t" *>$null
-                        $removed++
+                        if ($LASTEXITCODE -eq 0) { $removed++ }
                     }
                 }
                 Complete-ToolRun $run -Status Success -Summary ('Cleared {0} Office 365 credential(s) (stops the Office sign-in loop)' -f $removed)
@@ -70,7 +70,7 @@
                     $removed = 0
                     foreach ($t in (Get-CredTargets)) {
                         cmdkey "/delete:$t" *>$null
-                        $removed++
+                        if ($LASTEXITCODE -eq 0) { $removed++ }
                     }
                     Complete-ToolRun $run -Status Success -Summary ('Cleared ALL {0} saved credential(s); resources will prompt for passwords' -f $removed)
                 }
