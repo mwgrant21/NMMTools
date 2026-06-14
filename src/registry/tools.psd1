@@ -900,5 +900,17 @@
             Risk          = 'Modifies'
             Tags          = @('credential','cmdkey','password','office365')
         }
+        @{
+            Id            = 'profile-cache'
+            LegacyId      = '66'
+            Name          = 'Profile Size and Cache Cleanup'
+            Category      = 'User'
+            Function      = 'Clear-ProfileCache'
+            Description   = 'Report user-profile cache folder sizes (Teams/OneDrive/Office/Chrome/Edge/Temp/Downloads) and optionally clear the safe caches; never touches OneDrive or Downloads'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('profile','cache','cleanup','roaming')
+        }
     )
 }
