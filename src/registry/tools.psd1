@@ -960,5 +960,17 @@
             Risk          = 'Modifies'
             Tags          = @('audio','sound','playback','services')
         }
+        @{
+            Id            = 'outlook-search-repair'
+            LegacyId      = '76'
+            Name          = 'Outlook Search Repair'
+            Category      = 'User'
+            Function      = 'Repair-OutlookSearch'
+            Description   = 'Report Windows Search service, index DB size, and Outlook state, then restart WSearch or rebuild the search index (deletes Windows.edb and clears the Outlook search catalog); see also tool 54'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','search','wsearch','index')
+        }
     )
 }
