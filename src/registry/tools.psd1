@@ -972,5 +972,17 @@
             Risk          = 'Modifies'
             Tags          = @('outlook','search','wsearch','index')
         }
+        @{
+            Id            = 'm365-auth-reset'
+            LegacyId      = '79'
+            Name          = 'M365 Auth Reset'
+            Category      = 'User'
+            Function      = 'Reset-M365Auth'
+            Description   = 'Report Office/M365 saved credentials and MSAL/WAM token caches, then clear them (stops the sign-in loop); optionally also clear AutoDiscover cache + OutlookSecurityMode for shared-mailbox access; see also tools 60/85'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','m365','auth','token','wam','credential')
+        }
     )
 }
