@@ -960,5 +960,77 @@
             Risk          = 'Modifies'
             Tags          = @('audio','sound','playback','services')
         }
+        @{
+            Id            = 'outlook-search-repair'
+            LegacyId      = '76'
+            Name          = 'Outlook Search Repair'
+            Category      = 'User'
+            Function      = 'Repair-OutlookSearch'
+            Description   = 'Report Windows Search service, index DB size, and Outlook state, then restart WSearch or rebuild the search index (deletes Windows.edb and clears the Outlook search catalog); see also tool 54'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','search','wsearch','index')
+        }
+        @{
+            Id            = 'm365-auth-reset'
+            LegacyId      = '79'
+            Name          = 'M365 Auth Reset'
+            Category      = 'User'
+            Function      = 'Reset-M365Auth'
+            Description   = 'Report Office/M365 saved credentials and MSAL/WAM token caches, then clear them (stops the sign-in loop); optionally also clear AutoDiscover cache + OutlookSecurityMode for shared-mailbox access; see also tools 60/85'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','m365','auth','token','wam','credential')
+        }
+        @{
+            Id            = 'autodiscover-fix'
+            LegacyId      = '80'
+            Name          = 'AutoDiscover Fix'
+            Category      = 'User'
+            Function      = 'Repair-AutoDiscover'
+            Description   = 'Test the Outlook AutoDiscover endpoint and report cache/registry state, then flush DNS, clear AutoDiscover cache files and the AutoDiscover registry key, and re-test; see also m365-auth-reset'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','autodiscover','dns','exchange')
+        }
+        @{
+            Id            = 'outlook-ost-rebuild'
+            LegacyId      = '81'
+            Name          = 'Outlook OST Rebuild'
+            Category      = 'User'
+            Function      = 'Reset-OutlookOst'
+            Description   = 'List Outlook OST cache files and sizes, then close Outlook and rename each OST (keeps a timestamped .bak) so Outlook re-syncs from Exchange on next launch'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','ost','cache','exchange','resync')
+        }
+        @{
+            Id            = 'outlook-profile-repair'
+            LegacyId      = '82'
+            Name          = 'Outlook Profile Repair'
+            Category      = 'User'
+            Function      = 'Repair-OutlookProfile'
+            Description   = 'List Outlook profiles, then (nuclear) back up the Profiles registry key, delete it, and recreate a fresh default profile - all account settings are wiped; requires a typed REBUILD confirmation; see also tool 22'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('outlook','profile','registry','nuclear')
+        }
+        @{
+            Id            = 'outlook-addin-repair'
+            LegacyId      = '96'
+            Name          = 'Outlook Add-in Repair'
+            Category      = 'User'
+            Function      = 'Repair-OutlookAddins'
+            Description   = 'Report Outlook add-ins (HKCU/HKLM) and Resiliency disabled/crashing lists, then clear those lists, re-enable disabled HKCU add-ins (LoadBehavior 3), and protect them from auto-disable (OnBase/Hyland aware)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','addin','onbase','loadbehavior','resiliency')
+        }
     )
 }

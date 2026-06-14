@@ -1,11 +1,11 @@
 # NMM Toolkit v8 → v9 Parity Checklist
 
-Generated at batch 1 close-out; updated batch 6d close-out. **80 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 52, 53, 54, 55, 56, 57-60, 62-64, 65, 66, 67-73, 75, 83, 84, 85, 87-90, 94, 95, 100, 102, 104). Items 26, 27, 37, 49, 61, 77, 97, 98, 99 consolidated.
+Generated at batch 1 close-out; updated batch 6a close-out (batch 6 complete). **86 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 52, 53, 54, 55, 56, 57-60, 62-64, 65, 66, 67-73, 75, 76, 79-82, 83, 84, 85, 87-90, 94, 95, 96, 100, 102, 104). Items 26, 27, 37, 49, 61, 77, 78, 97, 98, 99, 106 consolidated.
 
 > **Known consolidation candidates — decide at their batch, with Matt:**
 > - **26 / 60** — Credential Manager Cleanup (appears in both Cloud & Common User Issues)
 > - **22 / 99** — Office Repair (Office 365 Health & Repair vs Click-to-Run Online Repair) [resolved batch 3: 99 consolidated -> tool 22]
-> - **76 / 106** — Outlook Search (Fix Outlook Search vs Repair Outlook Search Index)
+> - **76 / 106** — Outlook Search (Fix Outlook Search vs Repair Outlook Search Index) [resolved batch 6a: 106 consolidated -> 76 (outlook-search-repair)]
 
 ---
 
@@ -132,21 +132,21 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 | 60 | Credential Manager Cleanup | ported (batch 6e) | credential-manager |
 | 61 | Display & Monitor Config | consolidated -> tools 44 + 73 | — |
 | 66 | Local Profile Size & Roaming Cache Cleanup | ported (batch 6e) | profile-cache |
-| 76 | Fix Outlook Search (Restart WSearch + Reset Search Components) | pending (batch 6) | — |
+| 76 | Fix Outlook Search (Restart WSearch + Reset Search Components) | ported (batch 6a) | outlook-search-repair |
 | 77 | Webcam Driver Fix (Soft Reset + Optional Driver Reinstall) | consolidated -> tool 84 (teams-camera-repair) | — |
-| 78 | Shared Mailbox Access Fix | pending (batch 6) | — |
-| 79 | Clear M365 Auth Tokens | pending (batch 6) | — |
-| 80 | AutoDiscover Fix | pending (batch 6) | — |
-| 81 | Outlook OST Rebuild | pending (batch 6) | — |
-| 82 | Outlook Profile Repair | pending (batch 6) | — |
+| 78 | Shared Mailbox Access Fix | consolidated -> tool 79 (m365-auth-reset) | — |
+| 79 | Clear M365 Auth Tokens | ported (batch 6a) | m365-auth-reset |
+| 80 | AutoDiscover Fix | ported (batch 6a) | autodiscover-fix |
+| 81 | Outlook OST Rebuild | ported (batch 6a) | outlook-ost-rebuild |
+| 82 | Outlook Profile Repair | ported (batch 6a) | outlook-profile-repair |
 | 83 | Teams Meeting Add-in Repair (Outlook button missing) | ported (batch 6b) | teams-addin-repair |
 | 84 | Teams Camera/Mic Permissions Reset | ported (batch 6b) | teams-camera-repair |
 | 85 | Teams Deep Diagnostic & Repair | ported (batch 6b) | teams-deep-diagnostic |
 | 95 | Temporary Profile Repair | ported (batch 6e) | temp-profile-repair |
-| 96 | Outlook Add-in Repair (OnBase & Others) | pending (batch 6) | — |
+| 96 | Outlook Add-in Repair (OnBase & Others) | ported (batch 6a) | outlook-addin-repair |
 | 97 | Teams Camera & Media Stack Reset | consolidated -> tool 84 (teams-camera-repair) | — |
 | 98 | Reset Print Spooler (Deep) | consolidated -> tool 52 (printer-repair) | — |
-| 106 | Repair Outlook Search Index | pending (batch 6) | — |
+| 106 | Repair Outlook Search Index | consolidated -> tool 76 (outlook-search-repair) | — |
 
 ---
 
