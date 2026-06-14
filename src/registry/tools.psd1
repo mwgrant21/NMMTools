@@ -840,5 +840,41 @@
             Risk          = 'Modifies'
             Tags          = @('defaultapps','fileassociation','fta','settings')
         }
+        @{
+            Id            = 'teams-addin-repair'
+            LegacyId      = '83'
+            Name          = 'Teams Meeting Add-in Repair'
+            Category      = 'User'
+            Function      = 'Repair-TeamsAddin'
+            Description   = 'Fix the missing New Teams Meeting button in Outlook: re-register the add-in COM DLL, set LoadBehavior, clear DisabledItems and add-in cache'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('teams','outlook','addin','meeting')
+        }
+        @{
+            Id            = 'teams-deep-diagnostic'
+            LegacyId      = '85'
+            Name          = 'Teams Deep Diagnostic and Repair'
+            Category      = 'User'
+            Function      = 'Repair-TeamsDeep'
+            Description   = '11-check diagnostic for New Teams auth/WAM/network issues; optional deep repair (clears credentials/WAM/MSIX cache, re-registers Teams) - sign-out required'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('teams','wam','msal','auth','diagnostic')
+        }
+        @{
+            Id            = 'teams-camera-repair'
+            LegacyId      = '84'
+            Name          = 'Teams Camera and Mic Repair'
+            Category      = 'User'
+            Function      = 'Repair-TeamsCamera'
+            Description   = 'Fix Teams camera/mic: set Windows privacy access to Allow (FixPermissions) or reset the media stack - close hogging apps, clear media cache, restart FrameServer, cycle the camera device (ResetMediaStack)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('teams','camera','microphone','media')
+        }
     )
 }
