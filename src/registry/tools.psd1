@@ -1152,5 +1152,17 @@
             Risk          = 'Disruptive'
             Tags          = @('quickfix','wifi','network','dns')
         }
+        @{
+            Id            = 'vpn-quick-fix'
+            LegacyId      = 'Q6'
+            Name          = 'Quick Fix: VPN Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-VpnQuickFix'
+            Description   = 'One-click VPN fix: disconnect active VPNs, flush DNS, and clear the ARP cache (does not delete VPN profiles); see also vpn-health'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('quickfix','vpn','network','dns')
+        }
     )
 }
