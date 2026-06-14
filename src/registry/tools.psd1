@@ -876,5 +876,17 @@
             Risk          = 'Modifies'
             Tags          = @('teams','camera','microphone','media')
         }
+        @{
+            Id            = 'network-drives'
+            LegacyId      = '58'
+            Name          = 'Mapped Network Drive Repair'
+            Category      = 'User'
+            Function      = 'Repair-NetworkDrives'
+            Description   = 'Report mapped network drives and reconnect disconnected ones, or remap a drive letter to a UNC path'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('network','drive','mapped','unc')
+        }
     )
 }
