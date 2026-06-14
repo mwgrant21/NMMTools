@@ -33,16 +33,18 @@
         }
 
         ipconfig /flushdns | Out-Null
-        $removed = @(Get-ChildItem -Path $adGlob -ErrorAction SilentlyContinue)
-        $removed | Remove-Item -Force -ErrorAction SilentlyContinue
+        $before = @(Get-ChildItem -Path $adGlob -ErrorAction SilentlyContinue)
+        $before | Remove-Item -Force -ErrorAction SilentlyContinue
+        $after = @(Get-ChildItem -Path $adGlob -ErrorAction SilentlyContinue)
+        $removed = $before.Count - $after.Count
         if (Test-Path -LiteralPath $adKey) {
             Remove-Item -LiteralPath $adKey -Recurse -Force -ErrorAction SilentlyContinue
         }
         $retest = Test-AutoDiscoverEndpoint
         if ($retest -like 'reachable*') {
-            Complete-ToolRun $run -Status Success -Summary ('DNS flushed, {0} cache file(s) + reg key cleared; endpoint {1}' -f $removed.Count, $retest)
+            Complete-ToolRun $run -Status Success -Summary ('DNS flushed, {0} cache file(s) + reg key cleared; endpoint {1}' -f $removed, $retest)
         } else {
-            Complete-ToolRun $run -Status Warning -Summary ('DNS flushed, {0} cache file(s) + reg key cleared; endpoint still {1}' -f $removed.Count, $retest)
+            Complete-ToolRun $run -Status Warning -Summary ('DNS flushed, {0} cache file(s) + reg key cleared; endpoint still {1}' -f $removed, $retest)
         }
     }
     catch {
