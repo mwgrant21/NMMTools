@@ -780,5 +780,17 @@
             Risk          = 'Modifies'
             Tags          = @('browser','backup','restore','bookmarks')
         }
+        @{
+            Id            = 'browser-clear'
+            LegacyId      = '50'
+            Name          = 'Comprehensive Browser Clear'
+            Category      = 'Browser'
+            Function      = 'Clear-BrowserData'
+            Description   = 'Clear cache, cookies, history, sessions, and site permissions across all profiles; preserves passwords, autofill, and Firefox bookmarks'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('browser','cache','cookies','privacy')
+        }
     )
 }
