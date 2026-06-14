@@ -804,5 +804,17 @@
             Risk          = 'Modifies'
             Tags          = @('search','wsearch','index','cortana')
         }
+        @{
+            Id            = 'start-menu-taskbar'
+            LegacyId      = '55'
+            Name          = 'Start Menu and Taskbar Repair'
+            Category      = 'User'
+            Function      = 'Repair-StartMenuTaskbar'
+            Description   = 'Restart Explorer, reset the Start Menu layout, or re-register the Start Menu app for the current user'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('startmenu','taskbar','explorer','shell')
+        }
     )
 }
