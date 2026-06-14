@@ -86,7 +86,7 @@
 
         # Check 5: Credential Manager Teams/M365 entries
         $credOut = (cmdkey /list 2>&1) | Out-String
-        $teamsCreds = @(($credOut -split "`n") | Where-Object { $_ -match 'MicrosoftOffice|Teams|microsoftteams|aadg\.windows\.net|login\.microsoft' })
+        $teamsCreds = @(($credOut -split "`n") | Where-Object { $_ -match 'MicrosoftOffice|\bTeams\b|microsoftteams|aadg\.windows\.net|login\.microsoft' })
         if ($teamsCreds.Count -gt 0) {
             Write-ToolOutput ('[WARN] {0} Teams/M365 credential entr(ies) (may be stale)' -f $teamsCreds.Count) -Level Warning
             $report += ('Cred Manager: {0} entries' -f $teamsCreds.Count); $issues += 'stale_credentials'
@@ -111,24 +111,34 @@
             }
         }
 
-        # Check 7: TLS issuer (proxy-intercept hint)
-        try {
-            $tcp = New-Object System.Net.Sockets.TcpClient
-            $tcp.Connect('login.microsoftonline.com', 443)
-            $ssl = New-Object System.Net.Security.SslStream($tcp.GetStream(), $false, { $true })
-            $ssl.AuthenticateAsClient('login.microsoftonline.com')
-            $issuer = $ssl.RemoteCertificate.Issuer
-            $ssl.Dispose(); $tcp.Dispose()
-            if ($issuer -match 'Microsoft|DigiCert|GlobalSign|Comodo|Sectigo|Baltimore') {
-                Write-ToolOutput ('[PASS] TLS issuer legitimate: {0}' -f $issuer) -Level Success
-                $report += 'TLS: ok'
-            } else {
-                Write-ToolOutput ('[WARN] Unexpected TLS issuer (proxy intercept?): {0}' -f $issuer) -Level Warning
-                $report += ('TLS: suspect - {0}' -f $issuer); $issues += 'tls_inspection'
+        # Check 7: TLS issuer (proxy-intercept hint). Gate on a timeout-bounded probe first so a
+        # black-holed host cannot hang the blocking TcpClient.Connect below.
+        if (-not (Test-TcpEndpoint -HostName 'login.microsoftonline.com' -Port 443 -TimeoutMs 3000)) {
+            Write-ToolOutput '[INFO] TLS check skipped (login.microsoftonline.com:443 unreachable)' -Level Detail
+            $report += 'TLS: skipped (unreachable)'
+        } else {
+            $tcp = $null
+            $ssl = $null
+            try {
+                $tcp = New-Object System.Net.Sockets.TcpClient
+                $tcp.Connect('login.microsoftonline.com', 443)
+                $ssl = New-Object System.Net.Security.SslStream($tcp.GetStream(), $false, { $true })
+                $ssl.AuthenticateAsClient('login.microsoftonline.com')
+                $issuer = $ssl.RemoteCertificate.Issuer
+                if ($issuer -match 'Microsoft|DigiCert|GlobalSign|Comodo|Sectigo|Baltimore|Entrust') {
+                    Write-ToolOutput ('[PASS] TLS issuer legitimate: {0}' -f $issuer) -Level Success
+                    $report += 'TLS: ok'
+                } else {
+                    Write-ToolOutput ('[WARN] Unexpected TLS issuer (proxy intercept?): {0}' -f $issuer) -Level Warning
+                    $report += ('TLS: suspect - {0}' -f $issuer); $issues += 'tls_inspection'
+                }
+            } catch {
+                Write-ToolOutput '[INFO] TLS check could not complete' -Level Detail
+                $report += 'TLS: check failed'
+            } finally {
+                if ($ssl) { $ssl.Dispose() }
+                if ($tcp) { $tcp.Dispose() }
             }
-        } catch {
-            Write-ToolOutput '[INFO] TLS check could not complete' -Level Detail
-            $report += 'TLS: check failed'
         }
 
         # Check 8: Proxy configuration
@@ -166,7 +176,7 @@
                 Sort-Object LastWriteTime -Descending | Select-Object -First 1
             if ($latest) {
                 $authErr = @(Get-Content -LiteralPath $latest.FullName -Tail 200 -ErrorAction SilentlyContinue |
-                    Where-Object { $_ -match 'error|failed|unauthorized|401|403|token|auth' } | Select-Object -Last 5)
+                    Where-Object { $_ -match '\berror\b|\bfailed\b|\bunauthorized\b|\b401\b|\b403\b|\btoken\b|\bauth\b' } | Select-Object -Last 5)
                 if ($authErr.Count -gt 0) {
                     Write-ToolOutput ('[WARN] auth-related entries in {0}' -f $latest.Name) -Level Warning
                     $report += 'Teams logs: auth errors'; $issues += 'teams_log_auth_errors'
@@ -204,7 +214,7 @@
                     Start-Sleep -Seconds 3
                     $removed = 0
                     $credLines = (cmdkey /list 2>&1) | Out-String
-                    $targets = @(($credLines -split "`n") | Where-Object { $_ -match 'Target:' -and $_ -match 'MicrosoftOffice|microsoftteams|Teams|aadg\.windows\.net|login\.microsoft' })
+                    $targets = @(($credLines -split "`n") | Where-Object { $_ -match 'Target:' -and $_ -match 'MicrosoftOffice|microsoftteams|\bTeams\b|aadg\.windows\.net|login\.microsoft' })
                     foreach ($line in $targets) {
                         $t = ($line -replace '.*Target:\s*', '').Trim()
                         if ($t) { cmdkey /delete:$t 2>&1 | Out-Null; $removed++ }
@@ -219,11 +229,13 @@
                     if (Test-Path -LiteralPath $lc) {
                         Get-ChildItem -LiteralPath $lc -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
                     }
+                    $appxOk = $false
                     $manifest = Join-Path $msixPath 'AppxManifest.xml'
                     if (Test-Path -LiteralPath $manifest) {
                         try {
                             Add-AppxPackage -Register $manifest -DisableDevelopmentMode -ErrorAction Stop
                             Write-ToolOutput 'MSTeams AppX re-registered.' -Level Detail
+                            $appxOk = $true
                         } catch {
                             Write-ToolOutput ('AppX re-register failed: {0} (reinstall Teams)' -f $_.Exception.Message) -Level Warning
                         }
@@ -238,7 +250,11 @@
                     }
                     Start-Process 'ms-teams:' -ErrorAction SilentlyContinue
                     Start-Sleep -Seconds 2
-                    Complete-ToolRun $run -Status Success -Summary ('Deep repair applied ({0} creds cleared; WAM/MSIX cache cleared; AppX re-registered)' -f $removed)
+                    if ($appxOk) {
+                        Complete-ToolRun $run -Status Success -Summary ('Deep repair applied ({0} creds cleared; WAM/MSIX cache cleared; AppX re-registered)' -f $removed)
+                    } else {
+                        Complete-ToolRun $run -Status Warning -Summary ('Deep repair applied ({0} creds cleared; WAM/MSIX cache cleared) but AppX re-register did not succeed - may need Teams reinstall' -f $removed)
+                    }
                 }
             }
 
