@@ -57,20 +57,22 @@
                 $backedUp = 0
                 foreach ($b in $present) {
                     foreach ($prof in @(Get-BrowserProfiles -Browser $b)) {
-                        $target = Join-Path $destDir ('{0}\{1}' -f $b.Name, $prof.Name)
+                        $target = Join-Path (Join-Path $destDir $b.Name) $prof.Name
                         New-Item -Path $target -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+                        $profCount = 0
                         foreach ($file in $b.BackupFiles) {
                             $src = Join-Path $prof.FullName $file
                             if (Test-Path -LiteralPath $src) {
                                 try {
                                     Copy-Item -LiteralPath $src -Destination $target -Force -ErrorAction Stop
                                     $backedUp++
+                                    $profCount++
                                 } catch {
                                     Write-ToolOutput ('  [FAIL] {0}/{1}/{2}: {3}' -f $b.Name, $prof.Name, $file, $_.Exception.Message) -Level Warning
                                 }
                             }
                         }
-                        Write-ToolOutput ('  {0}/{1}: backed up' -f $b.Name, $prof.Name) -Level Detail
+                        Write-ToolOutput ('  {0}/{1}: {2} file(s) backed up' -f $b.Name, $prof.Name, $profCount) -Level Detail
                     }
                 }
 
@@ -126,7 +128,13 @@
                     if ($backupPath.ToLower().EndsWith('.zip')) {
                         $tempFolder = Join-Path $env:TEMP ('NMM_BrowserRestore_{0}' -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
                         New-Item -ItemType Directory -Path $tempFolder -Force | Out-Null
-                        Expand-Archive -LiteralPath $backupPath -DestinationPath $tempFolder -Force
+                        try {
+                            Expand-Archive -LiteralPath $backupPath -DestinationPath $tempFolder -Force -ErrorAction Stop
+                        } catch {
+                            Remove-Item -LiteralPath $tempFolder -Recurse -Force -ErrorAction SilentlyContinue
+                            Complete-ToolRun $run -Status Failed -Summary ('Restore aborted: could not extract zip - {0}' -f $_.Exception.Message)
+                            return
+                        }
                         $sourceRoot = $tempFolder
                     } else {
                         Complete-ToolRun $run -Status Warning -Summary 'Restore aborted: file is not a .zip'
@@ -149,13 +157,18 @@
                 $closeChoice = Read-ToolChoice -Prompt 'Close all browsers before restore?' `
                     -Choices @('Yes','No') -Default 'Yes' -Silent:$Silent
                 if ($closeChoice -eq 'Yes') {
-                    Close-Browsers -ProcessNames @('chrome','msedge','firefox','brave') | Out-Null
+                    $restoreProcs = @($catalog | ForEach-Object { $_.ProcessNames } | Sort-Object -Unique)
+                    if ($restoreProcs.Count -gt 0) { Close-Browsers -ProcessNames $restoreProcs | Out-Null }
                 }
 
                 $restored = 0
                 foreach ($b in $catalog) {
                     $browserSource = Join-Path $sourceRoot $b.Name
                     if (-not (Test-Path -LiteralPath $browserSource)) { continue }
+                    if (-not (Test-Path -LiteralPath $b.BasePath)) {
+                        Write-ToolOutput ('  [skip] {0} is not installed on this machine; not restored' -f $b.Name) -Level Detail
+                        continue
+                    }
                     foreach ($profDir in @(Get-ChildItem -LiteralPath $browserSource -Directory -ErrorAction SilentlyContinue)) {
                         $targetProfile = Join-Path $b.BasePath $profDir.Name
                         if (-not (Test-Path -LiteralPath $targetProfile)) {
