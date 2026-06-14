@@ -1,6 +1,6 @@
 # NMM Toolkit v8 → v9 Parity Checklist
 
-Generated at batch 1 close-out; updated batch 7 close-out. **91 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 51, 52, 53, 54, 55, 56, 57-60, 62-64, 65, 66, 67-73, 75, 76, 79-82, 83, 84, 85, 87-93, 94, 95, 96, 100, 101, 102, 104). Items 26, 27, 37, 49, 61, 77, 78, 97, 98, 99, 106 consolidated. **Only Quick Fixes Q1-Q9 remain.**
+Generated at batch 1 close-out; updated batch 7 close-out (**v8 PARITY COMPLETE**). **100 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 51, 52, 53, 54, 55, 56, 57-60, 62-64, 65, 66, 67-73, 75, 76, 79-82, 83, 84, 85, 87-93, 94, 95, 96, 100, 101, 102, 104, and Quick Fixes Q1-Q9). Items 26, 27, 37, 49, 61, 77, 78, 97, 98, 99, 106 consolidated. **Every v8 menu item is now ported or consciously consolidated.**
 
 > **Known consolidation candidates — decide at their batch, with Matt:**
 > - **26 / 60** — Credential Manager Cleanup (appears in both Cloud & Common User Issues)
@@ -164,16 +164,16 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 
 ## Quick Fixes
 
-_Q1–Q9 are composite workflows that bundle existing tools. Exact composition and whether each becomes a named v9 tool or a macro TBD with Matt at batch 7 / consolidation review._
+_Q1-Q9 ported (batch 7) as self-contained abbreviated one-click workflows in the new `QuickFix` category (describe -> single confirm -> run-all), NOT calls to the full tools. Two dangerous v8 behaviors intentionally dropped: Q6 Pbk-profile deletion, Q8 DWM-key deletion._
 
 | v8 # | v8 Menu Name | Status | v9 Id |
 |-----:|---|---|---|
-| Q1 | Office Issues | pending (batch 7) | — |
-| Q2 | OneDrive Issues | pending (batch 7) | — |
-| Q3 | Teams Issues | pending (batch 7) | — |
-| Q4 | Login Issues | pending (batch 7) | — |
-| Q5 | Wi-Fi Issues | pending (batch 7) | — |
-| Q6 | VPN Issues | pending (batch 7) | — |
-| Q7 | Audio/Video Prep | pending (batch 7) | — |
-| Q8 | Docking Station | pending (batch 7) | — |
-| Q9 | Browser Backup | pending (batch 7) | — |
+| Q1 | Office Issues | ported (batch 7) | office-quick-fix |
+| Q2 | OneDrive Issues | ported (batch 7) | onedrive-quick-fix |
+| Q3 | Teams Issues | ported (batch 7) | teams-quick-fix |
+| Q4 | Login Issues | ported (batch 7) | login-quick-fix |
+| Q5 | Wi-Fi Issues | ported (batch 7) | wifi-quick-fix |
+| Q6 | VPN Issues | ported (batch 7) | vpn-quick-fix |
+| Q7 | Audio/Video Prep | ported (batch 7) | av-prep-quick-fix |
+| Q8 | Docking Station | ported (batch 7) | docking-quick-fix |
+| Q9 | Browser Backup | ported (batch 7) | browser-backup-quick-fix |
