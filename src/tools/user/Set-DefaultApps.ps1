@@ -11,8 +11,10 @@
         $exts = @('.txt','.pdf','.jpg','.png','.docx','.xlsx','.html','.zip','.mp4')
         foreach ($ext in $exts) {
             $assoc = $null
+            # assoc exits non-zero for an unregistered extension; a non-zero native exit does NOT throw
+            # in PS 5.1, so gate the display on $LASTEXITCODE (the catch only handles PS-level errors).
             try { $assoc = (cmd /c ('assoc {0}' -f $ext) 2>$null) } catch { $assoc = $null }
-            if ($assoc) {
+            if ($LASTEXITCODE -eq 0 -and $assoc) {
                 Write-ToolOutput ('  {0}' -f ($assoc -join ' ')) -Level Detail
             } else {
                 Write-ToolOutput ('  {0} = (none)' -f $ext) -Level Detail
