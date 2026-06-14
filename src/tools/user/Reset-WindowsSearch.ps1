@@ -28,6 +28,7 @@
                 Start-Service -Name 'WSearch' -ErrorAction SilentlyContinue
                 Start-Sleep -Seconds 2
                 $now = (Get-Service -Name 'WSearch' -ErrorAction SilentlyContinue).Status
+                if (-not $now) { $now = 'Unknown' }
                 Write-ToolOutput ('WSearch status: {0}' -f $now) -Level Detail
                 if ($now -eq 'Running') {
                     Complete-ToolRun $run -Status Success -Summary 'WSearch restarted (Running)'
@@ -51,8 +52,16 @@
                             Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
                     }
                     Start-Service -Name 'WSearch' -ErrorAction SilentlyContinue
-                    Write-ToolOutput 'Search index cleared; rebuild runs in the background.' -Level Success
-                    Complete-ToolRun $run -Status Success -Summary 'Search index cleared; background rebuild started'
+                    Start-Sleep -Seconds 2
+                    $now = (Get-Service -Name 'WSearch' -ErrorAction SilentlyContinue).Status
+                    if (-not $now) { $now = 'Unknown' }
+                    if ($now -eq 'Running') {
+                        Write-ToolOutput 'Search index cleared; rebuild runs in the background.' -Level Success
+                        Complete-ToolRun $run -Status Success -Summary 'Search index cleared; background rebuild started'
+                    } else {
+                        Write-ToolOutput ('Search index cleared but WSearch status is {0}; a manual restart may be needed.' -f $now) -Level Warning
+                        Complete-ToolRun $run -Status Warning -Summary ('Index cleared but WSearch not running (status {0})' -f $now)
+                    }
                 }
             }
 
