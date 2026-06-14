@@ -888,5 +888,17 @@
             Risk          = 'Modifies'
             Tags          = @('network','drive','mapped','unc')
         }
+        @{
+            Id            = 'credential-manager'
+            LegacyId      = '60'
+            Name          = 'Credential Manager Cleanup'
+            Category      = 'User'
+            Function      = 'Clear-SavedCredentials'
+            Description   = 'List saved Windows credentials and clear network, web, Office 365, or all of them (stops the Office sign-in loop); or open Credential Manager'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('credential','cmdkey','password','office365')
+        }
     )
 }
