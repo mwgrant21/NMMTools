@@ -21,7 +21,7 @@
             'RestartExplorer' {
                 Stop-Process -Name 'explorer' -Force -ErrorAction SilentlyContinue
                 Start-Sleep -Seconds 2
-                Start-Process 'explorer.exe'
+                Start-Process "$env:SystemRoot\explorer.exe"
                 Start-Sleep -Seconds 2
                 Write-ToolOutput 'Explorer restarted.' -Level Success
                 Complete-ToolRun $run -Status Success -Summary 'Explorer restarted'
@@ -35,12 +35,16 @@
                 } else {
                     $shell = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Shell'
                     $backup = Join-Path $env:TEMP ('StartMenu_Backup_{0}' -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
-                    if (Test-Path -LiteralPath $shell) {
-                        Copy-Item -LiteralPath $shell -Destination $backup -Recurse -ErrorAction SilentlyContinue
-                        Write-ToolOutput ('Backed up layout to {0}' -f $backup) -Level Detail
-                    }
+                    $backupTaken = $false
                     Stop-Process -Name 'explorer' -Force -ErrorAction SilentlyContinue
                     Start-Sleep -Seconds 2
+                    if (Test-Path -LiteralPath $shell) {
+                        Copy-Item -LiteralPath $shell -Destination $backup -Recurse -ErrorAction SilentlyContinue
+                        if (Test-Path -LiteralPath $backup) {
+                            $backupTaken = $true
+                            Write-ToolOutput ('Backed up layout to {0}' -f $backup) -Level Detail
+                        }
+                    }
                     $caches = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Caches'
                     if (Test-Path -LiteralPath $caches) {
                         Get-ChildItem -LiteralPath $caches -Force -ErrorAction SilentlyContinue |
@@ -48,10 +52,14 @@
                     }
                     $layoutXml = Join-Path $shell 'LayoutModification.xml'
                     if (Test-Path -LiteralPath $layoutXml) { Remove-Item -LiteralPath $layoutXml -Force -ErrorAction SilentlyContinue }
-                    Start-Process 'explorer.exe'
+                    Start-Process "$env:SystemRoot\explorer.exe"
                     Start-Sleep -Seconds 2
                     Write-ToolOutput 'Start layout reset; explorer restarted.' -Level Success
-                    Complete-ToolRun $run -Status Success -Summary ('Start layout reset (backup: {0})' -f $backup)
+                    if ($backupTaken) {
+                        Complete-ToolRun $run -Status Success -Summary ('Start layout reset (backup: {0})' -f $backup)
+                    } else {
+                        Complete-ToolRun $run -Status Success -Summary 'Start layout reset (no prior layout to back up)'
+                    }
                 }
             }
 
@@ -70,17 +78,22 @@
                             Add-AppxPackage -DisableDevelopmentMode -Register $manifest -ErrorAction Stop
                             $ok++
                         } catch {
+                            Write-ToolOutput $_.Exception.Message -Level Warning
                             $fail++
                         }
                     }
-                    Stop-Process -Name 'explorer' -Force -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 2
-                    Start-Process 'explorer.exe'
-                    Start-Sleep -Seconds 2
-                    if ($fail -gt 0) {
-                        Complete-ToolRun $run -Status Warning -Summary ('Start Menu re-register: {0} ok, {1} failed' -f $ok, $fail)
+                    if (($ok + $fail) -eq 0) {
+                        Complete-ToolRun $run -Status Warning -Summary 'StartMenuExperienceHost package not found; nothing to re-register'
                     } else {
-                        Complete-ToolRun $run -Status Success -Summary ('Start Menu re-registered ({0} package)' -f $ok)
+                        Stop-Process -Name 'explorer' -Force -ErrorAction SilentlyContinue
+                        Start-Sleep -Seconds 2
+                        Start-Process "$env:SystemRoot\explorer.exe"
+                        Start-Sleep -Seconds 2
+                        if ($fail -gt 0) {
+                            Complete-ToolRun $run -Status Warning -Summary ('Start Menu re-register: {0} ok, {1} failed' -f $ok, $fail)
+                        } else {
+                            Complete-ToolRun $run -Status Success -Summary ('Start Menu re-registered ({0} package)' -f $ok)
+                        }
                     }
                 }
             }
