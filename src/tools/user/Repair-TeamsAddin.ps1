@@ -27,13 +27,14 @@
         }
 
         $addinKey = 'HKCU:\Software\Microsoft\Office\Outlook\Addins\TeamsAddin.FastConnect'
-        $lb = (Get-ItemProperty -Path $addinKey -Name 'LoadBehavior' -ErrorAction SilentlyContinue).LoadBehavior
+        $lb = (Get-ItemProperty -LiteralPath $addinKey -Name 'LoadBehavior' -ErrorAction SilentlyContinue).LoadBehavior
         if ($null -ne $lb) {
             Write-ToolOutput ('Outlook add-in LoadBehavior: {0}' -f $lb) -Level Detail
         } else {
             Write-ToolOutput 'Outlook add-in LoadBehavior: (not set)' -Level Detail
         }
 
+        # Office 2016 / 2019 / 2021 / M365 all use the 16.0 hive
         $disabledKey = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Resiliency\DisabledItems'
         Write-ToolOutput ('Outlook DisabledItems key present: {0}' -f (Test-Path -LiteralPath $disabledKey)) -Level Detail
 
@@ -58,13 +59,18 @@
                     } else {
                         $regArgs = '/s "{0}"' -f $dll.FullName
                         $rc = Start-Process -FilePath 'regsvr32.exe' -ArgumentList $regArgs -Wait -PassThru -ErrorAction SilentlyContinue
-                        if ($rc -and $rc.ExitCode -ne 0) {
+                        $regOk = $true
+                        if ($null -eq $rc) {
+                            Write-ToolOutput 'regsvr32 did not launch (unexpected).' -Level Warning
+                            $regOk = $false
+                        } elseif ($rc.ExitCode -ne 0) {
                             Write-ToolOutput ('regsvr32 exit {0} (often a 32/64-bit mismatch; continuing).' -f $rc.ExitCode) -Level Warning
+                            $regOk = $false
                         } else {
                             Write-ToolOutput 'COM add-in re-registered.' -Level Success
                         }
-                        if (-not (Test-Path -LiteralPath $addinKey)) { New-Item -Path $addinKey -Force | Out-Null }
-                        Set-ItemProperty -Path $addinKey -Name 'LoadBehavior' -Value 3 -Type DWord -ErrorAction SilentlyContinue
+                        if (-not (Test-Path -LiteralPath $addinKey)) { New-Item -LiteralPath $addinKey -Force | Out-Null }
+                        Set-ItemProperty -LiteralPath $addinKey -Name 'LoadBehavior' -Value 3 -Type DWord -ErrorAction SilentlyContinue
                         if (Test-Path -LiteralPath $disabledKey) {
                             Remove-Item -LiteralPath $disabledKey -Recurse -Force -ErrorAction SilentlyContinue
                             Write-ToolOutput 'Cleared Outlook DisabledItems.' -Level Detail
@@ -76,7 +82,11 @@
                         }
                         Start-Process 'ms-teams:' -ErrorAction SilentlyContinue
                         Start-Sleep -Seconds 2
-                        Complete-ToolRun $run -Status Success -Summary 'Teams Meeting add-in re-registered; relaunch Outlook to see the button'
+                        if ($regOk) {
+                            Complete-ToolRun $run -Status Success -Summary 'Teams Meeting add-in re-registered; relaunch Outlook to see the button'
+                        } else {
+                            Complete-ToolRun $run -Status Warning -Summary 'LoadBehavior/DisabledItems repaired but COM re-registration failed; relaunch Outlook and verify the add-in'
+                        }
                     }
                 }
             }
