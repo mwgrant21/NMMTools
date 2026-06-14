@@ -44,22 +44,29 @@
                 if ($confirm -ne 'Yes') {
                     Complete-ToolRun $run -Status Skipped -Summary 'ResetAudioSettings cancelled'
                 } else {
-                    Stop-Service -Name 'Audiosrv' -Force -ErrorAction SilentlyContinue
-                    Stop-Service -Name 'AudioEndpointBuilder' -Force -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 2
                     $cycled = 0
-                    foreach ($dev in @(Get-PnpDevice -Class MEDIA -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'OK' })) {
-                        try {
-                            Disable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-                            Start-Sleep -Seconds 1
-                            Enable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-                            $cycled++
-                        } catch { }
+                    try {
+                        Stop-Service -Name 'Audiosrv' -Force -ErrorAction SilentlyContinue
+                        Stop-Service -Name 'AudioEndpointBuilder' -Force -ErrorAction SilentlyContinue
+                        Start-Sleep -Seconds 2
+                        foreach ($dev in @(Get-PnpDevice -Class MEDIA -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'OK' })) {
+                            try {
+                                Disable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+                                Start-Sleep -Seconds 1
+                                Enable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false -ErrorAction Stop
+                                $cycled++
+                            } catch {
+                                # Best-effort re-enable so the device is not left disabled, then warn.
+                                Enable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+                                Write-ToolOutput ('  Could not cleanly cycle {0}; attempted re-enable' -f $dev.FriendlyName) -Level Warning
+                            }
+                        }
+                    } finally {
+                        Start-Service -Name 'AudioEndpointBuilder' -ErrorAction SilentlyContinue
+                        Start-Sleep -Seconds 1
+                        Start-Service -Name 'Audiosrv' -ErrorAction SilentlyContinue
+                        Start-Sleep -Seconds 2
                     }
-                    Start-Service -Name 'AudioEndpointBuilder' -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 1
-                    Start-Service -Name 'Audiosrv' -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 2
                     $now = (Get-Service -Name 'Audiosrv' -ErrorAction SilentlyContinue).Status
                     if (-not $now) { $now = 'Unknown' }
                     if ($now -eq 'Running') {
