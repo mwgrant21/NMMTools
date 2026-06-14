@@ -1044,5 +1044,17 @@
             Risk          = 'Disruptive'
             Tags          = @('domain','kerberos','securechannel','nltest','ad')
         }
+        @{
+            Id            = 'time-sync-repair'
+            LegacyId      = '91'
+            Name          = 'Time Sync Repair'
+            Category      = 'Security'
+            Function      = 'Repair-TimeSync'
+            Description   = 'Report w32tm status and NTP peers, then resync the clock or full-repair the Windows Time service (re-register, configure source, resync); Kerberos fails past 5 min drift'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('time','w32tm','ntp','kerberos','sync')
+        }
     )
 }
