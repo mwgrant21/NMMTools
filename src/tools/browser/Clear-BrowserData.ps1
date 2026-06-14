@@ -48,15 +48,16 @@
                 foreach ($dir in $b.ClearDirs) {
                     $full = Join-Path $prof.FullName $dir
                     if (Test-Path -LiteralPath $full) {
-                        Remove-Item ('{0}\*' -f $full) -Recurse -Force -ErrorAction SilentlyContinue
-                        $browserItems++
+                        Get-ChildItem -LiteralPath $full -Force -ErrorAction SilentlyContinue |
+                            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                        if (-not @(Get-ChildItem -LiteralPath $full -Force -ErrorAction SilentlyContinue)) { $browserItems++ }
                     }
                 }
                 foreach ($file in $b.ClearFiles) {
                     $full = Join-Path $prof.FullName $file
                     if (Test-Path -LiteralPath $full) {
                         Remove-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
-                        $browserItems++
+                        if (-not (Test-Path -LiteralPath $full)) { $browserItems++ }
                     }
                 }
                 # Chromium: clear site permissions from Preferences JSON, preserving all other prefs.
