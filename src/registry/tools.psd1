@@ -852,5 +852,17 @@
             Risk          = 'Modifies'
             Tags          = @('teams','outlook','addin','meeting')
         }
+        @{
+            Id            = 'teams-deep-diagnostic'
+            LegacyId      = '85'
+            Name          = 'Teams Deep Diagnostic and Repair'
+            Category      = 'User'
+            Function      = 'Repair-TeamsDeep'
+            Description   = '11-check diagnostic for New Teams auth/WAM/network issues; optional deep repair (clears credentials/WAM/MSIX cache, re-registers Teams) - sign-out required'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('teams','wam','msal','auth','diagnostic')
+        }
     )
 }
