@@ -840,5 +840,17 @@
             Risk          = 'Modifies'
             Tags          = @('defaultapps','fileassociation','fta','settings')
         }
+        @{
+            Id            = 'teams-addin-repair'
+            LegacyId      = '83'
+            Name          = 'Teams Meeting Add-in Repair'
+            Category      = 'User'
+            Function      = 'Repair-TeamsAddin'
+            Description   = 'Fix the missing New Teams Meeting button in Outlook: re-register the add-in COM DLL, set LoadBehavior, clear DisabledItems and add-in cache'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('teams','outlook','addin','meeting')
+        }
     )
 }
