@@ -1056,5 +1056,17 @@
             Risk          = 'Modifies'
             Tags          = @('time','w32tm','ntp','kerberos','sync')
         }
+        @{
+            Id            = 'local-admin-audit'
+            LegacyId      = '92'
+            Name          = 'Local Admin Account Audit'
+            Category      = 'Security'
+            Function      = 'Get-LocalAdminAudit'
+            Description   = 'Audit the local Administrators group, flag unexpected active accounts and the built-in Administrator, then optionally disable the unexpected LOCAL accounts'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('admin','audit','localgroup','security','accounts')
+        }
     )
 }
