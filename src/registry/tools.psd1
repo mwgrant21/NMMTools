@@ -912,5 +912,17 @@
             Risk          = 'Modifies'
             Tags          = @('profile','cache','cleanup','roaming')
         }
+        @{
+            Id            = 'temp-profile-repair'
+            LegacyId      = '95'
+            Name          = 'Temporary Profile Repair'
+            Category      = 'User'
+            Function      = 'Repair-TemporaryProfile'
+            Description   = 'Detect the "signed in with a temporary profile" issue (orphaned .bak keys in HKLM ProfileList) and repair it via reg copy after a registry backup; affected user must be logged off'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('profile','temporary','profilelist','registry')
+        }
     )
 }
