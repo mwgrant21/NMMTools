@@ -1,6 +1,6 @@
 # NMM Toolkit v8 → v9 Parity Checklist
 
-Generated at batch 1 close-out; updated batch 6e close-out. **77 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 54, 55, 57-60, 62-64, 65, 66, 67-73, 75, 83, 84, 85, 87-90, 94, 95, 100, 102, 104). Items 26, 27, 37, 49, 61, 97, 99 consolidated.
+Generated at batch 1 close-out; updated batch 6d close-out. **80 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 52, 53, 54, 55, 56, 57-60, 62-64, 65, 66, 67-73, 75, 83, 84, 85, 87-90, 94, 95, 100, 102, 104). Items 26, 27, 37, 49, 61, 77, 97, 98, 99 consolidated.
 
 > **Known consolidation candidates — decide at their batch, with Matt:**
 > - **26 / 60** — Credential Manager Cleanup (appears in both Cloud & Common User Issues)
@@ -121,11 +121,11 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 
 | v8 # | v8 Menu Name | Status | v9 Id |
 |-----:|---|---|---|
-| 52 | Printer Troubleshooter | pending (batch 6) | — |
-| 53 | Performance Optimizer | pending (batch 6) | — |
+| 52 | Printer Troubleshooter | ported (batch 6d) | printer-repair |
+| 53 | Performance Optimizer | ported (batch 6d) | perf-optimizer |
 | 54 | Windows Search Rebuild | ported (batch 6c) | windows-search-rebuild |
 | 55 | Start Menu & Taskbar Repair | ported (batch 6c) | start-menu-taskbar |
-| 56 | Audio Troubleshooter | pending (batch 6d) | — |
+| 56 | Audio Troubleshooter | ported (batch 6d) | audio-repair |
 | 57 | Windows Explorer Reset | ported (batch 6c) | windows-explorer-reset |
 | 58 | Mapped Network Drives | ported (batch 6e) | network-drives |
 | 59 | Default Apps & File Types | ported (batch 6c) | default-apps |
@@ -133,7 +133,7 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 | 61 | Display & Monitor Config | consolidated -> tools 44 + 73 | — |
 | 66 | Local Profile Size & Roaming Cache Cleanup | ported (batch 6e) | profile-cache |
 | 76 | Fix Outlook Search (Restart WSearch + Reset Search Components) | pending (batch 6) | — |
-| 77 | Webcam Driver Fix (Soft Reset + Optional Driver Reinstall) | pending (batch 6) | — |
+| 77 | Webcam Driver Fix (Soft Reset + Optional Driver Reinstall) | consolidated -> tool 84 (teams-camera-repair) | — |
 | 78 | Shared Mailbox Access Fix | pending (batch 6) | — |
 | 79 | Clear M365 Auth Tokens | pending (batch 6) | — |
 | 80 | AutoDiscover Fix | pending (batch 6) | — |
@@ -145,7 +145,7 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 | 95 | Temporary Profile Repair | ported (batch 6e) | temp-profile-repair |
 | 96 | Outlook Add-in Repair (OnBase & Others) | pending (batch 6) | — |
 | 97 | Teams Camera & Media Stack Reset | consolidated -> tool 84 (teams-camera-repair) | — |
-| 98 | Reset Print Spooler (Deep) | pending (batch 6) | — |
+| 98 | Reset Print Spooler (Deep) | consolidated -> tool 52 (printer-repair) | — |
 | 106 | Repair Outlook Search Index | pending (batch 6) | — |
 
 ---
