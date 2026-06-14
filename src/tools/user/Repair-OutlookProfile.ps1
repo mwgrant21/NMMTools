@@ -47,10 +47,14 @@
 
         $backup = Join-Path $env:TEMP ('OutlookProfiles_{0}.reg' -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
         reg export 'HKCU\Software\Microsoft\Office\16.0\Outlook\Profiles' $backup /y 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $backup)) {
+            Complete-ToolRun $run -Status Failed -Summary 'Registry backup failed; profile NOT deleted (aborted to avoid unrecoverable data loss)'
+            return
+        }
 
         Remove-Item -LiteralPath $profilesKey -Recurse -Force -ErrorAction SilentlyContinue
-        New-Item -Path $profilesKey -Force | Out-Null
-        New-Item -Path (Join-Path $profilesKey 'Outlook') -Force | Out-Null
+        New-Item -Path $profilesKey -Force -ErrorAction SilentlyContinue | Out-Null
+        New-Item -Path (Join-Path $profilesKey 'Outlook') -Force -ErrorAction SilentlyContinue | Out-Null
         Set-ItemProperty -LiteralPath $outlookKey -Name 'DefaultProfile' -Value 'Outlook' -ErrorAction SilentlyContinue
 
         if (Test-Path -LiteralPath (Join-Path $profilesKey 'Outlook')) {
@@ -61,6 +65,10 @@
         }
     }
     catch {
-        Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message
+        $msg = $_.Exception.Message
+        if ($backup -and (Test-Path -LiteralPath $backup)) {
+            $msg = ('{0}; Outlook profile registry backup available at {1}' -f $msg, $backup)
+        }
+        Complete-ToolRun $run -Status Failed -Summary $msg
     }
 }
