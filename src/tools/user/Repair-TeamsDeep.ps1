@@ -121,6 +121,8 @@
             $ssl = $null
             try {
                 $tcp = New-Object System.Net.Sockets.TcpClient
+                $tcp.SendTimeout = 5000
+                $tcp.ReceiveTimeout = 5000
                 $tcp.Connect('login.microsoftonline.com', 443)
                 $ssl = New-Object System.Net.Security.SslStream($tcp.GetStream(), $false, { $true })
                 $ssl.AuthenticateAsClient('login.microsoftonline.com')
