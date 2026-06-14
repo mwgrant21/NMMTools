@@ -792,5 +792,53 @@
             Risk          = 'Disruptive'
             Tags          = @('browser','cache','cookies','privacy')
         }
+        @{
+            Id            = 'windows-search-rebuild'
+            LegacyId      = '54'
+            Name          = 'Windows Search Rebuild'
+            Category      = 'User'
+            Function      = 'Reset-WindowsSearch'
+            Description   = 'Restart the Windows Search service, rebuild the search index, or open Indexing Options'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('search','wsearch','index','cortana')
+        }
+        @{
+            Id            = 'start-menu-taskbar'
+            LegacyId      = '55'
+            Name          = 'Start Menu and Taskbar Repair'
+            Category      = 'User'
+            Function      = 'Repair-StartMenuTaskbar'
+            Description   = 'Restart Explorer, reset the Start Menu layout, or re-register the Start Menu app for the current user'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('startmenu','taskbar','explorer','shell')
+        }
+        @{
+            Id            = 'windows-explorer-reset'
+            LegacyId      = '57'
+            Name          = 'Windows Explorer Reset'
+            Category      = 'User'
+            Function      = 'Reset-WindowsExplorer'
+            Description   = 'Restart Explorer, clear thumbnail/Recent/jump-list caches, or rebuild the icon cache'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('explorer','shell','thumbnail','iconcache')
+        }
+        @{
+            Id            = 'default-apps'
+            LegacyId      = '59'
+            Name          = 'Default Apps and File Types'
+            Category      = 'User'
+            Function      = 'Set-DefaultApps'
+            Description   = 'Report current file-type associations and open Default Apps settings (Windows protects per-user defaults; per-type changes are made in Settings)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('defaultapps','fileassociation','fta','settings')
+        }
     )
 }
