@@ -36,6 +36,11 @@
         }
         $olRunning = @(Get-Process -Name 'OUTLOOK' -ErrorAction SilentlyContinue).Count -gt 0
         Write-ToolOutput ('Outlook running: {0}' -f $olRunning) -Level Detail
+        $catalogRegistered = $false
+        if (Test-Path -LiteralPath $catalogKey) {
+            $catalogRegistered = $null -ne (Get-ItemProperty -LiteralPath $catalogKey -Name 'Catalog' -ErrorAction SilentlyContinue)
+        }
+        Write-ToolOutput ('Outlook search catalog registered: {0}' -f $catalogRegistered) -Level Detail
 
         # --- Action menu ---
         $action = Read-ToolChoice -Prompt 'Outlook search repair' `
