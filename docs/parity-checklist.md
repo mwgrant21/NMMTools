@@ -1,6 +1,6 @@
 # NMM Toolkit v8 → v9 Parity Checklist
 
-Generated at batch 1 close-out; updated batch 6c close-out. **70 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 54, 55, 57, 59, 62-64, 65, 67-73, 75, 87-90, 94, 100, 102, 104). Items 26, 27, 37, 49, 61, 99 consolidated.
+Generated at batch 1 close-out; updated batch 6b close-out. **73 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 54, 55, 57, 59, 62-64, 65, 67-73, 75, 83, 84, 85, 87-90, 94, 100, 102, 104). Items 26, 27, 37, 49, 61, 97, 99 consolidated.
 
 > **Known consolidation candidates — decide at their batch, with Matt:**
 > - **26 / 60** — Credential Manager Cleanup (appears in both Cloud & Common User Issues)
@@ -139,12 +139,12 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 | 80 | AutoDiscover Fix | pending (batch 6) | — |
 | 81 | Outlook OST Rebuild | pending (batch 6) | — |
 | 82 | Outlook Profile Repair | pending (batch 6) | — |
-| 83 | Teams Meeting Add-in Repair (Outlook button missing) | pending (batch 6) | — |
-| 84 | Teams Camera/Mic Permissions Reset | pending (batch 6) | — |
-| 85 | Teams Deep Diagnostic & Repair | pending (batch 6) | — |
+| 83 | Teams Meeting Add-in Repair (Outlook button missing) | ported (batch 6b) | teams-addin-repair |
+| 84 | Teams Camera/Mic Permissions Reset | ported (batch 6b) | teams-camera-repair |
+| 85 | Teams Deep Diagnostic & Repair | ported (batch 6b) | teams-deep-diagnostic |
 | 95 | Temporary Profile Repair | pending (batch 6) | — |
 | 96 | Outlook Add-in Repair (OnBase & Others) | pending (batch 6) | — |
-| 97 | Teams Camera & Media Stack Reset | pending (batch 6) | — |
+| 97 | Teams Camera & Media Stack Reset | consolidated -> tool 84 (teams-camera-repair) | — |
 | 98 | Reset Print Spooler (Deep) | pending (batch 6) | — |
 | 106 | Repair Outlook Search Index | pending (batch 6) | — |
 
