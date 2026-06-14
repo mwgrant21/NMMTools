@@ -1176,5 +1176,17 @@
             Risk          = 'Disruptive'
             Tags          = @('quickfix','audio','camera','meeting')
         }
+        @{
+            Id            = 'docking-quick-fix'
+            LegacyId      = 'Q8'
+            Name          = 'Quick Fix: Docking Station'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-DockingQuickFix'
+            Description   = 'One-click docking fix: detect displays and switch to extend mode (use Win+P to change mode); see also docking-displays'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('quickfix','docking','display','monitor')
+        }
     )
 }
