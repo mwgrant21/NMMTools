@@ -1032,5 +1032,17 @@
             Risk          = 'Modifies'
             Tags          = @('outlook','addin','onbase','loadbehavior','resiliency')
         }
+        @{
+            Id            = 'domain-trust-repair'
+            LegacyId      = '51'
+            Name          = 'Domain Trust and Connection Repair'
+            Category      = 'Security'
+            Function      = 'Repair-DomainTrust'
+            Description   = 'Report domain join, secure channel, DC list, DNS and time, then test/repair the secure channel, reset the machine password, resync time, purge Kerberos tickets, rejoin the domain (typed REJOIN), or show detailed domain info'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('domain','kerberos','securechannel','nltest','ad')
+        }
     )
 }
