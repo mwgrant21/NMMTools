@@ -948,5 +948,17 @@
             Risk          = 'Modifies'
             Tags          = @('performance','startup','pagefile','optimize')
         }
+        @{
+            Id            = 'audio-repair'
+            LegacyId      = '56'
+            Name          = 'Audio Troubleshooter'
+            Category      = 'User'
+            Function      = 'Repair-AudioAdvanced'
+            Description   = 'Report audio devices and services, then restart the audio services, cycle the audio devices, or launch the Windows audio troubleshooter'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('audio','sound','playback','services')
+        }
     )
 }
