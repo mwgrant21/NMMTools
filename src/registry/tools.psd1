@@ -1008,5 +1008,17 @@
             Risk          = 'Modifies'
             Tags          = @('outlook','ost','cache','exchange','resync')
         }
+        @{
+            Id            = 'outlook-profile-repair'
+            LegacyId      = '82'
+            Name          = 'Outlook Profile Repair'
+            Category      = 'User'
+            Function      = 'Repair-OutlookProfile'
+            Description   = 'List Outlook profiles, then (nuclear) back up the Profiles registry key, delete it, and recreate a fresh default profile - all account settings are wiped; requires a typed REBUILD confirmation; see also tool 22'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('outlook','profile','registry','nuclear')
+        }
     )
 }
