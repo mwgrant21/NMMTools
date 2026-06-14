@@ -1,6 +1,6 @@
 # NMM Toolkit v8 → v9 Parity Checklist
 
-Generated at batch 1 close-out; updated batch 6b close-out. **73 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 54, 55, 57, 59, 62-64, 65, 67-73, 75, 83, 84, 85, 87-90, 94, 100, 102, 104). Items 26, 27, 37, 49, 61, 97, 99 consolidated.
+Generated at batch 1 close-out; updated batch 6e close-out. **77 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 54, 55, 57-60, 62-64, 65, 66, 67-73, 75, 83, 84, 85, 87-90, 94, 95, 100, 102, 104). Items 26, 27, 37, 49, 61, 97, 99 consolidated.
 
 > **Known consolidation candidates — decide at their batch, with Matt:**
 > - **26 / 60** — Credential Manager Cleanup (appears in both Cloud & Common User Issues)
@@ -127,11 +127,11 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 | 55 | Start Menu & Taskbar Repair | ported (batch 6c) | start-menu-taskbar |
 | 56 | Audio Troubleshooter | pending (batch 6d) | — |
 | 57 | Windows Explorer Reset | ported (batch 6c) | windows-explorer-reset |
-| 58 | Mapped Network Drives | pending (batch 6e) | — |
+| 58 | Mapped Network Drives | ported (batch 6e) | network-drives |
 | 59 | Default Apps & File Types | ported (batch 6c) | default-apps |
-| 60 | Credential Manager Cleanup | pending (batch 6e) | — |
+| 60 | Credential Manager Cleanup | ported (batch 6e) | credential-manager |
 | 61 | Display & Monitor Config | consolidated -> tools 44 + 73 | — |
-| 66 | Local Profile Size & Roaming Cache Cleanup | pending (batch 6) | — |
+| 66 | Local Profile Size & Roaming Cache Cleanup | ported (batch 6e) | profile-cache |
 | 76 | Fix Outlook Search (Restart WSearch + Reset Search Components) | pending (batch 6) | — |
 | 77 | Webcam Driver Fix (Soft Reset + Optional Driver Reinstall) | pending (batch 6) | — |
 | 78 | Shared Mailbox Access Fix | pending (batch 6) | — |
@@ -142,7 +142,7 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 | 83 | Teams Meeting Add-in Repair (Outlook button missing) | ported (batch 6b) | teams-addin-repair |
 | 84 | Teams Camera/Mic Permissions Reset | ported (batch 6b) | teams-camera-repair |
 | 85 | Teams Deep Diagnostic & Repair | ported (batch 6b) | teams-deep-diagnostic |
-| 95 | Temporary Profile Repair | pending (batch 6) | — |
+| 95 | Temporary Profile Repair | ported (batch 6e) | temp-profile-repair |
 | 96 | Outlook Add-in Repair (OnBase & Others) | pending (batch 6) | — |
 | 97 | Teams Camera & Media Stack Reset | consolidated -> tool 84 (teams-camera-repair) | — |
 | 98 | Reset Print Spooler (Deep) | pending (batch 6) | — |

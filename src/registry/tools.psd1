@@ -876,5 +876,53 @@
             Risk          = 'Modifies'
             Tags          = @('teams','camera','microphone','media')
         }
+        @{
+            Id            = 'network-drives'
+            LegacyId      = '58'
+            Name          = 'Mapped Network Drive Repair'
+            Category      = 'User'
+            Function      = 'Repair-NetworkDrives'
+            Description   = 'Report mapped network drives and reconnect disconnected ones, or remap a drive letter to a UNC path'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('network','drive','mapped','unc')
+        }
+        @{
+            Id            = 'credential-manager'
+            LegacyId      = '60'
+            Name          = 'Credential Manager Cleanup'
+            Category      = 'User'
+            Function      = 'Clear-SavedCredentials'
+            Description   = 'List saved Windows credentials and clear network, web, Office 365, or all of them (stops the Office sign-in loop); or open Credential Manager'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('credential','cmdkey','password','office365')
+        }
+        @{
+            Id            = 'profile-cache'
+            LegacyId      = '66'
+            Name          = 'Profile Size and Cache Cleanup'
+            Category      = 'User'
+            Function      = 'Clear-ProfileCache'
+            Description   = 'Report user-profile cache folder sizes (Teams/OneDrive/Office/Chrome/Edge/Temp/Downloads) and optionally clear the safe caches; never touches OneDrive or Downloads'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('profile','cache','cleanup','roaming')
+        }
+        @{
+            Id            = 'temp-profile-repair'
+            LegacyId      = '95'
+            Name          = 'Temporary Profile Repair'
+            Category      = 'User'
+            Function      = 'Repair-TemporaryProfile'
+            Description   = 'Detect the "signed in with a temporary profile" issue (orphaned .bak keys in HKLM ProfileList) and repair it via reg copy after a registry backup; affected user must be logged off'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('profile','temporary','profilelist','registry')
+        }
     )
 }
