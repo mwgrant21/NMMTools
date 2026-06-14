@@ -1068,5 +1068,17 @@
             Risk          = 'Modifies'
             Tags          = @('admin','audit','localgroup','security','accounts')
         }
+        @{
+            Id            = 'defender-status'
+            LegacyId      = '93'
+            Name          = 'Windows Defender Security Status'
+            Category      = 'Security'
+            Function      = 'Get-DefenderStatus'
+            Description   = 'Report Windows Defender real-time protection, definition age, last scan, threats and tamper protection, then optionally update signatures; warns if a third-party AV is active'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('defender','antivirus','security','threats','signatures')
+        }
     )
 }
