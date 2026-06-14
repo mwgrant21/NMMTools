@@ -1,0 +1,147 @@
+﻿function Repair-TeamsCamera {
+    [CmdletBinding()]
+    param([switch]$Silent)
+
+    $run = $null
+    try {
+        $run = New-ToolRun -Id 'teams-camera-repair'
+
+        $camStore = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam'
+        $micStore = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone'
+
+        # --- Report ---
+        $cams = @(Get-PnpDevice -Class Camera -ErrorAction SilentlyContinue)
+        if ($cams.Count -eq 0) { $cams = @(Get-PnpDevice -FriendlyName '*camera*' -ErrorAction SilentlyContinue) }
+        if ($cams.Count -gt 0) {
+            Write-ToolOutput ('Camera devices: {0}' -f $cams.Count) -Level Info
+            foreach ($c in $cams) { Write-ToolOutput ('  {0} [{1}]' -f $c.FriendlyName, $c.Status) -Level Detail }
+        } else {
+            Write-ToolOutput 'No camera devices found via PnP.' -Level Warning
+        }
+
+        $camVal = (Get-ItemProperty -LiteralPath $camStore -Name 'Value' -ErrorAction SilentlyContinue).Value
+        $micVal = (Get-ItemProperty -LiteralPath $micStore -Name 'Value' -ErrorAction SilentlyContinue).Value
+        $camLabel = '(unset)'; if ($camVal) { $camLabel = $camVal }
+        $micLabel = '(unset)'; if ($micVal) { $micLabel = $micVal }
+        Write-ToolOutput ('Camera access: {0}   Microphone access: {1}' -f $camLabel, $micLabel) -Level Detail
+
+        $policyKey = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
+        $policyBlock = $false
+        if (Test-Path -LiteralPath $policyKey) {
+            $camPol = (Get-ItemProperty -LiteralPath $policyKey -Name 'LetAppsAccessCamera' -ErrorAction SilentlyContinue).LetAppsAccessCamera
+            $micPol = (Get-ItemProperty -LiteralPath $policyKey -Name 'LetAppsAccessMicrophone' -ErrorAction SilentlyContinue).LetAppsAccessMicrophone
+            if ($camPol -eq 2 -or $micPol -eq 2) {
+                Write-ToolOutput 'WARNING: camera/mic access is BLOCKED by IT policy (GPO/MDM) - cannot be overridden here.' -Level Warning
+                $policyBlock = $true
+            } else {
+                Write-ToolOutput 'No GPO/MDM camera/mic policy block detected.' -Level Detail
+            }
+        } else {
+            Write-ToolOutput 'No AppPrivacy policy key (no GPO/MDM block).' -Level Detail
+        }
+
+        # --- Action menu ---
+        $action = Read-ToolChoice -Prompt 'Teams camera action' `
+            -Choices @('None','FixPermissions','ResetMediaStack') -Default 'None' -Silent:$Silent
+
+        switch ($action) {
+
+            'FixPermissions' {
+                foreach ($store in @($camStore, $micStore)) {
+                    if (-not (Test-Path -LiteralPath $store)) { New-Item -LiteralPath $store -Force | Out-Null }
+                    Set-ItemProperty -LiteralPath $store -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
+                    $np = Join-Path $store 'NonPackaged'
+                    if (-not (Test-Path -LiteralPath $np)) { New-Item -LiteralPath $np -Force | Out-Null }
+                    Set-ItemProperty -LiteralPath $np -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
+                }
+                $fixed = 0
+                foreach ($store in @($camStore, $micStore)) {
+                    $np = Join-Path $store 'NonPackaged'
+                    if (Test-Path -LiteralPath $np) {
+                        Get-ChildItem -LiteralPath $np -ErrorAction SilentlyContinue | ForEach-Object {
+                            if ($_.PSChildName -match 'ms-teams|MSTeams|Teams') {
+                                $v = (Get-ItemProperty -LiteralPath $_.PSPath -Name 'Value' -ErrorAction SilentlyContinue).Value
+                                if ($v -eq 'Deny') {
+                                    Set-ItemProperty -LiteralPath $_.PSPath -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
+                                    $fixed++
+                                }
+                            }
+                        }
+                    }
+                }
+                foreach ($p in @('ms-teams','MSTeams','Teams')) { Stop-Process -Name $p -Force -ErrorAction SilentlyContinue }
+                Start-Sleep -Seconds 2
+                Start-Process 'ms-teams:' -ErrorAction SilentlyContinue
+                if ($policyBlock) {
+                    Complete-ToolRun $run -Status Warning -Summary ('Camera/mic set to Allow ({0} Teams deny entries fixed) but an IT policy block is in effect' -f $fixed)
+                } else {
+                    Complete-ToolRun $run -Status Success -Summary ('Camera/mic set to Allow ({0} Teams deny entries fixed); Teams restarted' -f $fixed)
+                }
+            }
+
+            'ResetMediaStack' {
+                $hogs = @('Teams','ms-teams','MSTeams','WebexMeetings','zoom','CiscoCollabHost','lync','communicator','chrome','msedge','firefox','CameraApp')
+                $running = @($hogs | Where-Object { Get-Process -Name $_ -ErrorAction SilentlyContinue })
+                Write-ToolOutput 'WARNING: this CLOSES camera-using apps before resetting the media stack.' -Level Warning
+                if ($running.Count -gt 0) { Write-ToolOutput ('Will close: {0}' -f ($running -join ', ')) -Level Detail }
+                $confirm = Read-ToolChoice -Prompt 'Close those apps and reset the Teams camera/media stack?' `
+                    -Choices @('Yes','No') -Default 'No' -Silent:$Silent
+                if ($confirm -ne 'Yes') {
+                    Complete-ToolRun $run -Status Skipped -Summary 'ResetMediaStack cancelled'
+                } else {
+                    foreach ($p in $hogs) { Get-Process -Name $p -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }
+                    Start-Sleep -Seconds 2
+                    $cachePaths = @(
+                        (Join-Path $env:APPDATA 'Microsoft\Teams\Cache'),
+                        (Join-Path $env:APPDATA 'Microsoft\Teams\blob_storage'),
+                        (Join-Path $env:APPDATA 'Microsoft\Teams\databases'),
+                        (Join-Path $env:APPDATA 'Microsoft\Teams\GPUCache'),
+                        (Join-Path $env:APPDATA 'Microsoft\Teams\IndexedDB'),
+                        (Join-Path $env:APPDATA 'Microsoft\Teams\Local Storage'),
+                        (Join-Path $env:APPDATA 'Microsoft\Teams\tmp'),
+                        (Join-Path $env:LOCALAPPDATA 'Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\Cache'),
+                        (Join-Path $env:LOCALAPPDATA 'Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\EBWebView')
+                    )
+                    $cleared = 0
+                    foreach ($cp in $cachePaths) {
+                        if (Test-Path -LiteralPath $cp) {
+                            Get-ChildItem -LiteralPath $cp -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                            $cleared++
+                        }
+                    }
+                    if (Test-Path -LiteralPath $camStore) { Set-ItemProperty -LiteralPath $camStore -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue }
+                    try {
+                        Stop-Service -Name 'FrameServer' -Force -ErrorAction Stop
+                        Start-Sleep -Seconds 2
+                        Start-Service -Name 'FrameServer' -ErrorAction SilentlyContinue
+                        Write-ToolOutput 'Camera Frame Server restarted.' -Level Detail
+                    } catch {
+                        Write-ToolOutput 'Could not restart FrameServer (needs elevation).' -Level Warning
+                    }
+                    $cycled = 0
+                    foreach ($cam in $cams) {
+                        try {
+                            if ($cam.Status -eq 'OK') {
+                                Disable-PnpDevice -InstanceId $cam.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+                                Start-Sleep -Seconds 2
+                                Enable-PnpDevice -InstanceId $cam.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+                                $cycled++
+                            } elseif ($cam.Status -eq 'Error') {
+                                Enable-PnpDevice -InstanceId $cam.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+                                $cycled++
+                            }
+                        } catch { }
+                    }
+                    Complete-ToolRun $run -Status Success -Summary ('Media stack reset: {0} cache location(s) cleared, {1} camera device(s) cycled' -f $cleared, $cycled)
+                }
+            }
+
+            default {
+                Complete-ToolRun $run -Status Success -Summary 'Teams camera state reported; no action taken'
+            }
+        }
+    }
+    catch {
+        Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message
+    }
+}

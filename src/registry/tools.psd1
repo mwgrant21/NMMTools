@@ -864,5 +864,17 @@
             Risk          = 'Modifies'
             Tags          = @('teams','wam','msal','auth','diagnostic')
         }
+        @{
+            Id            = 'teams-camera-repair'
+            LegacyId      = '84'
+            Name          = 'Teams Camera and Mic Repair'
+            Category      = 'User'
+            Function      = 'Repair-TeamsCamera'
+            Description   = 'Fix Teams camera/mic: set Windows privacy access to Allow (FixPermissions) or reset the media stack - close hogging apps, clear media cache, restart FrameServer, cycle the camera device (ResetMediaStack)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('teams','camera','microphone','media')
+        }
     )
 }
