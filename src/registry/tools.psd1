@@ -1116,5 +1116,17 @@
             Risk          = 'Modifies'
             Tags          = @('quickfix','onedrive','sync','reset')
         }
+        @{
+            Id            = 'teams-quick-fix'
+            LegacyId      = 'Q3'
+            Name          = 'Quick Fix: Teams Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-TeamsQuickFix'
+            Description   = 'One-click Teams fix: close Teams (classic and new), clear the Teams cache, and restart Teams; see also teams-cache'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('quickfix','teams','cache')
+        }
     )
 }
