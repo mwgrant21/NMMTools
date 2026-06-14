@@ -867,14 +867,14 @@
         @{
             Id            = 'teams-camera-repair'
             LegacyId      = '84'
-            Name          = 'Teams Camera and Mic Repair'
+            Name          = 'Camera and Mic Repair'
             Category      = 'User'
             Function      = 'Repair-TeamsCamera'
-            Description   = 'Fix Teams camera/mic: set Windows privacy access to Allow (FixPermissions) or reset the media stack - close hogging apps, clear media cache, restart FrameServer, cycle the camera device (ResetMediaStack)'
+            Description   = 'Fix camera/mic: set Windows privacy access to Allow (FixPermissions), reset the media stack (ResetMediaStack - close hogging apps, clear cache, cycle the device), or remove and reinstall the camera driver (ReinstallDriver - reboot required)'
             RequiresAdmin = $true
             SilentCapable = $true
             Risk          = 'Modifies'
-            Tags          = @('teams','camera','microphone','media')
+            Tags          = @('teams','camera','microphone','media','webcam','driver')
         }
         @{
             Id            = 'network-drives'
@@ -923,6 +923,42 @@
             SilentCapable = $true
             Risk          = 'Disruptive'
             Tags          = @('profile','temporary','profilelist','registry')
+        }
+        @{
+            Id            = 'printer-repair'
+            LegacyId      = '52'
+            Name          = 'Printer Troubleshooter'
+            Category      = 'User'
+            Function      = 'Repair-PrinterIssues'
+            Description   = 'Report printers, spooler status, and stuck jobs; restart the spooler, clear jobs, clear the spool folder (deep reset), remove offline/ghost printers, or full reset'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('printer','spooler','print','queue')
+        }
+        @{
+            Id            = 'perf-optimizer'
+            LegacyId      = '53'
+            Name          = 'Performance Optimizer'
+            Category      = 'User'
+            Function      = 'Optimize-Performance'
+            Description   = 'Report CPU/RAM and top processes, then open startup apps, clear TEMP, set visual effects to performance, or set the page file to system-managed (see also tools 4/7/11/16)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('performance','startup','pagefile','optimize')
+        }
+        @{
+            Id            = 'audio-repair'
+            LegacyId      = '56'
+            Name          = 'Audio Troubleshooter'
+            Category      = 'User'
+            Function      = 'Repair-AudioAdvanced'
+            Description   = 'Report audio devices and services, then restart the audio services, cycle the audio devices, or launch the Windows audio troubleshooter'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('audio','sound','playback','services')
         }
     )
 }

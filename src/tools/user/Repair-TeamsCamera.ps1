@@ -41,8 +41,8 @@
         }
 
         # --- Action menu ---
-        $action = Read-ToolChoice -Prompt 'Teams camera action' `
-            -Choices @('None','FixPermissions','ResetMediaStack') -Default 'None' -Silent:$Silent
+        $action = Read-ToolChoice -Prompt 'Camera / mic action' `
+            -Choices @('None','FixPermissions','ResetMediaStack','ReinstallDriver') -Default 'None' -Silent:$Silent
 
         switch ($action) {
 
@@ -138,6 +138,54 @@
                         } catch { }
                     }
                     Complete-ToolRun $run -Status Success -Summary ('Media stack reset: {0} cache location(s) cleared, {1} camera device(s) cycled' -f $cleared, $cycled)
+                }
+            }
+
+            'ReinstallDriver' {
+                if ($cams.Count -eq 0) {
+                    Complete-ToolRun $run -Status Warning -Summary 'No camera devices found; nothing to reinstall'
+                } else {
+                    Write-ToolOutput 'WARNING: this REMOVES the camera driver - a REBOOT is required and the camera is offline until then.' -Level Warning
+                    Write-ToolOutput 'It will also CLOSE camera-using apps (Teams, browsers, Camera app) to release the device.' -Level Warning
+                    $confirm = Read-ToolChoice -Prompt 'Remove the camera driver(s) and let Windows reinstall on reboot?' `
+                        -Choices @('Yes','No') -Default 'No' -Silent:$Silent
+                    if ($confirm -ne 'Yes') {
+                        Complete-ToolRun $run -Status Skipped -Summary 'ReinstallDriver cancelled'
+                    } else {
+                        foreach ($p in @('Teams','ms-teams','MSTeams','WebexMeetings','zoom','chrome','msedge','firefox','CameraApp','WindowsCamera')) {
+                            Get-Process -Name $p -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+                        }
+                        Start-Sleep -Seconds 2
+                        $removed = 0
+                        foreach ($cam in $cams) {
+                            & pnputil.exe /remove-device $cam.InstanceId *>$null
+                            if ($LASTEXITCODE -eq 0) {
+                                Write-ToolOutput ('  Removed driver: {0}' -f $cam.FriendlyName) -Level Success
+                                $removed++
+                            } else {
+                                Write-ToolOutput ('  Could not remove {0} via pnputil (exit {1}); use Device Manager > Uninstall device' -f $cam.FriendlyName, $LASTEXITCODE) -Level Warning
+                            }
+                        }
+                        try {
+                            $session = New-Object -ComObject Microsoft.Update.Session
+                            $searcher = $session.CreateUpdateSearcher()
+                            $result = $searcher.Search("IsInstalled=0 and Type='Driver'")
+                            $camUpd = @($result.Updates | Where-Object { $_.Title -match 'camera|webcam|video|imaging' })
+                            if ($camUpd.Count -gt 0) {
+                                Write-ToolOutput ('Windows Update has {0} camera driver update(s) pending:' -f $camUpd.Count) -Level Info
+                                foreach ($u in $camUpd) { Write-ToolOutput ('  - {0}' -f $u.Title) -Level Detail }
+                            } else {
+                                Write-ToolOutput 'No pending camera driver updates in Windows Update.' -Level Detail
+                            }
+                        } catch {
+                            Write-ToolOutput 'Could not query Windows Update for driver updates (check Settings manually).' -Level Detail
+                        }
+                        if ($removed -gt 0) {
+                            Complete-ToolRun $run -Status Success -Summary ('Removed {0} camera driver(s); REBOOT to trigger automatic reinstall' -f $removed)
+                        } else {
+                            Complete-ToolRun $run -Status Warning -Summary 'No camera drivers removed; use Device Manager to uninstall manually'
+                        }
+                    }
                 }
             }
 
