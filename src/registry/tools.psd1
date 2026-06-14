@@ -924,5 +924,17 @@
             Risk          = 'Disruptive'
             Tags          = @('profile','temporary','profilelist','registry')
         }
+        @{
+            Id            = 'printer-repair'
+            LegacyId      = '52'
+            Name          = 'Printer Troubleshooter'
+            Category      = 'User'
+            Function      = 'Repair-PrinterIssues'
+            Description   = 'Report printers, spooler status, and stuck jobs; restart the spooler, clear jobs, clear the spool folder (deep reset), remove offline/ghost printers, or full reset'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('printer','spooler','print','queue')
+        }
     )
 }
