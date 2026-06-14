@@ -1140,5 +1140,17 @@
             Risk          = 'Modifies'
             Tags          = @('quickfix','login','credentials','signin')
         }
+        @{
+            Id            = 'wifi-quick-fix'
+            LegacyId      = 'Q5'
+            Name          = 'Quick Fix: Wi-Fi Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-WiFiQuickFix'
+            Description   = 'One-click Wi-Fi fix: restart the Wi-Fi adapter, release/renew the IP, and flush DNS; see also wifi-diagnostics and network-stack-reset'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('quickfix','wifi','network','dns')
+        }
     )
 }
