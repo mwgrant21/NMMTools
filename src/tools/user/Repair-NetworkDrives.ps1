@@ -60,7 +60,9 @@
                             Write-ToolOutput ('  [FAIL] {0} -> {1}' -f $dl, $cd.Path) -Level Warning
                         }
                     }
-                    Complete-ToolRun $run -Status Success -Summary ('Reconnected {0} of {1} configured drive(s)' -f $okCount, $configured.Count)
+                    $reconStatus = 'Success'
+                    if ($okCount -eq 0) { $reconStatus = 'Warning' }
+                    Complete-ToolRun $run -Status $reconStatus -Summary ('Reconnected {0} of {1} configured drive(s)' -f $okCount, $configured.Count)
                 }
             }
 
