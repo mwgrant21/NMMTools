@@ -996,5 +996,17 @@
             Risk          = 'Modifies'
             Tags          = @('outlook','autodiscover','dns','exchange')
         }
+        @{
+            Id            = 'outlook-ost-rebuild'
+            LegacyId      = '81'
+            Name          = 'Outlook OST Rebuild'
+            Category      = 'User'
+            Function      = 'Reset-OutlookOst'
+            Description   = 'List Outlook OST cache files and sizes, then close Outlook and rename each OST (keeps a timestamped .bak) so Outlook re-syncs from Exchange on next launch'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','ost','cache','exchange','resync')
+        }
     )
 }
