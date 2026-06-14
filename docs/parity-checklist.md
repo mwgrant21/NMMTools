@@ -1,6 +1,6 @@
 # NMM Toolkit v8 → v9 Parity Checklist
 
-Generated at batch 1 close-out; updated batch 4 close-out. **64 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-47, 62-64, 65, 67-73, 75, 87-90, 94, 100, 102, 104). Items 26, 27, 37, 99 consolidated.
+Generated at batch 1 close-out; updated batch 5 close-out. **66 of ~111 items ported** (items 1-20, 21-25, 28-30, 31-36, 38-48, 50, 62-64, 65, 67-73, 75, 87-90, 94, 100, 102, 104). Items 26, 27, 37, 49, 99 consolidated.
 
 > **Known consolidation candidates — decide at their batch, with Matt:**
 > - **26 / 60** — Credential Manager Cleanup (appears in both Cloud & Common User Issues)
@@ -111,9 +111,9 @@ _Item 67 appears under Quick Fixes in the v8 menu but is assigned here per the b
 
 | v8 # | v8 Menu Name | Status | v9 Id |
 |-----:|---|---|---|
-| 48 | Browser Backup (Chrome/Edge/Firefox/Brave) | pending (batch 5) | — |
-| 49 | Browser Restore from Backup | pending (batch 5) | — |
-| 50 | Comprehensive Browser Clear (All Data Except Passwords) | pending (batch 5) | — |
+| 48 | Browser Backup (Chrome/Edge/Firefox/Brave) | ported (batch 5) | browser-backup-restore |
+| 49 | Browser Restore from Backup | consolidated -> tool 48 (browser-backup-restore) | — |
+| 50 | Comprehensive Browser Clear (All Data Except Passwords) | ported (batch 5) | browser-clear |
 
 ---
 
