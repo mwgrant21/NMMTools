@@ -1020,5 +1020,17 @@
             Risk          = 'Disruptive'
             Tags          = @('outlook','profile','registry','nuclear')
         }
+        @{
+            Id            = 'outlook-addin-repair'
+            LegacyId      = '96'
+            Name          = 'Outlook Add-in Repair'
+            Category      = 'User'
+            Function      = 'Repair-OutlookAddins'
+            Description   = 'Report Outlook add-ins (HKCU/HKLM) and Resiliency disabled/crashing lists, then clear those lists, re-enable disabled HKCU add-ins (LoadBehavior 3), and protect them from auto-disable (OnBase/Hyland aware)'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','addin','onbase','loadbehavior','resiliency')
+        }
     )
 }
