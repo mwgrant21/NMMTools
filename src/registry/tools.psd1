@@ -1104,5 +1104,17 @@
             Risk          = 'Disruptive'
             Tags          = @('quickfix','office','m365','credentials')
         }
+        @{
+            Id            = 'onedrive-quick-fix'
+            LegacyId      = 'Q2'
+            Name          = 'Quick Fix: OneDrive Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-OneDriveQuickFix'
+            Description   = 'One-click OneDrive fix: stop OneDrive, reset it (/reset), and restart it; see also onedrive-repair'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('quickfix','onedrive','sync','reset')
+        }
     )
 }
