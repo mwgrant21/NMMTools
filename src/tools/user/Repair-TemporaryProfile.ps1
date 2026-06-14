@@ -61,19 +61,35 @@
                     }
                     Write-ToolOutput ('ProfileList backed up: {0}' -f $backup) -Level Info
 
-                    # 2. For each temp-profile pattern: reg copy .bak -> real SID (type-correct), then delete .bak.
+                    # 2. For each temp-profile pattern: delete the corrupt real SID, then copy .bak -> real
+                    #    SID (/s carries all values+subkeys, type-correct), then delete .bak.
                     $repaired = 0
                     foreach ($p in $tempPattern) {
                         $realReg = '{0}\{1}' -f $plReg, $p.RealSid
                         $bakReg  = '{0}\{1}.bak' -f $plReg, $p.RealSid
+                        $realKey = '{0}\{1}' -f $plPath, $p.RealSid
                         & reg.exe delete $realReg /f *>$null
+                        if ($LASTEXITCODE -ne 0) {
+                            Write-ToolOutput ('  Skipped {0}: could not delete the corrupt SID key (exit {1}); .bak left intact, backup at {2}' -f $p.Img, $LASTEXITCODE, $backup) -Level Error
+                            continue
+                        }
                         & reg.exe copy $bakReg $realReg /s /f *>$null
                         if ($LASTEXITCODE -eq 0) {
                             & reg.exe delete $bakReg /f *>$null
-                            Write-ToolOutput ('  Repaired: {0}' -f $p.Img) -Level Success
-                            $repaired++
+                            $restored = (Get-ItemProperty -LiteralPath $realKey -Name 'ProfileImagePath' -ErrorAction SilentlyContinue).ProfileImagePath
+                            if ($restored) {
+                                Write-ToolOutput ('  Repaired: {0}' -f $p.Img) -Level Success
+                                $repaired++
+                            } else {
+                                Write-ToolOutput ('  WARN: {0} copied but ProfileImagePath missing on the restored key; verify before the user logs in (backup: {1})' -f $p.Img, $backup) -Level Warning
+                            }
                         } else {
-                            Write-ToolOutput ('  Repair failed for {0} (reg copy exit {1}); backup retained at {2}' -f $p.Img, $LASTEXITCODE, $backup) -Level Error
+                            $realGone = -not (Test-Path -LiteralPath $realKey)
+                            if ($realGone) {
+                                Write-ToolOutput ('  CRITICAL: reg copy failed AND the real SID key is now MISSING for {0}. The user CANNOT log in. RESTORE THE BACKUP NOW: reg import "{1}"' -f $p.Img, $backup) -Level Error
+                            } else {
+                                Write-ToolOutput ('  Repair failed for {0} (reg copy exit {1}); real key still present; backup at {2}' -f $p.Img, $LASTEXITCODE, $backup) -Level Error
+                            }
                         }
                     }
 
