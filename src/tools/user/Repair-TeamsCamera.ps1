@@ -48,10 +48,10 @@
 
             'FixPermissions' {
                 foreach ($store in @($camStore, $micStore)) {
-                    if (-not (Test-Path -LiteralPath $store)) { New-Item -LiteralPath $store -Force | Out-Null }
+                    if (-not (Test-Path -LiteralPath $store)) { New-Item -LiteralPath $store -Force -ErrorAction SilentlyContinue | Out-Null }
                     Set-ItemProperty -LiteralPath $store -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
                     $np = Join-Path $store 'NonPackaged'
-                    if (-not (Test-Path -LiteralPath $np)) { New-Item -LiteralPath $np -Force | Out-Null }
+                    if (-not (Test-Path -LiteralPath $np)) { New-Item -LiteralPath $np -Force -ErrorAction SilentlyContinue | Out-Null }
                     Set-ItemProperty -LiteralPath $np -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
                 }
                 $fixed = 0
@@ -69,11 +69,15 @@
                         }
                     }
                 }
+                $camOk = (Get-ItemProperty -LiteralPath $camStore -Name 'Value' -ErrorAction SilentlyContinue).Value -eq 'Allow'
+                $micOk = (Get-ItemProperty -LiteralPath $micStore -Name 'Value' -ErrorAction SilentlyContinue).Value -eq 'Allow'
                 foreach ($p in @('ms-teams','MSTeams','Teams')) { Stop-Process -Name $p -Force -ErrorAction SilentlyContinue }
                 Start-Sleep -Seconds 2
                 Start-Process 'ms-teams:' -ErrorAction SilentlyContinue
                 if ($policyBlock) {
                     Complete-ToolRun $run -Status Warning -Summary ('Camera/mic set to Allow ({0} Teams deny entries fixed) but an IT policy block is in effect' -f $fixed)
+                } elseif (-not ($camOk -and $micOk)) {
+                    Complete-ToolRun $run -Status Warning -Summary ('Camera/mic permission write could not be confirmed (camera={0}, mic={1}); a higher-level block may be present' -f $camOk, $micOk)
                 } else {
                     Complete-ToolRun $run -Status Success -Summary ('Camera/mic set to Allow ({0} Teams deny entries fixed); Teams restarted' -f $fixed)
                 }
@@ -109,6 +113,7 @@
                             $cleared++
                         }
                     }
+                    # Camera-focused reset (v8 tool 97); mic permissions are handled by the FixPermissions action.
                     if (Test-Path -LiteralPath $camStore) { Set-ItemProperty -LiteralPath $camStore -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue }
                     try {
                         Stop-Service -Name 'FrameServer' -Force -ErrorAction Stop
@@ -116,7 +121,7 @@
                         Start-Service -Name 'FrameServer' -ErrorAction SilentlyContinue
                         Write-ToolOutput 'Camera Frame Server restarted.' -Level Detail
                     } catch {
-                        Write-ToolOutput 'Could not restart FrameServer (needs elevation).' -Level Warning
+                        Write-ToolOutput 'Could not restart Camera Frame Server (skipping).' -Level Warning
                     }
                     $cycled = 0
                     foreach ($cam in $cams) {
