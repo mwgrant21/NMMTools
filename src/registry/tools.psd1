@@ -1188,5 +1188,17 @@
             Risk          = 'Modifies'
             Tags          = @('quickfix','docking','display','monitor')
         }
+        @{
+            Id            = 'browser-backup-quick-fix'
+            LegacyId      = 'Q9'
+            Name          = 'Quick Fix: Browser Backup'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-BrowserBackupQuickFix'
+            Description   = 'One-click browser backup: close browsers and back up bookmarks/logins for installed browsers to a timestamped ZIP; see also browser-backup-restore'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('quickfix','browser','backup','bookmarks')
+        }
     )
 }
