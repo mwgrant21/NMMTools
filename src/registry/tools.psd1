@@ -936,5 +936,17 @@
             Risk          = 'Modifies'
             Tags          = @('printer','spooler','print','queue')
         }
+        @{
+            Id            = 'perf-optimizer'
+            LegacyId      = '53'
+            Name          = 'Performance Optimizer'
+            Category      = 'User'
+            Function      = 'Optimize-Performance'
+            Description   = 'Report CPU/RAM and top processes, then open startup apps, clear TEMP, set visual effects to performance, or set the page file to system-managed (see also tools 4/7/11/16)'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('performance','startup','pagefile','optimize')
+        }
     )
 }
