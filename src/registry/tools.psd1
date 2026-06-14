@@ -816,5 +816,17 @@
             Risk          = 'Modifies'
             Tags          = @('startmenu','taskbar','explorer','shell')
         }
+        @{
+            Id            = 'windows-explorer-reset'
+            LegacyId      = '57'
+            Name          = 'Windows Explorer Reset'
+            Category      = 'User'
+            Function      = 'Reset-WindowsExplorer'
+            Description   = 'Restart Explorer, clear thumbnail/Recent/jump-list caches, or rebuild the icon cache'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('explorer','shell','thumbnail','iconcache')
+        }
     )
 }
