@@ -1092,5 +1092,17 @@
             Risk          = 'Disruptive'
             Tags          = @('rdp','remotedesktop','firewall','nla','termservice')
         }
+        @{
+            Id            = 'office-quick-fix'
+            LegacyId      = 'Q1'
+            Name          = 'Quick Fix: Office Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-OfficeQuickFix'
+            Description   = 'One-click Office fix: close Office apps, clear Office sign-in credentials, and launch a Click-to-Run repair; see also office-repair'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('quickfix','office','m365','credentials')
+        }
     )
 }
