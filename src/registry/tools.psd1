@@ -984,5 +984,17 @@
             Risk          = 'Modifies'
             Tags          = @('outlook','m365','auth','token','wam','credential')
         }
+        @{
+            Id            = 'autodiscover-fix'
+            LegacyId      = '80'
+            Name          = 'AutoDiscover Fix'
+            Category      = 'User'
+            Function      = 'Repair-AutoDiscover'
+            Description   = 'Test the Outlook AutoDiscover endpoint and report cache/registry state, then flush DNS, clear AutoDiscover cache files and the AutoDiscover registry key, and re-test; see also m365-auth-reset'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','autodiscover','dns','exchange')
+        }
     )
 }
