@@ -7,10 +7,11 @@
     Set-OutputSink -Sink Silent
 
     function New-FakeTool {
-        param([string]$Legacy, [string]$Category, [string]$Name, [string]$Desc = 'fake description')
+        param([string]$Legacy, [string]$Category, [string]$Name, [string]$Desc = 'fake description',
+              [string]$Risk = 'ReadOnly', [bool]$Admin = $false)
         @{ Id = "fake-$Legacy"; LegacyId = "$Legacy"; Name = $Name; Category = $Category
-           Function = "Invoke-Fake$Legacy"; Description = $Desc; RequiresAdmin = $false
-           SilentCapable = $true; Risk = 'ReadOnly'; Tags = @('fake') }
+           Function = "Invoke-Fake$Legacy"; Description = $Desc; RequiresAdmin = $Admin
+           SilentCapable = $true; Risk = $Risk; Tags = @('fake') }
     }
 }
 
@@ -49,6 +50,62 @@ Describe 'Get-CategoryColor' {
         foreach ($cat in @('Browser','Cloud','Diagnostics','Laptop','QuickFix','Repair','Security','User','Nope')) {
             { [System.ConsoleColor](Get-CategoryColor $cat) } | Should -Not -Throw
         }
+    }
+}
+
+Describe 'Get-NmmRiskBadge' {
+    It 'returns empty for a read-only non-admin tool' {
+        Get-NmmRiskBadge @{ Risk = 'ReadOnly'; RequiresAdmin = $false } | Should -Be ''
+    }
+    It 'returns [M] for a Modifies tool and [!] for a Disruptive tool' {
+        Get-NmmRiskBadge @{ Risk = 'Modifies';   RequiresAdmin = $false } | Should -Be '[M]'
+        Get-NmmRiskBadge @{ Risk = 'Disruptive'; RequiresAdmin = $false } | Should -Be '[!]'
+    }
+    It 'appends the admin marker when RequiresAdmin' {
+        $tri = [char]0x25B2
+        Get-NmmRiskBadge @{ Risk = 'Modifies';   RequiresAdmin = $true } | Should -Be ('[M]' + $tri)
+        Get-NmmRiskBadge @{ Risk = 'Disruptive'; RequiresAdmin = $true } | Should -Be ('[!]' + $tri)
+    }
+    It 'shows only the admin marker for a read-only admin tool' {
+        $tri = [char]0x25B2
+        Get-NmmRiskBadge @{ Risk = 'ReadOnly'; RequiresAdmin = $true } | Should -Be ([string]$tri)
+    }
+    It 'returns empty for unknown/missing risk and does not throw' {
+        { Get-NmmRiskBadge @{ RequiresAdmin = $false } } | Should -Not -Throw
+        Get-NmmRiskBadge @{ Risk = 'Weird'; RequiresAdmin = $false } | Should -Be ''
+    }
+}
+
+Describe 'Invoke-ToolWithGate' {
+    BeforeEach {
+        Mock Invoke-NmmTool { 'Success' }
+        Mock Read-Host { '' }
+    }
+    It 'runs a read-only tool without prompting' {
+        Mock Read-ToolChoice { 'No' }
+        $tool = @{ Id='t'; Name='RO'; Category='Diagnostics'; Risk='ReadOnly'; RequiresAdmin=$false; Description='d' }
+        Invoke-ToolWithGate -Tool $tool
+        Assert-MockCalled Read-ToolChoice -Times 0 -Scope It
+        Assert-MockCalled Invoke-NmmTool  -Times 1 -Scope It
+    }
+    It 'does not run a disruptive tool when the user answers No' {
+        Mock Read-ToolChoice { 'No' }
+        $tool = @{ Id='t'; Name='Boom'; Category='Repair'; Risk='Disruptive'; RequiresAdmin=$true; Description='d' }
+        Invoke-ToolWithGate -Tool $tool
+        Assert-MockCalled Read-ToolChoice -Times 1 -Scope It
+        Assert-MockCalled Invoke-NmmTool  -Times 0 -Scope It
+    }
+    It 'runs a disruptive tool when the user answers Yes' {
+        Mock Read-ToolChoice { 'Yes' }
+        $tool = @{ Id='t'; Name='Boom'; Category='Repair'; Risk='Disruptive'; RequiresAdmin=$true; Description='d' }
+        Invoke-ToolWithGate -Tool $tool
+        Assert-MockCalled Invoke-NmmTool -Times 1 -Scope It
+    }
+    It 'prompts risky tools with a default of No' {
+        Mock Read-ToolChoice { 'No' }
+        $tool = @{ Id='t'; Name='Mod'; Category='Repair'; Risk='Modifies'; RequiresAdmin=$false; Description='d' }
+        Invoke-ToolWithGate -Tool $tool
+        Assert-MockCalled Read-ToolChoice -Times 1 -Scope It -ParameterFilter { $Default -eq 'No' }
     }
 }
 
@@ -115,5 +172,71 @@ Describe 'Show-LandingMenu two-column layout' {
         $text = ($raw | ForEach-Object { "$_" }) -join "`n"
         $text | Should -Match 'Q3'
         $text | Should -Match 'X = exit'
+    }
+
+    It 'shows risk/admin badges and a legend, and no badge for read-only tools' {
+        $script:RegistryData = @{ Tools = @(
+            (New-FakeTool '73' 'Repair'      'System Repair Suite' 'desc' 'Disruptive' $true),
+            (New-FakeTool '1'  'Diagnostics' 'System Information'   'desc' 'ReadOnly'   $false)
+        ) }
+        $raw  = Show-LandingMenu 6>&1
+        $text = ($raw | ForEach-Object { "$_" }) -join "`n"
+        $tri  = [char]0x25B2
+
+        $repairRow = ($text -split "`n" | Where-Object { $_ -match 'System Repair Suite' }) -join ''
+        $repairRow | Should -Match '\[!\]'
+        $repairRow | Should -Match ([regex]::Escape($tri))
+
+        $roRow = ($text -split "`n" | Where-Object { $_ -match 'System Information' }) -join ''
+        $roRow | Should -Not -Match '\[M\]'
+        $roRow | Should -Not -Match '\[!\]'
+        $roRow | Should -Not -Match ([regex]::Escape($tri))
+
+        $text | Should -Match 'Legend:'
+        $text | Should -Match '\[!\] disruptive'
+    }
+}
+
+Describe 'Invoke-MenuSelection routing' {
+    BeforeEach {
+        $script:RegistryData = @{ Tools = @(
+            (New-FakeTool '1'  'Diagnostics' 'System Information'),
+            (New-FakeTool '2'  'Diagnostics' 'Disk Space Analysis'),
+            (New-FakeTool '54' 'User'        'Windows Search Rebuild')
+        ) }
+        Mock Invoke-ToolWithGate { }
+        Mock Read-Host { '' }
+    }
+    It 'routes a direct number through the gate' {
+        Invoke-MenuSelection -Selection '1'
+        Assert-MockCalled Invoke-ToolWithGate -Times 1 -Scope It
+    }
+    It 'runs the single search hit through the gate without a pick prompt' {
+        Invoke-MenuSelection -Selection 'Disk Space'
+        Assert-MockCalled Invoke-ToolWithGate -Times 1 -Scope It
+        Assert-MockCalled Read-Host -Times 0 -Scope It
+    }
+    It 'lists multiple matches and routes the chosen pick through the gate' {
+        Mock Read-Host { '1' }
+        Invoke-MenuSelection -Selection 'fake'
+        Assert-MockCalled Invoke-ToolWithGate -Times 1 -Scope It
+    }
+    It 'shows a match list when several tools match' {
+        $out = Invoke-MenuSelection -Selection 'fake' 6>&1
+        ($out | ForEach-Object { "$_" }) -join "`n" | Should -Match 'Matches for'
+    }
+    It 'prints a not-found message for no matches' {
+        $out = Invoke-MenuSelection -Selection 'zzzzz' 6>&1
+        ($out | ForEach-Object { "$_" }) -join "`n" | Should -Match 'Nothing matches'
+    }
+    It 'warns and does not run when the multi-match pick is not a valid tool number' {
+        Mock Read-Host { '999' }
+        $out = Invoke-MenuSelection -Selection 'fake' 6>&1
+        ($out | ForEach-Object { "$_" }) -join "`n" | Should -Match 'did not match any tool number'
+        Assert-MockCalled Invoke-ToolWithGate -Times 0 -Scope It
+    }
+    It 'does not run anything when the user cancels the multi-match pick with empty input' {
+        Invoke-MenuSelection -Selection 'fake'   # BeforeEach Read-Host returns '' (cancel)
+        Assert-MockCalled Invoke-ToolWithGate -Times 0 -Scope It
     }
 }

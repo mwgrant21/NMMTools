@@ -27,6 +27,20 @@ function Get-CategoryColor {
     }
 }
 
+function Get-NmmRiskBadge {
+    # Short glyph badge for a tool in the landing list. ReadOnly/unknown risk -> no risk glyph;
+    # Modifies -> [M]; Disruptive -> [!]. Appends a U+25B2 admin marker when RequiresAdmin.
+    # Pure string output (no console I/O); never throws.
+    param([Parameter(Mandatory)]$Tool)
+    $badge = switch ("$($Tool.Risk)") {
+        'Modifies'   { '[M]' }
+        'Disruptive' { '[!]' }
+        default      { '' }
+    }
+    if ($Tool.RequiresAdmin) { $badge += [char]0x25B2 }
+    return $badge
+}
+
 function Format-MenuColumns {
     # Pack pre-formatted cell strings into $Columns column-major columns.
     # rows = ceil(N / Columns); row r, column c -> Cells[c*rows + r]. Non-last columns
@@ -101,12 +115,21 @@ function Show-LandingMenu {
         Write-Host $titleLine -ForegroundColor $color
         Write-Host $bar -ForegroundColor $color
 
-        # One cell per tool: " <id>. <Name>", truncated to fit a column.
+        # One cell per tool: " <id>. <Name>" plus a right-aligned risk/admin badge, fit to a column.
         $cellMax = $colWidth - 1
         $cells = @()
         foreach ($t in $catTools) {
-            $cell = ' {0,4}. {1}' -f $t.LegacyId, $t.Name
-            if ($cell.Length -gt $cellMax) { $cell = $cell.Substring(0, $cellMax - 3) + '...' }
+            $badge = Get-NmmRiskBadge $t
+            $label = ' {0,4}. {1}' -f $t.LegacyId, $t.Name
+            if ($badge) {
+                $room = $cellMax - $badge.Length - 1
+                if ($room -lt 1) { $room = 1 }
+                if ($label.Length -gt $room) { $label = $label.Substring(0, [math]::Max(0, $room - 3)) + '...' }
+                $cell = $label.PadRight($cellMax - $badge.Length) + $badge
+            } else {
+                $cell = $label
+                if ($cell.Length -gt $cellMax) { $cell = $cell.Substring(0, $cellMax - 3) + '...' }
+            }
             $cells += $cell
         }
         foreach ($row in (Format-MenuColumns -Cells $cells -Columns $columns -ColumnWidth $colWidth)) {
@@ -117,21 +140,58 @@ function Show-LandingMenu {
     Write-Host ''
     Write-Host ' Enter: tool number (e.g. 54 or Q3) | search text' -ForegroundColor Gray
     Write-Host '        T = save session summary (for tickets)   X = exit' -ForegroundColor Gray
+    Write-Host ('        Legend: [M] modifies  [!] disruptive  {0} needs admin' -f [char]0x25B2) -ForegroundColor DarkGray
+}
+
+function Show-ToolBrief {
+    # Pre-confirm brief for a risky tool. The Risk word is the one colored element:
+    # Yellow for Modifies, Red for Disruptive.
+    param([Parameter(Mandatory)]$Tool)
+    $riskColor = switch ("$($Tool.Risk)") {
+        'Disruptive' { 'Red' }
+        'Modifies'   { 'Yellow' }
+        default      { 'Gray' }
+    }
+    $dashes = [math]::Max(3, 44 - $Tool.Name.Length)
+    Write-Host ''
+    Write-Host (' -- {0} {1}' -f $Tool.Name, ('-' * $dashes)) -ForegroundColor Cyan
+    $adminText = ''
+    if ($Tool.RequiresAdmin) { $adminText = '   (admin)' }
+    Write-Host ('   Category : {0}      Risk: ' -f $Tool.Category) -ForegroundColor Gray -NoNewline
+    Write-Host ('{0}{1}' -f $Tool.Risk, $adminText) -ForegroundColor $riskColor
+    if (-not [string]::IsNullOrWhiteSpace($Tool.Description)) {
+        Write-Host ('   {0}' -f $Tool.Description) -ForegroundColor Gray
+    }
+}
+
+function Invoke-ToolWithGate {
+    # Single interactive run path. Read-only tools run immediately; Modifies/Disruptive tools
+    # show a brief and require a Yes/No confirm (default No) before running. Returns nothing.
+    param([Parameter(Mandatory)]$Tool)
+    if ($Tool.Risk -eq 'Modifies' -or $Tool.Risk -eq 'Disruptive') {
+        Show-ToolBrief -Tool $Tool
+        $answer = Read-ToolChoice -Prompt 'Run this tool?' -Choices @('Yes','No') -Default 'No'
+        if ($answer -ne 'Yes') {
+            Write-ToolOutput ' Cancelled.' -Level Detail
+            return   # cancelled at the confirm; no extra pause, menu redraws immediately
+        }
+    }
+    Invoke-NmmTool -Tool $Tool | Out-Null
+    Read-Host 'Press Enter to continue' | Out-Null
 }
 
 function Invoke-MenuSelection {
     param([Parameter(Mandatory)][string]$Selection)
     $tool = Resolve-NmmTool -Query $Selection
-    if ($tool) {
-        Invoke-NmmTool -Tool $tool | Out-Null
-        Read-Host 'Press Enter to continue' | Out-Null
-        return
-    }
+    if ($tool) { Invoke-ToolWithGate -Tool $tool; return }
+
     $found = @(Search-NmmTools -Term $Selection)
     if ($found.Count -eq 0) {
         Write-Host (" Nothing matches '{0}'." -f $Selection) -ForegroundColor Yellow
         return
     }
+    if ($found.Count -eq 1) { Invoke-ToolWithGate -Tool $found[0]; return }
+
     Write-Host ''
     Write-Host (' Matches for "{0}":' -f $Selection) -ForegroundColor Cyan
     foreach ($t in $found) {
@@ -141,8 +201,7 @@ function Invoke-MenuSelection {
     if (-not [string]::IsNullOrWhiteSpace($pick)) {
         $tool = Resolve-NmmTool -Query $pick.Trim()
         if ($tool) {
-            Invoke-NmmTool -Tool $tool | Out-Null
-            Read-Host 'Press Enter to continue' | Out-Null
+            Invoke-ToolWithGate -Tool $tool
         } else {
             Write-Host (" '{0}' did not match any tool number. Enter the number shown in the list." -f $pick.Trim()) -ForegroundColor Yellow
             Read-Host ' Press Enter to go back' | Out-Null
