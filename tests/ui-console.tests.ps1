@@ -7,10 +7,11 @@
     Set-OutputSink -Sink Silent
 
     function New-FakeTool {
-        param([string]$Legacy, [string]$Category, [string]$Name, [string]$Desc = 'fake description')
+        param([string]$Legacy, [string]$Category, [string]$Name, [string]$Desc = 'fake description',
+              [string]$Risk = 'ReadOnly', [bool]$Admin = $false)
         @{ Id = "fake-$Legacy"; LegacyId = "$Legacy"; Name = $Name; Category = $Category
-           Function = "Invoke-Fake$Legacy"; Description = $Desc; RequiresAdmin = $false
-           SilentCapable = $true; Risk = 'ReadOnly'; Tags = @('fake') }
+           Function = "Invoke-Fake$Legacy"; Description = $Desc; RequiresAdmin = $Admin
+           SilentCapable = $true; Risk = $Risk; Tags = @('fake') }
     }
 }
 
@@ -171,5 +172,27 @@ Describe 'Show-LandingMenu two-column layout' {
         $text = ($raw | ForEach-Object { "$_" }) -join "`n"
         $text | Should -Match 'Q3'
         $text | Should -Match 'X = exit'
+    }
+
+    It 'shows risk/admin badges and a legend, and no badge for read-only tools' {
+        $script:RegistryData = @{ Tools = @(
+            (New-FakeTool '73' 'Repair'      'System Repair Suite' 'desc' 'Disruptive' $true),
+            (New-FakeTool '1'  'Diagnostics' 'System Information'   'desc' 'ReadOnly'   $false)
+        ) }
+        $raw  = Show-LandingMenu 6>&1
+        $text = ($raw | ForEach-Object { "$_" }) -join "`n"
+        $tri  = [char]0x25B2
+
+        $repairRow = ($text -split "`n" | Where-Object { $_ -match 'System Repair Suite' }) -join ''
+        $repairRow | Should -Match '\[!\]'
+        $repairRow | Should -Match ([regex]::Escape($tri))
+
+        $roRow = ($text -split "`n" | Where-Object { $_ -match 'System Information' }) -join ''
+        $roRow | Should -Not -Match '\[M\]'
+        $roRow | Should -Not -Match '\[!\]'
+        $roRow | Should -Not -Match ([regex]::Escape($tri))
+
+        $text | Should -Match 'Legend:'
+        $text | Should -Match '\[!\] disruptive'
     }
 }

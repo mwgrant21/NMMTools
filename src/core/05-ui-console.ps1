@@ -115,12 +115,21 @@ function Show-LandingMenu {
         Write-Host $titleLine -ForegroundColor $color
         Write-Host $bar -ForegroundColor $color
 
-        # One cell per tool: " <id>. <Name>", truncated to fit a column.
+        # One cell per tool: " <id>. <Name>" plus a right-aligned risk/admin badge, fit to a column.
         $cellMax = $colWidth - 1
         $cells = @()
         foreach ($t in $catTools) {
-            $cell = ' {0,4}. {1}' -f $t.LegacyId, $t.Name
-            if ($cell.Length -gt $cellMax) { $cell = $cell.Substring(0, $cellMax - 3) + '...' }
+            $badge = Get-NmmRiskBadge $t
+            $label = ' {0,4}. {1}' -f $t.LegacyId, $t.Name
+            if ($badge) {
+                $room = $cellMax - $badge.Length - 1
+                if ($room -lt 1) { $room = 1 }
+                if ($label.Length -gt $room) { $label = $label.Substring(0, [math]::Max(0, $room - 3)) + '...' }
+                $cell = $label.PadRight($cellMax - $badge.Length) + $badge
+            } else {
+                $cell = $label
+                if ($cell.Length -gt $cellMax) { $cell = $cell.Substring(0, $cellMax - 3) + '...' }
+            }
             $cells += $cell
         }
         foreach ($row in (Format-MenuColumns -Cells $cells -Columns $columns -ColumnWidth $colWidth)) {
@@ -131,6 +140,7 @@ function Show-LandingMenu {
     Write-Host ''
     Write-Host ' Enter: tool number (e.g. 54 or Q3) | search text' -ForegroundColor Gray
     Write-Host '        T = save session summary (for tickets)   X = exit' -ForegroundColor Gray
+    Write-Host ('        Legend: [M] modifies  [!] disruptive  {0} needs admin' -f [char]0x25B2) -ForegroundColor DarkGray
 }
 
 function Show-ToolBrief {
