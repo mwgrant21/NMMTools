@@ -196,3 +196,37 @@ Describe 'Show-LandingMenu two-column layout' {
         $text | Should -Match '\[!\] disruptive'
     }
 }
+
+Describe 'Invoke-MenuSelection routing' {
+    BeforeEach {
+        $script:RegistryData = @{ Tools = @(
+            (New-FakeTool '1'  'Diagnostics' 'System Information'),
+            (New-FakeTool '2'  'Diagnostics' 'Disk Space Analysis'),
+            (New-FakeTool '54' 'User'        'Windows Search Rebuild')
+        ) }
+        Mock Invoke-ToolWithGate { }
+        Mock Read-Host { '' }
+    }
+    It 'routes a direct number through the gate' {
+        Invoke-MenuSelection -Selection '1'
+        Assert-MockCalled Invoke-ToolWithGate -Times 1 -Scope It
+    }
+    It 'runs the single search hit through the gate without a pick prompt' {
+        Invoke-MenuSelection -Selection 'Disk Space'
+        Assert-MockCalled Invoke-ToolWithGate -Times 1 -Scope It
+        Assert-MockCalled Read-Host -Times 0 -Scope It
+    }
+    It 'lists multiple matches and routes the chosen pick through the gate' {
+        Mock Read-Host { '1' }
+        Invoke-MenuSelection -Selection 'fake'
+        Assert-MockCalled Invoke-ToolWithGate -Times 1 -Scope It
+    }
+    It 'shows a match list when several tools match' {
+        $out = Invoke-MenuSelection -Selection 'fake' 6>&1
+        ($out | ForEach-Object { "$_" }) -join "`n" | Should -Match 'Matches for'
+    }
+    It 'prints a not-found message for no matches' {
+        $out = Invoke-MenuSelection -Selection 'zzzzz' 6>&1
+        ($out | ForEach-Object { "$_" }) -join "`n" | Should -Match 'Nothing matches'
+    }
+}

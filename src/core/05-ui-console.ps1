@@ -183,16 +183,15 @@ function Invoke-ToolWithGate {
 function Invoke-MenuSelection {
     param([Parameter(Mandatory)][string]$Selection)
     $tool = Resolve-NmmTool -Query $Selection
-    if ($tool) {
-        Invoke-NmmTool -Tool $tool | Out-Null
-        Read-Host 'Press Enter to continue' | Out-Null
-        return
-    }
+    if ($tool) { Invoke-ToolWithGate -Tool $tool; return }
+
     $found = @(Search-NmmTools -Term $Selection)
     if ($found.Count -eq 0) {
         Write-Host (" Nothing matches '{0}'." -f $Selection) -ForegroundColor Yellow
         return
     }
+    if ($found.Count -eq 1) { Invoke-ToolWithGate -Tool $found[0]; return }
+
     Write-Host ''
     Write-Host (' Matches for "{0}":' -f $Selection) -ForegroundColor Cyan
     foreach ($t in $found) {
@@ -202,8 +201,7 @@ function Invoke-MenuSelection {
     if (-not [string]::IsNullOrWhiteSpace($pick)) {
         $tool = Resolve-NmmTool -Query $pick.Trim()
         if ($tool) {
-            Invoke-NmmTool -Tool $tool | Out-Null
-            Read-Host 'Press Enter to continue' | Out-Null
+            Invoke-ToolWithGate -Tool $tool
         } else {
             Write-Host (" '{0}' did not match any tool number. Enter the number shown in the list." -f $pick.Trim()) -ForegroundColor Yellow
             Read-Host ' Press Enter to go back' | Out-Null
