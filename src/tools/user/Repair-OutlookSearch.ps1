@@ -20,11 +20,15 @@
         $run = New-ToolRun -Id 'outlook-search-repair'
         $edb = "$env:ProgramData\Microsoft\Search\Data\Applications\Windows\Windows.edb"
         $catalogKey = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Search'
+        $searchPolicyKey = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'
+        $searchSetupKey  = 'HKLM:\SOFTWARE\Microsoft\Windows Search'
 
         # --- Report ---
         $ws = Get-Service -Name 'WSearch' -ErrorAction SilentlyContinue
         if ($ws) {
-            Write-ToolOutput ('Windows Search (WSearch): {0} (StartType {1})' -f $ws.Status, $ws.StartType) -Level Info
+            $wsLevel = 'Info'
+            if ("$($ws.StartType)" -notlike 'Automatic*') { $wsLevel = 'Warning' }
+            Write-ToolOutput ('Windows Search (WSearch): {0} (StartType {1})' -f $ws.Status, $ws.StartType) -Level $wsLevel
         } else {
             Write-ToolOutput 'Windows Search service (WSearch) not found.' -Level Warning
         }
@@ -42,11 +46,57 @@
         }
         Write-ToolOutput ('Outlook search catalog registered: {0}' -f $catalogRegistered) -Level Detail
 
+        # Config diagnosis (the usual recurring-breakage causes).
+        $preventOutlook = 0
+        if (Test-Path -LiteralPath $searchPolicyKey) {
+            $pv = (Get-ItemProperty -LiteralPath $searchPolicyKey -Name 'PreventIndexingOutlook' -ErrorAction SilentlyContinue).PreventIndexingOutlook
+            if ($pv) { $preventOutlook = [int]$pv }
+        }
+        if ($preventOutlook -eq 1) {
+            Write-ToolOutput 'PreventIndexingOutlook policy is ENABLED - Outlook indexing is disabled by policy.' -Level Warning
+        } else {
+            Write-ToolOutput 'PreventIndexingOutlook policy: not set (Outlook indexing allowed).' -Level Detail
+        }
+        $setupOk = (Get-ItemProperty -LiteralPath $searchSetupKey -Name 'SetupCompletedSuccessfully' -ErrorAction SilentlyContinue).SetupCompletedSuccessfully
+        Write-ToolOutput ('Windows Search SetupCompletedSuccessfully: {0}' -f $setupOk) -Level Detail
+
         # --- Action menu ---
         $action = Read-ToolChoice -Prompt 'Outlook search repair' `
-            -Choices @('None','RestartService','RebuildIndex') -Default 'None' -Silent:$Silent
+            -Choices @('None','FixConfig','RestartService','RebuildIndex') -Default 'None' -Silent:$Silent
 
         switch ($action) {
+
+            'FixConfig' {
+                $changes = New-Object System.Collections.Generic.List[string]
+                $wnow = Get-Service -Name 'WSearch' -ErrorAction SilentlyContinue
+                if ($wnow -and ("$($wnow.StartType)" -eq 'Disabled' -or "$($wnow.StartType)" -eq 'Manual')) {
+                    Set-Service -Name 'WSearch' -StartupType Automatic -ErrorAction SilentlyContinue
+                    Start-Service -Name 'WSearch' -ErrorAction SilentlyContinue
+                    $changes.Add('WSearch set to Automatic and started')
+                }
+                $gpoCaveat = $false
+                if ($preventOutlook -eq 1) {
+                    Set-ItemProperty -LiteralPath $searchPolicyKey -Name 'PreventIndexingOutlook' -Value 0 -ErrorAction SilentlyContinue
+                    $recheck = (Get-ItemProperty -LiteralPath $searchPolicyKey -Name 'PreventIndexingOutlook' -ErrorAction SilentlyContinue).PreventIndexingOutlook
+                    if ([int]$recheck -eq 0) {
+                        $changes.Add('PreventIndexingOutlook policy cleared')
+                        Write-ToolOutput 'Cleared PreventIndexingOutlook. If it returns after a gpupdate, it is set by Group Policy - fix the GPO; the toolkit cannot override a domain policy.' -Level Warning
+                    } else {
+                        $gpoCaveat = $true
+                        Write-ToolOutput 'PreventIndexingOutlook could not be cleared (still 1) - it is enforced by Group Policy. Fix the GPO.' -Level Error
+                    }
+                }
+                $wfin = Get-Service -Name 'WSearch' -ErrorAction SilentlyContinue
+                $wstart = 'Unknown'
+                if ($wfin) { $wstart = "$($wfin.StartType)" }
+                if ($changes.Count -eq 0) {
+                    Complete-ToolRun $run -Status Success -Summary 'Search config already healthy; no changes needed (run RebuildIndex if search is still broken)'
+                } elseif ($gpoCaveat) {
+                    Complete-ToolRun $run -Status Warning -Summary ('Applied: {0}; PreventIndexingOutlook is GPO-enforced - fix the GPO' -f ($changes -join '; '))
+                } else {
+                    Complete-ToolRun $run -Status Success -Summary ('Search config fixed ({0}); WSearch StartType {1}. Run RebuildIndex if search is still broken.' -f ($changes -join '; '), $wstart)
+                }
+            }
 
             'RestartService' {
                 [void](Stop-OutlookGraceful)

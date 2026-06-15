@@ -966,7 +966,7 @@
             Name          = 'Outlook Search Repair'
             Category      = 'User'
             Function      = 'Repair-OutlookSearch'
-            Description   = 'Report Windows Search service, index DB size, and Outlook state, then restart WSearch or rebuild the search index (deletes Windows.edb and clears the Outlook search catalog); see also tool 54'
+            Description   = 'Report Windows Search/WSearch, index size, the Outlook catalog, and the PreventIndexingOutlook policy; then fix the search config (WSearch startup, PreventIndexingOutlook), restart WSearch, or rebuild the index (deletes Windows.edb); see also tool 54'
             RequiresAdmin = $true
             SilentCapable = $true
             Risk          = 'Modifies'
