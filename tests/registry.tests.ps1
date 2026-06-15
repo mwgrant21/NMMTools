@@ -53,7 +53,7 @@ Describe 'Tool registry structure' {
 
     It 'uses numeric strings for LegacyId' {
         foreach ($t in $script:Tools) {
-            $t.LegacyId | Should -Match '^\d+$' -Because "entry '$($t.Id)' LegacyId must be a plain number string"
+            $t.LegacyId | Should -Match '^Q?\d+$' -Because "entry '$($t.Id)' LegacyId must be a plain number string (optionally Q-prefixed for QuickFix tools)"
         }
     }
 

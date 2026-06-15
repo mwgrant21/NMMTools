@@ -1092,5 +1092,113 @@
             Risk          = 'Disruptive'
             Tags          = @('rdp','remotedesktop','firewall','nla','termservice')
         }
+        @{
+            Id            = 'office-quick-fix'
+            LegacyId      = 'Q1'
+            Name          = 'Quick Fix: Office Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-OfficeQuickFix'
+            Description   = 'One-click Office fix: close Office apps, clear Office sign-in credentials, and launch a Click-to-Run update; see also office-repair'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('quickfix','office','m365','credentials')
+        }
+        @{
+            Id            = 'onedrive-quick-fix'
+            LegacyId      = 'Q2'
+            Name          = 'Quick Fix: OneDrive Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-OneDriveQuickFix'
+            Description   = 'One-click OneDrive fix: stop OneDrive, reset it (/reset), and restart it; see also onedrive-repair'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('quickfix','onedrive','sync','reset')
+        }
+        @{
+            Id            = 'teams-quick-fix'
+            LegacyId      = 'Q3'
+            Name          = 'Quick Fix: Teams Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-TeamsQuickFix'
+            Description   = 'One-click Teams fix: close Teams (classic and new), clear the Teams cache, and restart Teams; see also teams-cache'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('quickfix','teams','cache')
+        }
+        @{
+            Id            = 'login-quick-fix'
+            LegacyId      = 'Q4'
+            Name          = 'Quick Fix: Login Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-LoginQuickFix'
+            Description   = 'One-click login fix: clear Office/M365 sign-in credentials and report the device join state; see also credential-manager and m365-auth-reset'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('quickfix','login','credentials','signin')
+        }
+        @{
+            Id            = 'wifi-quick-fix'
+            LegacyId      = 'Q5'
+            Name          = 'Quick Fix: Wi-Fi Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-WiFiQuickFix'
+            Description   = 'One-click Wi-Fi fix: restart the Wi-Fi adapter, release/renew the IP, and flush DNS; see also wifi-diagnostics and network-stack-reset'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('quickfix','wifi','network','dns')
+        }
+        @{
+            Id            = 'vpn-quick-fix'
+            LegacyId      = 'Q6'
+            Name          = 'Quick Fix: VPN Issues'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-VpnQuickFix'
+            Description   = 'One-click VPN fix: disconnect active VPNs, flush DNS, and clear the ARP cache (does not delete VPN profiles); see also vpn-health'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('quickfix','vpn','network','dns')
+        }
+        @{
+            Id            = 'av-prep-quick-fix'
+            LegacyId      = 'Q7'
+            Name          = 'Quick Fix: Audio/Video Prep'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-AvPrepQuickFix'
+            Description   = 'One-click meeting prep: close meeting apps and browsers to free the camera/mic, restart the audio service, and open the Camera app; see also webcam-audio-test and teams-camera-repair'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('quickfix','audio','camera','meeting')
+        }
+        @{
+            Id            = 'docking-quick-fix'
+            LegacyId      = 'Q8'
+            Name          = 'Quick Fix: Docking Station'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-DockingQuickFix'
+            Description   = 'One-click docking fix: detect displays and switch to extend mode (use Win+P to change mode); see also docking-displays'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('quickfix','docking','display','monitor')
+        }
+        @{
+            Id            = 'browser-backup-quick-fix'
+            LegacyId      = 'Q9'
+            Name          = 'Quick Fix: Browser Backup'
+            Category      = 'QuickFix'
+            Function      = 'Invoke-BrowserBackupQuickFix'
+            Description   = 'One-click browser backup: close browsers and back up bookmarks/logins for installed browsers to a timestamped ZIP; see also browser-backup-restore'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('quickfix','browser','backup','bookmarks')
+        }
     )
 }
