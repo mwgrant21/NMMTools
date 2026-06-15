@@ -229,4 +229,14 @@ Describe 'Invoke-MenuSelection routing' {
         $out = Invoke-MenuSelection -Selection 'zzzzz' 6>&1
         ($out | ForEach-Object { "$_" }) -join "`n" | Should -Match 'Nothing matches'
     }
+    It 'warns and does not run when the multi-match pick is not a valid tool number' {
+        Mock Read-Host { '999' }
+        $out = Invoke-MenuSelection -Selection 'fake' 6>&1
+        ($out | ForEach-Object { "$_" }) -join "`n" | Should -Match 'did not match any tool number'
+        Assert-MockCalled Invoke-ToolWithGate -Times 0 -Scope It
+    }
+    It 'does not run anything when the user cancels the multi-match pick with empty input' {
+        Invoke-MenuSelection -Selection 'fake'   # BeforeEach Read-Host returns '' (cancel)
+        Assert-MockCalled Invoke-ToolWithGate -Times 0 -Scope It
+    }
 }
