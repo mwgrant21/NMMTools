@@ -925,6 +925,18 @@
             Tags          = @('profile','temporary','profilelist','registry')
         }
         @{
+            Id            = 'orphaned-profiles'
+            LegacyId      = '105'
+            Name          = 'Orphaned Profile Cleanup'
+            Category      = 'User'
+            Function      = 'Remove-OrphanedProfile'
+            Description   = 'Audit local user profiles and flag orphaned ones (SID no longer resolves to an account, or the profile folder is missing); on typed confirm, remove the registration and quarantine the folder (rename, not delete) after a ProfileList registry backup. Affected users must be logged off.'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('profile','orphaned','unknown','sid','profilelist','cleanup')
+        }
+        @{
             Id            = 'printer-repair'
             LegacyId      = '52'
             Name          = 'Printer Troubleshooter'
