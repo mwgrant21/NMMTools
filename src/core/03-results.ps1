@@ -47,6 +47,13 @@ function Complete-ToolRun {
         default   { 'Detail' }
     }
     Write-ToolOutput ('[{0}] {1}' -f $Status.ToUpper(), $Summary) -Level $level
+
+    # Record the use for the menu's Common Fixes section - interactive runs only, so PDQ/-Silent
+    # endpoint runs leave no usage file. Placed last so the null-run and duplicate-completion
+    # early-returns above skip it. Add-NmmUsage swallows IO errors, so this cannot break a run.
+    if ($script:OutputSink -ne 'Silent') {
+        Add-NmmUsage -Id $Run.Id
+    }
 }
 
 function Export-TicketSummary {

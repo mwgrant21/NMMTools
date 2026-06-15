@@ -2,7 +2,9 @@ BeforeAll {
     $repoRoot = Split-Path $PSScriptRoot -Parent
     . (Join-Path $repoRoot 'src\core\02-output.ps1')
     . (Join-Path $repoRoot 'src\core\03-results.ps1')
+    . (Join-Path $repoRoot 'src\core\06-usage.ps1')
     Set-OutputSink -Sink Silent
+    $script:UsageFilePathOverride = Join-Path $env:TEMP ('nmm-usage-results-{0}.json' -f (Get-Random))
     # Minimal registry stand-in so New-ToolRun can resolve names
     $script:RegistryData = @{
         Tools = @(
@@ -15,6 +17,10 @@ BeforeAll {
 
 AfterAll {
     Set-OutputSink -Sink Console
+    if ($script:UsageFilePathOverride -and (Test-Path $script:UsageFilePathOverride)) {
+        Remove-Item $script:UsageFilePathOverride -Force -ErrorAction SilentlyContinue
+    }
+    $script:UsageFilePathOverride = $null
 }
 
 Describe 'Tool run tracking' {
@@ -84,5 +90,27 @@ Describe 'Export-TicketSummary' {
         Test-Path $file | Should -BeTrue
         Get-Content $file -Raw | Should -Match 'NMM Toolkit Session Summary'
         Remove-Item $file -Force
+    }
+}
+
+Describe 'Usage recording hook' {
+    BeforeEach {
+        $script:ToolRuns = New-Object System.Collections.ArrayList
+        Mock Add-NmmUsage { }
+    }
+    It 'records a use when the sink is interactive (not Silent)' {
+        Set-OutputSink -Sink Console
+        try {
+            $run = New-ToolRun -Id 'fake-tool'
+            Complete-ToolRun $run -Status Success -Summary 'ok'
+        } finally {
+            Set-OutputSink -Sink Silent
+        }
+        Assert-MockCalled Add-NmmUsage -Times 1 -Scope It -ParameterFilter { $Id -eq 'fake-tool' }
+    }
+    It 'does not record a use under the Silent sink' {
+        $run = New-ToolRun -Id 'fake-tool'
+        Complete-ToolRun $run -Status Success -Summary 'ok'
+        Assert-MockCalled Add-NmmUsage -Times 0 -Scope It
     }
 }
