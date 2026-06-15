@@ -1,6 +1,6 @@
-# Shared repair helpers for Invoke-SystemRepairSuite.
-# These are plain functions, not tool functions - no registry entries needed.
-# Called in sequence by the suite; each returns @{ Status; Summary } (Temp adds MbFreed).
+# Shared core helpers (plain functions, not tool functions - no registry entries needed).
+# - Invoke-* : repair-suite steps for Invoke-SystemRepairSuite; each returns @{ Status; Summary } (Temp adds MbFreed).
+# - Get-NmmProfileVerdict : pure orphaned-profile classifier used by Remove-OrphanedProfile.
 
 function Invoke-DismRestoreHealth {
     Write-ToolOutput 'DISM RestoreHealth: repairing component store (10-20 min, may contact Windows Update)...' -Level Info
@@ -87,4 +87,22 @@ function Invoke-ConservativeTempCleanup {
     }
     $mbFreed = [math]::Round($totalFreed / 1MB, 1)
     return @{ Status = 'Success'; Summary = ('Temp cleanup freed {0:N1} MB' -f $mbFreed); MbFreed = $mbFreed }
+}
+
+function Get-NmmProfileVerdict {
+    # Pure classification for one user profile, from already-determined facts. Never throws.
+    # Returns: 'Protected' | 'Orphan-UnknownSid' | 'Orphan-MissingFolder' | 'Healthy'.
+    # Protection wins over everything (a Special/Loaded/own-account profile is never an orphan,
+    # even if its SID does not resolve). Then unknown-SID, then missing-folder, else healthy.
+    param(
+        [bool]$Special,
+        [bool]$Loaded,
+        [bool]$IsCurrentUser,
+        [bool]$SidResolves,
+        [bool]$FolderExists
+    )
+    if ($Special -or $Loaded -or $IsCurrentUser) { return 'Protected' }
+    if (-not $SidResolves)  { return 'Orphan-UnknownSid' }
+    if (-not $FolderExists) { return 'Orphan-MissingFolder' }
+    return 'Healthy'
 }
