@@ -66,6 +66,7 @@ function Remove-OrphanedProfile {
         }
 
         Write-ToolOutput ('{0} orphaned profile(s) found.' -f $orphans.Count) -Level Warning
+        Write-ToolOutput 'Note: an unreachable domain controller can make a valid domain profile look unknown-SID. Review each path before removing.' -Level Detail
 
         # --- Action ---
         $action = Read-ToolChoice -Prompt 'Orphaned profile action' -Choices @('None','RemoveOrphaned') -Default 'None' -Silent:$Silent
