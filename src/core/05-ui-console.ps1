@@ -1,9 +1,49 @@
-# Console UI. Landing screen = categories + search; everything is driven by
-# the registry, so new tools appear automatically.
+﻿# Console UI. Landing screen lists EVERY tool grouped under category headers with
+# full (wrapped) descriptions; everything is driven by the registry, so new tools
+# appear automatically. Run a tool by typing its number/Q#/Id, or type text to search.
+
+function Get-NmmLegacyIdSortKey {
+    # Sortable key for a LegacyId: numeric ids first (as integers), then Q# ids in
+    # Q1..Q9 order, then anything unexpected. Never throws on a non-numeric id.
+    param([Parameter(Mandatory)][string]$LegacyId)
+    if ($LegacyId -match '^\d+$') { return [int]$LegacyId }
+    if ($LegacyId -match '^Q(\d+)$') { return 1000 + [int]$Matches[1] }
+    return 100000
+}
+
+function Get-WrappedLines {
+    # Greedily word-wrap $Text to lines no wider than $Width. Returns a string[]
+    # (possibly empty); blank/whitespace input yields an empty array.
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory)][int]$Width
+    )
+    if ($Width -lt 1) { $Width = 1 }
+    $words = @($Text -split '\s+' | Where-Object { $_ -ne '' })
+    $lines = New-Object System.Collections.Generic.List[string]
+    $current = ''
+    foreach ($w in $words) {
+        if ($current -eq '') {
+            $current = $w
+        } elseif (($current.Length + 1 + $w.Length) -le $Width) {
+            $current = $current + ' ' + $w
+        } else {
+            $lines.Add($current)
+            $current = $w
+        }
+    }
+    if ($current -ne '') { $lines.Add($current) }
+    return $lines.ToArray()
+}
 
 function Show-LandingMenu {
+    # Clear only in a real interactive console - never during tests (Silent sink) or headless runs.
+    if ($script:OutputSink -ne 'Silent' -and [Environment]::UserInteractive) {
+        try { Clear-Host } catch { }
+    }
     $tools = Get-NmmTools
     $categories = @($tools | ForEach-Object { $_.Category } | Sort-Object -Unique)
+
     Write-Host ''
     Write-Host ('=' * 66) -ForegroundColor Cyan
     Write-Host (' NMM System Toolkit v9      {0}\{1}' -f $env:COMPUTERNAME, $env:USERNAME) -ForegroundColor Cyan
@@ -12,56 +52,31 @@ function Show-LandingMenu {
         $recent = @($script:ToolRuns | Select-Object -Last 3 | ForEach-Object { $_.Name })
         Write-Host (' Recent: {0}' -f ($recent -join ' | ')) -ForegroundColor DarkGray
     }
-    $map = @{}
-    # Flat mode until there are enough tools AND categories to make grouping useful.
-    # During porting this flips in one step: the batch that adds a second category
-    # past 15 total tools switches the landing layout to category mode.
-    if ($categories.Count -le 1 -or @($tools).Count -le 15) {
-        # Flat mode: list all tools directly, sorted by numeric LegacyId
-        $sorted = $tools | Sort-Object { [int]$_.LegacyId }
-        foreach ($t in $sorted) {
+
+    # Width for description wrapping; falls back to 80 in a redirected/headless host.
+    $width = 80
+    try { $cw = [Console]::WindowWidth; if ($cw -and $cw -gt 0) { $width = [int]$cw } } catch { $width = 80 }
+    $descIndent = '       '   # 7 spaces: aligns the wrapped description under the tool name
+    $descWidth = $width - $descIndent.Length - 1
+    if ($descWidth -lt 30) { $descWidth = 30 }
+
+    foreach ($c in $categories) {
+        $catTools = @($tools | Where-Object { $_.Category -eq $c } | Sort-Object { Get-NmmLegacyIdSortKey $_.LegacyId })
+        Write-Host ''
+        Write-Host (' -- {0} ({1} tools) --' -f $c, $catTools.Count) -ForegroundColor Cyan
+        foreach ($t in $catTools) {
             $admin = ''
             if ($t.RequiresAdmin) { $admin = ' [admin]' }
             Write-Host (' {0,4}. {1}{2}' -f $t.LegacyId, $t.Name, $admin)
+            foreach ($line in (Get-WrappedLines -Text $t.Description -Width $descWidth)) {
+                Write-Host ($descIndent + $line) -ForegroundColor DarkGray
+            }
         }
-        Write-Host ''
-        Write-Host ' Enter: tool number | search text' -ForegroundColor Gray
-        Write-Host '        T = save session summary (for tickets)   X = exit' -ForegroundColor Gray
-    } else {
-        # Category mode: list categories with counts
-        $index = 0
-        foreach ($c in $categories) {
-            # Letters keep all legacy tool NUMBERS direct-runnable from the landing screen.
-            # Never assign letters T or X to categories (reserved; matched before the map).
-            $letter = [string][char](65 + $index)   # A, B, C...
-            $count = @($tools | Where-Object { $_.Category -eq $c }).Count
-            Write-Host (' {0}. {1} ({2} tools)' -f $letter, $c, $count)
-            $map[$letter] = $c
-            $index++
-        }
-        Write-Host ''
-        Write-Host ' Enter: category letter | tool number | search text' -ForegroundColor Gray
-        Write-Host '        T = save session summary (for tickets)   X = exit' -ForegroundColor Gray
     }
-    return $map
-}
 
-function Show-CategoryTools {
-    param([Parameter(Mandatory)][string]$Category)
-    $tools = Get-NmmTools | Where-Object { $_.Category -eq $Category } | Sort-Object { [int]$_.LegacyId }
     Write-Host ''
-    Write-Host (' --- {0} ---' -f $Category) -ForegroundColor Cyan
-    foreach ($t in $tools) {
-        $admin = ''
-        if ($t.RequiresAdmin) { $admin = ' [admin]' }
-        Write-Host (' {0,4}. {1}{2}' -f $t.LegacyId, $t.Name, $admin)
-        Write-Host ('       {0}' -f $t.Description) -ForegroundColor Gray
-    }
-    Write-Host ''
-    $selection = Read-Host ' Tool number to run (Enter to go back)'
-    if (-not [string]::IsNullOrWhiteSpace($selection)) {
-        Invoke-MenuSelection -Selection $selection.Trim()
-    }
+    Write-Host ' Enter: tool number (e.g. 54 or Q3) | search text' -ForegroundColor Gray
+    Write-Host '        T = save session summary (for tickets)   X = exit' -ForegroundColor Gray
 }
 
 function Invoke-MenuSelection {
@@ -101,13 +116,8 @@ function Start-ConsoleMenu {
         return
     }
     while ($true) {
-        $map = Show-LandingMenu
-        if ($map.Count -eq 0) {
-            $promptText = ' Select tool number, search text, or X to exit'
-        } else {
-            $promptText = ' Select category letter or tool number, search text, or X to exit'
-        }
-        $selection = Read-Host $promptText
+        Show-LandingMenu
+        $selection = Read-Host ' Select tool number/Q#, search text, or X to exit'
         if ([string]::IsNullOrWhiteSpace($selection)) { continue }
         $selection = $selection.Trim()
         if ($selection -match '^[Xx]$') { return }
@@ -124,10 +134,6 @@ function Start-ConsoleMenu {
                 Write-Host (' Warning: could not save to {0} - {1}' -f $path, $_) -ForegroundColor Yellow
             }
             Read-Host ' Press Enter to continue' | Out-Null
-            continue
-        }
-        if ($map.ContainsKey($selection.ToUpper())) {
-            Show-CategoryTools -Category $map[$selection.ToUpper()]
             continue
         }
         Invoke-MenuSelection -Selection $selection
