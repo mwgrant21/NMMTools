@@ -1026,7 +1026,7 @@
             Name          = 'Outlook Add-in Repair'
             Category      = 'User'
             Function      = 'Repair-OutlookAddins'
-            Description   = 'Report Outlook add-ins (HKCU/HKLM) and Resiliency disabled/crashing lists, then clear those lists, re-enable disabled HKCU add-ins (LoadBehavior 3), and protect them from auto-disable (OnBase/Hyland aware)'
+            Description   = 'Report Outlook add-ins, Resiliency disabled/crashing lists, and the OnBase pin state; then re-enable disabled add-ins (LoadBehavior 3), or permanently pin the OnBase/Hyland add-in via policy so Outlook stops disabling it for "slowing down Outlook"'
             RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'Modifies'
