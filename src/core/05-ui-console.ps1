@@ -133,6 +133,43 @@ function Show-LandingMenu {
     Write-Host '        T = save session summary (for tickets)   X = exit' -ForegroundColor Gray
 }
 
+function Show-ToolBrief {
+    # Pre-confirm brief for a risky tool. The Risk word is the one colored element:
+    # Yellow for Modifies, Red for Disruptive.
+    param([Parameter(Mandatory)]$Tool)
+    $riskColor = switch ("$($Tool.Risk)") {
+        'Disruptive' { 'Red' }
+        'Modifies'   { 'Yellow' }
+        default      { 'Gray' }
+    }
+    $dashes = [math]::Max(3, 44 - $Tool.Name.Length)
+    Write-Host ''
+    Write-Host (' -- {0} {1}' -f $Tool.Name, ('-' * $dashes)) -ForegroundColor Cyan
+    $adminText = ''
+    if ($Tool.RequiresAdmin) { $adminText = '   (admin)' }
+    Write-Host ('   Category : {0}      Risk: ' -f $Tool.Category) -ForegroundColor Gray -NoNewline
+    Write-Host ('{0}{1}' -f $Tool.Risk, $adminText) -ForegroundColor $riskColor
+    if (-not [string]::IsNullOrWhiteSpace($Tool.Description)) {
+        Write-Host ('   {0}' -f $Tool.Description) -ForegroundColor Gray
+    }
+}
+
+function Invoke-ToolWithGate {
+    # Single interactive run path. Read-only tools run immediately; Modifies/Disruptive tools
+    # show a brief and require a Yes/No confirm (default No) before running. Returns nothing.
+    param([Parameter(Mandatory)]$Tool)
+    if ($Tool.Risk -eq 'Modifies' -or $Tool.Risk -eq 'Disruptive') {
+        Show-ToolBrief -Tool $Tool
+        $answer = Read-ToolChoice -Prompt 'Run this tool?' -Choices @('Yes','No') -Default 'No'
+        if ($answer -ne 'Yes') {
+            Write-ToolOutput ' Cancelled.' -Level Detail
+            return
+        }
+    }
+    Invoke-NmmTool -Tool $Tool | Out-Null
+    Read-Host 'Press Enter to continue' | Out-Null
+}
+
 function Invoke-MenuSelection {
     param([Parameter(Mandatory)][string]$Selection)
     $tool = Resolve-NmmTool -Query $Selection

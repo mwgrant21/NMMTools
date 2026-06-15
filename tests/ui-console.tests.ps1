@@ -75,6 +75,40 @@ Describe 'Get-NmmRiskBadge' {
     }
 }
 
+Describe 'Invoke-ToolWithGate' {
+    BeforeEach {
+        $script:RegistryData = @{ Tools = @() }
+        Mock Invoke-NmmTool { 'Success' }
+        Mock Read-Host { '' }
+    }
+    It 'runs a read-only tool without prompting' {
+        Mock Read-ToolChoice { 'No' }
+        $tool = @{ Id='t'; Name='RO'; Category='Diagnostics'; Risk='ReadOnly'; RequiresAdmin=$false; Description='d' }
+        Invoke-ToolWithGate -Tool $tool
+        Assert-MockCalled Read-ToolChoice -Times 0 -Scope It
+        Assert-MockCalled Invoke-NmmTool  -Times 1 -Scope It
+    }
+    It 'does not run a disruptive tool when the user answers No' {
+        Mock Read-ToolChoice { 'No' }
+        $tool = @{ Id='t'; Name='Boom'; Category='Repair'; Risk='Disruptive'; RequiresAdmin=$true; Description='d' }
+        Invoke-ToolWithGate -Tool $tool
+        Assert-MockCalled Read-ToolChoice -Times 1 -Scope It
+        Assert-MockCalled Invoke-NmmTool  -Times 0 -Scope It
+    }
+    It 'runs a disruptive tool when the user answers Yes' {
+        Mock Read-ToolChoice { 'Yes' }
+        $tool = @{ Id='t'; Name='Boom'; Category='Repair'; Risk='Disruptive'; RequiresAdmin=$true; Description='d' }
+        Invoke-ToolWithGate -Tool $tool
+        Assert-MockCalled Invoke-NmmTool -Times 1 -Scope It
+    }
+    It 'prompts risky tools with a default of No' {
+        Mock Read-ToolChoice { 'No' }
+        $tool = @{ Id='t'; Name='Mod'; Category='Repair'; Risk='Modifies'; RequiresAdmin=$false; Description='d' }
+        Invoke-ToolWithGate -Tool $tool
+        Assert-MockCalled Read-ToolChoice -Times 1 -Scope It -ParameterFilter { $Default -eq 'No' }
+    }
+}
+
 Describe 'Format-MenuColumns' {
     It 'packs cells column-major' {
         $rows = Format-MenuColumns -Cells @('A','B','C','D','E') -Columns 2 -ColumnWidth 5
