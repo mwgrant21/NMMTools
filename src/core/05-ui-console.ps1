@@ -1,5 +1,5 @@
-﻿# Console UI. Landing screen lists EVERY tool grouped under category headers with
-# full (wrapped) descriptions; everything is driven by the registry, so new tools
+﻿# Console UI. Landing screen lists EVERY tool in two color-coded columns grouped under
+# a v8-style banner per category; everything is driven by the registry, so new tools
 # appear automatically. Run a tool by typing its number/Q#/Id, or type text to search.
 
 function Get-NmmLegacyIdSortKey {
@@ -11,29 +11,51 @@ function Get-NmmLegacyIdSortKey {
     return 100000
 }
 
-function Get-WrappedLines {
-    # Greedily word-wrap $Text to lines no wider than $Width. Returns a string[]
-    # (possibly empty); blank/whitespace input yields an empty array.
-    param(
-        [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
-        [Parameter(Mandatory)][int]$Width
-    )
-    if ($Width -lt 1) { $Width = 1 }
-    $words = @($Text -split '\s+' | Where-Object { $_ -ne '' })
-    $lines = New-Object System.Collections.Generic.List[string]
-    $current = ''
-    foreach ($w in $words) {
-        if ($current -eq '') {
-            $current = $w
-        } elseif (($current.Length + 1 + $w.Length) -le $Width) {
-            $current = $current + ' ' + $w
-        } else {
-            $lines.Add($current)
-            $current = $w
-        }
+function Get-CategoryColor {
+    # Map a category to its v8 section colour (a valid [ConsoleColor] name). Gray for unknown.
+    param([Parameter(Mandatory)][string]$Category)
+    switch ($Category) {
+        'Browser'     { 'White' }
+        'Cloud'       { 'Yellow' }
+        'Diagnostics' { 'Cyan' }
+        'Laptop'      { 'Green' }
+        'QuickFix'    { 'Magenta' }
+        'Repair'      { 'Red' }
+        'Security'    { 'DarkYellow' }
+        'User'        { 'Blue' }
+        default       { 'Gray' }
     }
-    if ($current -ne '') { $lines.Add($current) }
-    return $lines.ToArray()
+}
+
+function Format-MenuColumns {
+    # Pack pre-formatted cell strings into $Columns column-major columns.
+    # rows = ceil(N / Columns); row r, column c -> Cells[c*rows + r]. Non-last columns
+    # are PadRight($ColumnWidth); each row is TrimEnd()'d. Returns string[] (empty when no cells).
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Cells,
+        [Parameter(Mandatory)][int]$Columns,
+        [Parameter(Mandatory)][int]$ColumnWidth
+    )
+    if ($Columns -lt 1) { $Columns = 1 }
+    $out = New-Object System.Collections.Generic.List[string]
+    $n = $Cells.Count
+    if ($n -eq 0) { return $out.ToArray() }
+    $rows = [int][math]::Ceiling($n / [double]$Columns)
+    for ($r = 0; $r -lt $rows; $r++) {
+        $line = ''
+        for ($c = 0; $c -lt $Columns; $c++) {
+            $idx = $c * $rows + $r
+            if ($idx -lt $n) {
+                if ($c -lt ($Columns - 1)) {
+                    $line += $Cells[$idx].PadRight($ColumnWidth)
+                } else {
+                    $line += $Cells[$idx]
+                }
+            }
+        }
+        $out.Add($line.TrimEnd())
+    }
+    return $out.ToArray()
 }
 
 function Show-LandingMenu {
@@ -53,24 +75,42 @@ function Show-LandingMenu {
         Write-Host (' Recent: {0}' -f ($recent -join ' | ')) -ForegroundColor DarkGray
     }
 
-    # Width for description wrapping; falls back to 80 in a redirected/headless host.
+    # Layout width; falls back to 80 in a redirected/headless host. Two columns when wide enough.
     $width = 80
     try { $cw = [Console]::WindowWidth; if ($cw -and $cw -gt 0) { $width = [int]$cw } } catch { $width = 80 }
-    $descIndent = '       '   # 7 spaces: aligns the wrapped description under the tool name
-    $descWidth = $width - $descIndent.Length - 1
-    if ($descWidth -lt 30) { $descWidth = 30 }
+    $usable = $width - 1
+    if ($usable -lt 40) { $usable = 40 }
+    $columns = 2
+    if ($usable -lt 72) { $columns = 1 }
+    $colWidth = [int][math]::Floor($usable / $columns)
+    if ($colWidth -lt 30) { $colWidth = 30 }
+    $bannerWidth = $columns * $colWidth
 
-    foreach ($c in $categories) {
-        $catTools = @($tools | Where-Object { $_.Category -eq $c } | Sort-Object { Get-NmmLegacyIdSortKey $_.LegacyId })
+    foreach ($cat in $categories) {
+        $color = Get-CategoryColor $cat
+        $catTools = @($tools | Where-Object { $_.Category -eq $cat } | Sort-Object { Get-NmmLegacyIdSortKey $_.LegacyId })
+
+        # v8-style boxed banner in the category colour.
+        $inner = $bannerWidth - 2
+        $bar = '+' + ('=' * $inner) + '+'
+        $titleText = ('  {0} ({1} tools)' -f $cat, $catTools.Count)
+        if ($titleText.Length -gt $inner) { $titleText = $titleText.Substring(0, $inner) }
+        $titleLine = '|' + $titleText.PadRight($inner) + '|'
         Write-Host ''
-        Write-Host (' -- {0} ({1} tools) --' -f $c, $catTools.Count) -ForegroundColor Cyan
+        Write-Host $bar -ForegroundColor $color
+        Write-Host $titleLine -ForegroundColor $color
+        Write-Host $bar -ForegroundColor $color
+
+        # One cell per tool: " <id>. <Name>", truncated to fit a column.
+        $cellMax = $colWidth - 1
+        $cells = @()
         foreach ($t in $catTools) {
-            $admin = ''
-            if ($t.RequiresAdmin) { $admin = ' [admin]' }
-            Write-Host (' {0,4}. {1}{2}' -f $t.LegacyId, $t.Name, $admin)
-            foreach ($line in (Get-WrappedLines -Text $t.Description -Width $descWidth)) {
-                Write-Host ($descIndent + $line) -ForegroundColor DarkGray
-            }
+            $cell = ' {0,4}. {1}' -f $t.LegacyId, $t.Name
+            if ($cell.Length -gt $cellMax) { $cell = $cell.Substring(0, $cellMax - 3) + '...' }
+            $cells += $cell
+        }
+        foreach ($row in (Format-MenuColumns -Cells $cells -Columns $columns -ColumnWidth $colWidth)) {
+            Write-Host $row -ForegroundColor $color
         }
     }
 
