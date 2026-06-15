@@ -199,6 +199,10 @@ function Invoke-ToolWithGate {
         }
     }
     Invoke-NmmTool -Tool $Tool | Out-Null
+    # Record the menu run for the Common Fixes section. This is the single interactive run path -
+    # CLI/PDQ/-Silent never reach it, so endpoints write no usage file; cancelled risky tools
+    # returned above, so they are not recorded. Add-NmmUsage swallows IO errors.
+    Add-NmmUsage -Id $Tool.Id
     Read-Host 'Press Enter to continue' | Out-Null
 }
 

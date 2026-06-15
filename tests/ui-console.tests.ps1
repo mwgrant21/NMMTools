@@ -84,6 +84,7 @@ Describe 'Invoke-ToolWithGate' {
     BeforeEach {
         Mock Invoke-NmmTool { 'Success' }
         Mock Read-Host { '' }
+        Mock Add-NmmUsage { }
     }
     It 'runs a read-only tool without prompting' {
         Mock Read-ToolChoice { 'No' }
@@ -110,6 +111,18 @@ Describe 'Invoke-ToolWithGate' {
         $tool = @{ Id='t'; Name='Mod'; Category='Repair'; Risk='Modifies'; RequiresAdmin=$false; Description='d' }
         Invoke-ToolWithGate -Tool $tool
         Assert-MockCalled Read-ToolChoice -Times 1 -Scope It -ParameterFilter { $Default -eq 'No' }
+    }
+    It 'records the menu run in the usage store' {
+        Mock Read-ToolChoice { 'No' }
+        $tool = @{ Id='t'; Name='RO'; Category='Diagnostics'; Risk='ReadOnly'; RequiresAdmin=$false; Description='d' }
+        Invoke-ToolWithGate -Tool $tool
+        Assert-MockCalled Add-NmmUsage -Times 1 -Scope It -ParameterFilter { $Id -eq 't' }
+    }
+    It 'does not record usage when a risky tool is cancelled' {
+        Mock Read-ToolChoice { 'No' }
+        $tool = @{ Id='t'; Name='Boom'; Category='Repair'; Risk='Disruptive'; RequiresAdmin=$true; Description='d' }
+        Invoke-ToolWithGate -Tool $tool
+        Assert-MockCalled Add-NmmUsage -Times 0 -Scope It
     }
 }
 
