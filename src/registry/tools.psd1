@@ -1098,7 +1098,7 @@
             Name          = 'Quick Fix: Office Issues'
             Category      = 'QuickFix'
             Function      = 'Invoke-OfficeQuickFix'
-            Description   = 'One-click Office fix: close Office apps, clear Office sign-in credentials, and launch a Click-to-Run repair; see also office-repair'
+            Description   = 'One-click Office fix: close Office apps, clear Office sign-in credentials, and launch a Click-to-Run update; see also office-repair'
             RequiresAdmin = $false
             SilentCapable = $true
             Risk          = 'Disruptive'

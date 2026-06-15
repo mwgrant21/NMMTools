@@ -6,7 +6,7 @@
     try {
         $run = New-ToolRun -Id 'office-quick-fix'
 
-        Write-ToolOutput 'Office quick fix will: close Office apps, clear Office sign-in credentials, and launch a Click-to-Run repair.' -Level Info
+        Write-ToolOutput 'Office quick fix will: close Office apps, clear Office sign-in credentials, and launch a Click-to-Run update.' -Level Info
         $go = Read-ToolChoice -Prompt 'Proceed with the Office quick fix?' -Choices @('Yes','No') -Default 'No' -Silent:$Silent
         if ($go -ne 'Yes') {
             Complete-ToolRun $run -Status Skipped -Summary 'Office quick fix declined'
@@ -29,13 +29,13 @@
         }
 
         $c2r = 'C:\Program Files\Common Files\microsoft shared\ClickToRun\OfficeC2RClient.exe'
-        $repairLaunched = $false
+        $updateLaunched = $false
         if (Test-Path -LiteralPath $c2r) {
             Start-Process -FilePath $c2r -ArgumentList '/update user' -ErrorAction SilentlyContinue
-            $repairLaunched = $true
+            $updateLaunched = $true
         }
 
-        Complete-ToolRun $run -Status Success -Summary ('Office apps closed, {0} credential(s) cleared, C2R repair launched={1}' -f $cleared, $repairLaunched)
+        Complete-ToolRun $run -Status Success -Summary ('Office apps closed, {0} credential(s) cleared, C2R update launched={1}' -f $cleared, $updateLaunched)
     }
     catch {
         Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message
