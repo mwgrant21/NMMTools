@@ -4,7 +4,10 @@
     . (Join-Path $repoRoot 'src\core\03-results.ps1')
     . (Join-Path $repoRoot 'src\core\04-dispatch.ps1')
     . (Join-Path $repoRoot 'src\core\05-ui-console.ps1')
+    . (Join-Path $repoRoot 'src\core\06-usage.ps1')
     Set-OutputSink -Sink Silent
+    # Point usage at a non-existent file so the un-mocked existing tests see no Common Fixes section.
+    $script:UsageFilePathOverride = Join-Path $env:TEMP ('nmm-usage-ui-none-{0}.json' -f (Get-Random))
 
     function New-FakeTool {
         param([string]$Legacy, [string]$Category, [string]$Name, [string]$Desc = 'fake description',
@@ -17,6 +20,7 @@
 
 AfterAll {
     Set-OutputSink -Sink Console
+    $script:UsageFilePathOverride = $null
 }
 
 Describe 'Get-NmmLegacyIdSortKey' {
@@ -238,5 +242,49 @@ Describe 'Invoke-MenuSelection routing' {
     It 'does not run anything when the user cancels the multi-match pick with empty input' {
         Invoke-MenuSelection -Selection 'fake'   # BeforeEach Read-Host returns '' (cancel)
         Assert-MockCalled Invoke-ToolWithGate -Times 0 -Scope It
+    }
+}
+
+Describe 'Common Fixes section' {
+    BeforeEach { $script:ToolRuns = New-Object System.Collections.ArrayList }
+
+    It 'renders a Common Fixes section above the categories when usage exists' {
+        $script:RegistryData = @{ Tools = @(
+            (New-FakeTool '73' 'Repair' 'System Repair Suite' 'desc' 'Disruptive' $true)
+        ) }
+        Mock Get-NmmCommonFixes { @( (New-FakeTool '73' 'Repair' 'System Repair Suite' 'desc' 'Disruptive' $true) ) }
+        $raw  = Show-LandingMenu 6>&1
+        $text = ($raw | ForEach-Object { "$_" }) -join "`n"
+        $text | Should -Match 'Common Fixes'
+        $text | Should -Match 'System Repair Suite'
+        ($text.IndexOf('Common Fixes')) | Should -BeLessThan ($text.IndexOf('Repair (1 tools)'))
+    }
+
+    It 'omits the Common Fixes section when there is no usage' {
+        $script:RegistryData = @{ Tools = @( (New-FakeTool '1' 'Diagnostics' 'System Information') ) }
+        Mock Get-NmmCommonFixes { @() }
+        $raw  = Show-LandingMenu 6>&1
+        $text = ($raw | ForEach-Object { "$_" }) -join "`n"
+        $text | Should -Not -Match 'Common Fixes'
+    }
+}
+
+Describe 'Format-NmmToolCell' {
+    It 'right-aligns the risk/admin badge within the cell width' {
+        $tri  = [char]0x25B2
+        $cell = Format-NmmToolCell -Tool (New-FakeTool '73' 'Repair' 'SFC' 'd' 'Disruptive' $true) -CellMax 30
+        $cell.Length | Should -BeLessOrEqual 30
+        $cell | Should -Match '\[!\]'
+        $cell | Should -Match ([regex]::Escape($tri))
+    }
+    It 'has no badge characters for a read-only tool' {
+        $cell = Format-NmmToolCell -Tool (New-FakeTool '1' 'Diagnostics' 'System Info') -CellMax 30
+        $cell | Should -Not -Match '\[M\]'
+        $cell | Should -Not -Match '\[!\]'
+    }
+    It 'truncates a long name with an ellipsis and stays within the width' {
+        $cell = Format-NmmToolCell -Tool (New-FakeTool '1' 'Diagnostics' ('X' * 100)) -CellMax 20
+        $cell.Length | Should -BeLessOrEqual 20
+        $cell | Should -Match '\.\.\.'
     }
 }

@@ -72,6 +72,21 @@ function Format-MenuColumns {
     return $out.ToArray()
 }
 
+function Format-NmmToolCell {
+    # " <id>. <Name>" with a right-aligned risk/admin badge, fit to $CellMax. Truncates the label first.
+    param([Parameter(Mandatory)]$Tool, [Parameter(Mandatory)][int]$CellMax)
+    $badge = Get-NmmRiskBadge $Tool
+    $label = ' {0,4}. {1}' -f $Tool.LegacyId, $Tool.Name
+    if ($badge) {
+        $room = $CellMax - $badge.Length - 1
+        if ($room -lt 1) { $room = 1 }
+        if ($label.Length -gt $room) { $label = $label.Substring(0, [math]::Max(0, $room - 3)) + '...' }
+        return $label.PadRight($CellMax - $badge.Length) + $badge
+    }
+    if ($label.Length -gt $CellMax) { $label = $label.Substring(0, $CellMax - 3) + '...' }
+    return $label
+}
+
 function Show-LandingMenu {
     # Clear only in a real interactive console - never during tests (Silent sink) or headless runs.
     if ($script:OutputSink -ne 'Silent' -and [Environment]::UserInteractive) {
@@ -100,6 +115,24 @@ function Show-LandingMenu {
     if ($colWidth -lt 30) { $colWidth = 30 }
     $bannerWidth = $columns * $colWidth
 
+    $common = @(Get-NmmCommonFixes -Max 6)
+    if ($common.Count -gt 0) {
+        $cfColor = 'White'
+        $inner = $bannerWidth - 2
+        $bar = '+' + ('=' * $inner) + '+'
+        $titleText = ('  {0}  Common Fixes' -f [char]0x2605)
+        if ($titleText.Length -gt $inner) { $titleText = $titleText.Substring(0, $inner) }
+        $titleLine = '|' + $titleText.PadRight($inner) + '|'
+        Write-Host ''
+        Write-Host $bar -ForegroundColor $cfColor
+        Write-Host $titleLine -ForegroundColor $cfColor
+        Write-Host $bar -ForegroundColor $cfColor
+        $cfCellMax = $bannerWidth - 1
+        foreach ($t in $common) {
+            Write-Host (Format-NmmToolCell -Tool $t -CellMax $cfCellMax) -ForegroundColor $cfColor
+        }
+    }
+
     foreach ($cat in $categories) {
         $color = Get-CategoryColor $cat
         $catTools = @($tools | Where-Object { $_.Category -eq $cat } | Sort-Object { Get-NmmLegacyIdSortKey $_.LegacyId })
@@ -119,18 +152,7 @@ function Show-LandingMenu {
         $cellMax = $colWidth - 1
         $cells = @()
         foreach ($t in $catTools) {
-            $badge = Get-NmmRiskBadge $t
-            $label = ' {0,4}. {1}' -f $t.LegacyId, $t.Name
-            if ($badge) {
-                $room = $cellMax - $badge.Length - 1
-                if ($room -lt 1) { $room = 1 }
-                if ($label.Length -gt $room) { $label = $label.Substring(0, [math]::Max(0, $room - 3)) + '...' }
-                $cell = $label.PadRight($cellMax - $badge.Length) + $badge
-            } else {
-                $cell = $label
-                if ($cell.Length -gt $cellMax) { $cell = $cell.Substring(0, $cellMax - 3) + '...' }
-            }
-            $cells += $cell
+            $cells += Format-NmmToolCell -Tool $t -CellMax $cellMax
         }
         foreach ($row in (Format-MenuColumns -Cells $cells -Columns $columns -ColumnWidth $colWidth)) {
             Write-Host $row -ForegroundColor $color
