@@ -77,7 +77,6 @@ Describe 'Get-NmmRiskBadge' {
 
 Describe 'Invoke-ToolWithGate' {
     BeforeEach {
-        $script:RegistryData = @{ Tools = @() }
         Mock Invoke-NmmTool { 'Success' }
         Mock Read-Host { '' }
     }

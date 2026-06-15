@@ -163,7 +163,7 @@ function Invoke-ToolWithGate {
         $answer = Read-ToolChoice -Prompt 'Run this tool?' -Choices @('Yes','No') -Default 'No'
         if ($answer -ne 'Yes') {
             Write-ToolOutput ' Cancelled.' -Level Detail
-            return
+            return   # cancelled at the confirm; no extra pause, menu redraws immediately
         }
     }
     Invoke-NmmTool -Tool $Tool | Out-Null
