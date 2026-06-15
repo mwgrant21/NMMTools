@@ -27,6 +27,20 @@ function Get-CategoryColor {
     }
 }
 
+function Get-NmmRiskBadge {
+    # Short glyph badge for a tool in the landing list. ReadOnly/unknown risk -> no risk glyph;
+    # Modifies -> [M]; Disruptive -> [!]. Appends a U+25B2 admin marker when RequiresAdmin.
+    # Pure string output (no console I/O); never throws.
+    param([Parameter(Mandatory)]$Tool)
+    $badge = switch ("$($Tool.Risk)") {
+        'Modifies'   { '[M]' }
+        'Disruptive' { '[!]' }
+        default      { '' }
+    }
+    if ($Tool.RequiresAdmin) { $badge += [char]0x25B2 }
+    return $badge
+}
+
 function Format-MenuColumns {
     # Pack pre-formatted cell strings into $Columns column-major columns.
     # rows = ceil(N / Columns); row r, column c -> Cells[c*rows + r]. Non-last columns

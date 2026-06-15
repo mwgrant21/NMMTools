@@ -52,6 +52,29 @@ Describe 'Get-CategoryColor' {
     }
 }
 
+Describe 'Get-NmmRiskBadge' {
+    It 'returns empty for a read-only non-admin tool' {
+        Get-NmmRiskBadge @{ Risk = 'ReadOnly'; RequiresAdmin = $false } | Should -Be ''
+    }
+    It 'returns [M] for a Modifies tool and [!] for a Disruptive tool' {
+        Get-NmmRiskBadge @{ Risk = 'Modifies';   RequiresAdmin = $false } | Should -Be '[M]'
+        Get-NmmRiskBadge @{ Risk = 'Disruptive'; RequiresAdmin = $false } | Should -Be '[!]'
+    }
+    It 'appends the admin marker when RequiresAdmin' {
+        $tri = [char]0x25B2
+        Get-NmmRiskBadge @{ Risk = 'Modifies';   RequiresAdmin = $true } | Should -Be ('[M]' + $tri)
+        Get-NmmRiskBadge @{ Risk = 'Disruptive'; RequiresAdmin = $true } | Should -Be ('[!]' + $tri)
+    }
+    It 'shows only the admin marker for a read-only admin tool' {
+        $tri = [char]0x25B2
+        Get-NmmRiskBadge @{ Risk = 'ReadOnly'; RequiresAdmin = $true } | Should -Be ([string]$tri)
+    }
+    It 'returns empty for unknown/missing risk and does not throw' {
+        { Get-NmmRiskBadge @{ RequiresAdmin = $false } } | Should -Not -Throw
+        Get-NmmRiskBadge @{ Risk = 'Weird'; RequiresAdmin = $false } | Should -Be ''
+    }
+}
+
 Describe 'Format-MenuColumns' {
     It 'packs cells column-major' {
         $rows = Format-MenuColumns -Cells @('A','B','C','D','E') -Columns 2 -ColumnWidth 5
