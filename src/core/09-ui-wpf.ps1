@@ -448,6 +448,76 @@ function Get-RunButtonColor {
     }
 }
 
+# ---- Output drain helpers (UI thread only) ------------------------------
+# Called from the drain DispatcherTimer in Start-GuiMenuSTA, so these run on
+# the UI thread with the correct Runspace affinity and may touch WPF freely.
+
+function Add-GuiOutputRecord {
+    param($Sync, $Record)
+    $para = [System.Windows.Documents.Paragraph]::new()
+    $para.Margin = [System.Windows.Thickness]::new(0, 0, 0, 1)
+
+    if ([string]$Record.Message -match '^\={3}') {
+        $run = [System.Windows.Documents.Run]::new(('[{0}] {1}' -f $Record.Ts, $Record.Message))
+        $run.Foreground = ConvertTo-WpfBrush '#4FC3F7'
+        $run.FontWeight = [System.Windows.FontWeights]::Bold
+        $run.FontSize   = 13
+        $para.Inlines.Add($run)
+    } else {
+        $tsRun = [System.Windows.Documents.Run]::new(('[{0}] ' -f $Record.Ts))
+        $tsRun.Foreground = ConvertTo-WpfBrush '#505050'
+        $msgColor = switch ($Record.Level) {
+            'Success' { '#4EC94E' }
+            'Warning' { '#FFCA28' }
+            'Error'   { '#F44747' }
+            'Detail'  { '#808080' }
+            default   { '#DCDCDC' }
+        }
+        $msgRun = [System.Windows.Documents.Run]::new([string]$Record.Message)
+        $msgRun.Foreground = ConvertTo-WpfBrush $msgColor
+        $para.Inlines.Add($tsRun)
+        $para.Inlines.Add($msgRun)
+    }
+
+    $doc = $Sync.OutputBox.Document
+    if ($doc.Blocks.Count -gt 3000) {
+        $oldest = $doc.Blocks.FirstBlock
+        if ($oldest) { [void]$doc.Blocks.Remove($oldest) }
+    }
+    [void]$doc.Blocks.Add($para)
+    $Sync.OutputPlaceholder.Visibility = [System.Windows.Visibility]::Collapsed
+}
+
+function Show-GuiPrompt {
+    param($Sync, $Request)
+    $Sync.PromptTextBlock.Text    = $Request.Prompt
+    $Sync.PromptDefaultLabel.Text = "(default: $($Request.Default))"
+    $Sync.ChoiceButtonsPanel.Children.Clear()
+    foreach ($choice in $Request.Choices) {
+        $btn         = [System.Windows.Controls.Button]::new()
+        $btn.Content = $choice
+        $btn.Margin  = [System.Windows.Thickness]::new(4, 2, 4, 2)
+        $btn.Padding = [System.Windows.Thickness]::new(10, 4, 10, 4)
+        $btn.Cursor  = [System.Windows.Input.Cursors]::Hand
+        if ($choice -eq $Request.Default) {
+            $btn.Background = ConvertTo-WpfBrush '#4FC3F7'
+            $btn.Foreground = ConvertTo-WpfBrush '#0C0C0C'
+        } else {
+            $btn.Background = ConvertTo-WpfBrush '#3E3E42'
+            $btn.Foreground = ConvertTo-WpfBrush '#CCCCCC'
+        }
+        $capturedChoice = $choice
+        $capturedSync   = $Sync
+        $btn.Add_Click({
+            $capturedSync.PromptResponse = $capturedChoice
+            $capturedSync.PromptArea.Visibility = [System.Windows.Visibility]::Collapsed
+            [void]$capturedSync.PromptSemaphore.Release()
+        }.GetNewClosure())
+        [void]$Sync.ChoiceButtonsPanel.Children.Add($btn)
+    }
+    $Sync.PromptArea.Visibility = [System.Windows.Visibility]::Visible
+}
+
 # ---- Populate ToolListBox -----------------------------------------------
 function Update-ToolList {
     param($Window)
@@ -630,7 +700,17 @@ function Set-GuiIdle {
     $sync.CategoryNavPanel.IsEnabled      = $true
     $sync.ExportTicketButton.IsEnabled    = $true
     $sync.RunProgressBar.Visibility       = [System.Windows.Visibility]::Collapsed
-    $sync.PromptArea.Visibility           = [System.Windows.Visibility]::Collapsed
+
+    # If the tool died while a prompt was still showing, its Runspace thread may
+    # be blocked in Read-ToolChoice's Wait(). Detect that BEFORE hiding the
+    # prompt, then release + replace the semaphore so nothing stays stuck.
+    $wasPrompting = ($sync.PromptArea.Visibility -eq [System.Windows.Visibility]::Visible)
+    $sync.PromptArea.Visibility = [System.Windows.Visibility]::Collapsed
+    $sync.PromptRequest         = $null
+    if ($wasPrompting) {
+        try { [void]$sync.PromptSemaphore.Release() } catch { }
+        $sync.PromptSemaphore = [System.Threading.SemaphoreSlim]::new(0, 1)
+    }
 
     $statusColor = switch ($Status) {
         'Success' { '#4EC94E' }
@@ -640,15 +720,6 @@ function Set-GuiIdle {
     }
     $sync.StatusLabel.Text       = ('Last run: {0} - {1}' -f $ToolName, $Status.ToUpper())
     $sync.StatusLabel.Foreground = ConvertTo-WpfBrush $statusColor
-
-    # If semaphore leaked (tool crashed mid-prompt), reset it
-    if ($sync.PromptArea.Visibility -ne [System.Windows.Visibility]::Collapsed) {
-        $sync.PromptArea.Visibility = [System.Windows.Visibility]::Collapsed
-    }
-    if ($sync.PromptSemaphore.CurrentCount -eq 0) {
-        try { [void]$sync.PromptSemaphore.Release() } catch { }
-        $sync.PromptSemaphore = [System.Threading.SemaphoreSlim]::new(0, 1)
-    }
 }
 
 # ---- Runspace factory ---------------------------------------------------
@@ -882,6 +953,10 @@ function Start-GuiMenuSTA {
         RunState             = 'Idle'
         PromptSemaphore      = [System.Threading.SemaphoreSlim]::new(0, 1)
         PromptResponse       = $null
+        # Tool thread enqueues output records here; the UI drain timer dequeues.
+        OutputQueue          = [System.Collections.Concurrent.ConcurrentQueue[object]]::new()
+        # Tool thread sets a pending Read-ToolChoice request; UI drain timer renders it.
+        PromptRequest        = $null
         ToolRuns             = $script:ToolRuns
         ToolRunspace         = $null
         SessionStart         = $script:SessionStart
@@ -1099,15 +1174,21 @@ function Start-GuiMenuSTA {
         }
     })
 
-    # Auto-scroll tracking
-    $sync.OutputBox.Add_ScrollChanged({
-        $sb = $sync.OutputBox
-        $atBottom = ($sb.VerticalOffset -ge ($sb.ScrollableHeight - 20))
-        $sync.AutoScrollEnabled = $atBottom
-        if ($atBottom) {
-            $sync.ScrollToBottomButton.Visibility = [System.Windows.Visibility]::Collapsed
-        }
-    })
+    # Auto-scroll tracking. ScrollChanged is a routed event raised by the
+    # ScrollViewer inside the RichTextBox template, not a CLR event on the
+    # RichTextBox itself - subscribe via AddHandler. The event args expose the
+    # viewport geometry directly (RichTextBox has no ScrollableHeight property).
+    $sync.OutputBox.AddHandler(
+        [System.Windows.Controls.ScrollViewer]::ScrollChangedEvent,
+        [System.Windows.Controls.ScrollChangedEventHandler]{
+            param($eventSender, $e)
+            $scrollable = $e.ExtentHeight - $e.ViewportHeight
+            $atBottom = ($e.VerticalOffset -ge ($scrollable - 20))
+            $sync.AutoScrollEnabled = $atBottom
+            if ($atBottom) {
+                $sync.ScrollToBottomButton.Visibility = [System.Windows.Visibility]::Collapsed
+            }
+        })
 
     $sync.ScrollToBottomButton.Add_Click({
         $sync.OutputBox.ScrollToEnd()
@@ -1138,6 +1219,36 @@ function Start-GuiMenuSTA {
         Invoke-TicketExportDialog
     })
 
+    # Output drain timer (UI thread). Drains the tool thread's output queue into
+    # the RichTextBox and renders any pending Read-ToolChoice prompt. This tick
+    # scriptblock is defined on the UI thread, so building WPF here is safe -
+    # unlike a scriptblock marshalled from the tool Runspace.
+    $drainSync  = $sync
+    $drainTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $drainTimer.Interval = [System.TimeSpan]::FromMilliseconds(50)
+    $drainTimer.Add_Tick({
+        $s = $drainSync
+        $rec = $null
+        $appended = $false
+        while ($s.OutputQueue.TryDequeue([ref]$rec)) {
+            Add-GuiOutputRecord -Sync $s -Record $rec
+            $appended = $true
+        }
+        if ($appended) {
+            if ($s.AutoScrollEnabled) {
+                $s.OutputBox.ScrollToEnd()
+            } else {
+                $s.ScrollToBottomButton.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        $req = $s.PromptRequest
+        if ($null -ne $req) {
+            $s.PromptRequest = $null
+            Show-GuiPrompt -Sync $s -Request $req
+        }
+    }.GetNewClosure())
+    $drainTimer.Start()
+
     # Session timer
     $timerStart   = $script:SessionStart
     $sessionTimer = [System.Windows.Threading.DispatcherTimer]::new()
@@ -1155,6 +1266,7 @@ function Start-GuiMenuSTA {
 
     # Cleanup
     $sessionTimer.Stop()
+    $drainTimer.Stop()
     if ($sync.ToolRunspace) {
         try { $sync.ToolRunspace.Close()   } catch { }
         try { $sync.ToolRunspace.Dispose() } catch { }
