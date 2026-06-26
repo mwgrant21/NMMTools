@@ -1,4 +1,4 @@
-﻿# ---- Entry point ------------------------------------------------------------
+# ---- Entry point ------------------------------------------------------------
 $script:IsAdmin = Test-IsAdmin
 
 if ($LogPath) {
@@ -27,6 +27,21 @@ if ($Tool) {
     exit 1
 }
 
-# Interactive mode: elevate, then menu
+# Mode selection - only in interactive sessions without -Tool/-ListTools
+if ($Mode -eq 'Auto' -and [Environment]::UserInteractive) {
+    Write-Host 'NMM System Toolkit v9'
+    Write-Host '  1 = Console  2 = GUI'
+    try { $modeInput = Read-Host '' } catch { $modeInput = '' }
+    if ($modeInput.Trim() -eq '2') { $script:Mode = 'GUI' } else { $script:Mode = 'Console' }
+} else {
+    $script:Mode = $Mode
+}
+
 Invoke-ElevationCheck
+
+if ($script:Mode -eq 'GUI') {
+    Start-GuiMenu
+    exit 0
+}
+
 Start-ConsoleMenu

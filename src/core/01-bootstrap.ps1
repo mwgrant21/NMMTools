@@ -20,7 +20,7 @@ function Invoke-ElevationCheck {
             throw 'Unable to determine script path for elevation.'
         }
         # TODO (GUI/cutover phase): forward $PSBoundParameters so interactive flags (-LogPath etc.) survive elevation relaunch
-        $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+        $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Mode $script:Mode"
         Start-Process -FilePath 'PowerShell.exe' -ArgumentList $arguments -Verb RunAs
     } catch {
         Write-Host 'ERROR: Failed to request administrator privileges.' -ForegroundColor Red
