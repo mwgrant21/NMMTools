@@ -76,3 +76,40 @@ Describe 'Jira config' {
         Unprotect-NmmJiraToken -Cipher $c | Should -Be 'abc-xyz'
     }
 }
+
+Describe 'Send-NmmJiraComment' {
+    BeforeEach {
+        $script:JiraConfigPathOverride = Join-Path $env:TEMP ('nmm-jira-send-{0}.json' -f (Get-Random))
+        @{ BaseUrl='https://acme.atlassian.net'; Email='svc@acme.com'; Token='t'; TokenProtected=$false } |
+            ConvertTo-Json | Set-Content -Path $script:JiraConfigPathOverride -Encoding UTF8
+    }
+    AfterEach {
+        if (Test-Path $script:JiraConfigPathOverride) { Remove-Item $script:JiraConfigPathOverride -Force -EA SilentlyContinue }
+        $script:JiraConfigPathOverride = $null
+    }
+
+    It 'rejects an invalid key before any network call' {
+        $r = Send-NmmJiraComment -Key 'bad' -Body 'x'
+        $r.Success | Should -BeFalse
+        $r.Message | Should -Match 'valid issue key'
+    }
+    It 'returns not-configured when config is absent' {
+        Remove-Item $script:JiraConfigPathOverride -Force
+        $r = Send-NmmJiraComment -Key 'DESK-1' -Body 'x'
+        $r.Success | Should -BeFalse
+        $r.Message | Should -Match 'not configured'
+    }
+    It 'reports success when verify and post both succeed' {
+        Mock Invoke-RestMethod -MockWith { return @{ ok = $true } }
+        $r = Send-NmmJiraComment -Key 'DESK-12345' -Body 'session summary'
+        $r.Success | Should -BeTrue
+        $r.Message | Should -Match 'DESK-12345'
+        Should -Invoke Invoke-RestMethod -Exactly -Times 2   # verify GET + comment POST
+    }
+    It 'returns a friendly failure when the request throws' {
+        Mock -CommandName Invoke-RestMethod -MockWith { throw 'boom' }
+        $r = Send-NmmJiraComment -Key 'DESK-12345' -Body 'x'
+        $r.Success | Should -BeFalse
+        [string]::IsNullOrWhiteSpace($r.Message) | Should -BeFalse
+    }
+}
