@@ -574,17 +574,30 @@ These are explicitly excluded. Do not implement them. They are not oversights; t
 
 ---
 
-## 17. Open Questions (Decisions for Matt)
+## 17. Open Questions (RESOLVED 2026-06-27)
+
+All five resolved by Matt on 2026-06-27. Each decision already matched the Friday
+implementation, so no code changes were required; recorded here for the record.
 
 1. **Default category on launch.** When usage data exists, Common Fixes is the default. When it doesn't (fresh machine), which category should be pre-selected: Diagnostics (most tools, most commonly reached) or Repair? Or should there be no default with a "Select a category" prompt state?
+   - **Decision:** Common Fixes when usage data exists, else fall back to Diagnostics.
+   - **Status:** Implemented (`09-ui-wpf.ps1`, lines 1074-1091).
 
 2. **Output timestamp format.** The log file uses `[HH:mm:ss]`. Should the GUI output pane use the same `[HH:mm:ss]` format, or a relative time since the current tool started (e.g., "+0:03 line content"), or both? Both adds noise; one choice should win.
+   - **Decision:** Absolute `[HH:mm:ss]`, matching the log file.
+   - **Status:** Implemented (`09-ui-wpf.ps1`, `Add-GuiOutputRecord`).
 
 3. **Disruptive typed confirm: case sensitivity.** Should typing "CONFIRM" in the ConfirmDialog be case-sensitive (must be uppercase, matching the heightened friction intent) or case-insensitive (less friction)? The console tools that use typed confirms (e.g., profile repair, RDP enable) use `Read-Host` and compare case-insensitively. Recommend matching: case-insensitive.
+   - **Decision:** Case-insensitive, matching the console tools.
+   - **Status:** Implemented (`09-ui-wpf.ps1`, ProceedButton enable check, `-eq 'CONFIRM'`).
 
-4. **Window title bar content.** Options: just "NMM Toolkit v9", or include machine/user ("NMM Toolkit v9 — DESKTOP-ABCDEF\Matt"), or include admin status. The header bar already shows machine/user, so the title bar could be minimal.
+4. **Window title bar content.** Options: just "NMM Toolkit v9", or include machine/user ("NMM Toolkit v9 - DESKTOP-ABCDEF\Matt"), or include admin status. The header bar already shows machine/user, so the title bar could be minimal.
+   - **Decision:** "NMM Toolkit v9 - {COMPUTERNAME}". Machine\user and admin remain in the header bar.
+   - **Status:** Implemented (`09-ui-wpf.ps1`, `$window.Title`).
 
 5. **Output pane auto-clear on new tool run.** The spec says output persists across tool runs within a session. If Matt typically runs 10-15 tools per session, the pane will get long. Is accumulated-session output the right default, or should each new run clear the pane (with the previous run's output available elsewhere)?
+   - **Decision:** Accumulate across runs; explicit "Clear Output" button only (3000-block cap trims oldest).
+   - **Status:** Implemented (`09-ui-wpf.ps1`, `Add-GuiOutputRecord` block cap).
 
 ---
 
