@@ -318,17 +318,17 @@ $script:MainWindowXaml = @'
 
     <!-- Status bar -->
     <Border Grid.Row="2" Background="#2D2D30" BorderBrush="#3E3E42"
-            BorderThickness="0,1,0,0" Height="28">
+            BorderThickness="0,1,0,0" Height="32">
       <DockPanel Margin="8,0,8,0">
         <Button x:Name="ExportTicketButton" DockPanel.Dock="Right"
                 Content="Export Ticket" Style="{StaticResource GhostButtonStyle}"
-                Margin="8,0,0,0" Height="22" VerticalAlignment="Center"/>
+                Margin="8,0,0,0" Height="26" VerticalAlignment="Center"/>
         <Button x:Name="ClearOutputButton" DockPanel.Dock="Right"
                 Content="Clear Output" Style="{StaticResource GhostButtonStyle}"
-                Margin="8,0,0,0" Height="22" VerticalAlignment="Center"/>
+                Margin="8,0,0,0" Height="26" VerticalAlignment="Center"/>
         <Button x:Name="CopyOutputButton" DockPanel.Dock="Right"
                 Content="Copy Output" Style="{StaticResource GhostButtonStyle}"
-                Margin="8,0,0,0" Height="22" VerticalAlignment="Center"/>
+                Margin="8,0,0,0" Height="26" VerticalAlignment="Center"/>
         <TextBlock x:Name="StatusLabel" DockPanel.Dock="Left"
                    Foreground="#858585" VerticalAlignment="Center" FontSize="11"
                    Text="Idle"/>
@@ -681,8 +681,15 @@ function Set-GuiRunning {
     $sync = $script:GuiSync
     $sync.RunState                        = 'Running'
     $sync.RunButton.IsEnabled             = $false
-    $sync.ToolListBox.IsEnabled           = $false
-    $sync.CategoryNavPanel.IsEnabled      = $false
+    # Block interaction without the system 'disabled' visual: on Win10/11 the
+    # default (Aero2) template paints a disabled ListBox white and a disabled
+    # Button light-gray, which flashes through the dark theme for the duration of
+    # a run. IsHitTestVisible + dimmed opacity gives the grayed-out cue the spec
+    # wants (5.5) while preserving the dark background.
+    $sync.ToolListBox.IsHitTestVisible      = $false
+    $sync.ToolListBox.Opacity               = 0.5
+    $sync.CategoryNavPanel.IsHitTestVisible = $false
+    $sync.CategoryNavPanel.Opacity          = 0.5
     $sync.ExportTicketButton.IsEnabled    = $false
     $sync.RunProgressBar.Visibility       = [System.Windows.Visibility]::Visible
     $sync.StatusLabel.Text                = ('Running: {0}...' -f $Tool.Name)
@@ -696,8 +703,10 @@ function Set-GuiIdle {
     $sync = $script:GuiSync
     $sync.RunState                        = 'Idle'
     $sync.RunButton.IsEnabled             = $true
-    $sync.ToolListBox.IsEnabled           = $true
-    $sync.CategoryNavPanel.IsEnabled      = $true
+    $sync.ToolListBox.IsHitTestVisible      = $true
+    $sync.ToolListBox.Opacity               = 1.0
+    $sync.CategoryNavPanel.IsHitTestVisible = $true
+    $sync.CategoryNavPanel.Opacity          = 1.0
     $sync.ExportTicketButton.IsEnabled    = $true
     $sync.RunProgressBar.Visibility       = [System.Windows.Visibility]::Collapsed
 
