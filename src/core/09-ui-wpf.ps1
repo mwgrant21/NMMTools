@@ -398,6 +398,7 @@ $script:TicketExportDialogXaml = @'
       <RowDefinition Height="*"/>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
     <TextBox Grid.Row="0" x:Name="TicketTextBox" IsReadOnly="True"
              Background="#0C0C0C" Foreground="#CCCCCC" BorderThickness="1"
@@ -415,7 +416,17 @@ $script:TicketExportDialogXaml = @'
               Background="#3E3E42" Foreground="#CCCCCC" BorderThickness="0"
               Padding="14,6,14,6" Cursor="Hand"/>
     </StackPanel>
-    <TextBlock Grid.Row="2" x:Name="SaveStatusLabel" Foreground="#858585"
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,4">
+      <TextBlock Text="Jira issue:" Foreground="#858585" FontSize="11"
+                 VerticalAlignment="Center" Margin="0,0,8,0"/>
+      <TextBox x:Name="JiraKeyBox" Width="140" Background="#0C0C0C" Foreground="#CCCCCC"
+               BorderBrush="#3E3E42" BorderThickness="1" Padding="6,3,6,3"
+               VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+      <Button x:Name="SendJiraButton" Content="Send to Jira"
+              Background="#5C8DDF" Foreground="#FFFFFF" BorderThickness="0"
+              Padding="14,6,14,6" Cursor="Hand"/>
+    </StackPanel>
+    <TextBlock Grid.Row="3" x:Name="SaveStatusLabel" Foreground="#858585"
                FontSize="11" TextWrapping="Wrap"/>
   </Grid>
 </Window>
@@ -902,6 +913,75 @@ function Invoke-TicketExportDialog {
     $dlg.Add_KeyDown({
         if ($_.Key -eq [System.Windows.Input.Key]::Escape) { $dlg.Close() }
     })
+
+    # ---- Jira export ----
+    $jiraKeyBox = $dlg.FindName('JiraKeyBox')
+    $sendJira   = $dlg.FindName('SendJiraButton')
+    $jiraCfg    = Import-NmmJiraConfig
+
+    if ($null -eq $jiraCfg) {
+        $jiraKeyBox.IsEnabled = $false
+        $sendJira.IsEnabled   = $false
+        $statusLbl.Text       = 'Jira not configured on this machine.'
+    } else {
+        $sendJira.IsEnabled = $false   # enabled only once a valid key is typed
+
+        $jiraKeyBox.Add_TextChanged({
+            $upper = $jiraKeyBox.Text.ToUpper()
+            if ($jiraKeyBox.Text -cne $upper) {
+                $jiraKeyBox.Text = $upper
+                $jiraKeyBox.CaretIndex = $upper.Length
+            }
+            $sendJira.IsEnabled = (Test-NmmJiraKey -Key $jiraKeyBox.Text)
+        }.GetNewClosure())
+
+        $sendJira.Add_Click({
+            $key  = $jiraKeyBox.Text
+            $body = $ticketBox.Text
+            $sendJira.IsEnabled   = $false
+            $sendJira.Content     = 'Sending...'
+            $statusLbl.Foreground = ConvertTo-WpfBrush '#858585'
+            $statusLbl.Text       = ('Sending to {0}...' -f $key)
+
+            $rs = New-NmmToolRunspace
+            $ps = [System.Management.Automation.PowerShell]::Create()
+            $ps.Runspace = $rs
+            [void]$ps.AddScript({ param($k, $b) Send-NmmJiraComment -Key $k -Body $b })
+            [void]$ps.AddParameter('k', $key)
+            [void]$ps.AddParameter('b', $body)
+            $handle = $ps.BeginInvoke()
+
+            $capturedPs     = $ps
+            $capturedHandle = $handle
+            $capturedRs     = $rs
+            $capturedSend   = $sendJira
+            $capturedStatus = $statusLbl
+            $capturedKeyBox = $jiraKeyBox
+
+            $timer = [System.Windows.Threading.DispatcherTimer]::new()
+            $timer.Interval = [System.TimeSpan]::FromMilliseconds(150)
+            $timer.Add_Tick({
+                if ($capturedPs.InvocationStateInfo.State -ne [System.Management.Automation.PSInvocationState]::Running) {
+                    $timer.Stop()
+                    $result = $null
+                    try { $result = $capturedPs.EndInvoke($capturedHandle) | Select-Object -Last 1 } catch { }
+                    $capturedPs.Dispose()
+                    $capturedRs.Close(); $capturedRs.Dispose()
+
+                    $capturedSend.Content = 'Send to Jira'
+                    if ($result -and $result.Success) {
+                        $capturedStatus.Foreground = ConvertTo-WpfBrush '#4EC94E'
+                        $capturedStatus.Text       = [string]$result.Message
+                    } else {
+                        $capturedStatus.Foreground = ConvertTo-WpfBrush '#F44747'
+                        $capturedStatus.Text = if ($result) { [string]$result.Message } else { 'Send failed (no response).' }
+                    }
+                    $capturedSend.IsEnabled = (Test-NmmJiraKey -Key $capturedKeyBox.Text)
+                }
+            }.GetNewClosure())
+            $timer.Start()
+        }.GetNewClosure())
+    }
 
     $dlg.ShowDialog() | Out-Null
 }
