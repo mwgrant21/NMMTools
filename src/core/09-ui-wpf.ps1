@@ -917,7 +917,9 @@ function Invoke-TicketExportDialog {
     # ---- Jira export ----
     $jiraKeyBox = $dlg.FindName('JiraKeyBox')
     $sendJira   = $dlg.FindName('SendJiraButton')
-    $jiraCfg    = Import-NmmJiraConfig
+    # Guard for boundary symmetry with the send path: a modal dialog must never
+    # crash on open even if config loading is changed later.
+    $jiraCfg    = try { Import-NmmJiraConfig } catch { $null }
 
     if ($null -eq $jiraCfg) {
         $jiraKeyBox.IsEnabled = $false

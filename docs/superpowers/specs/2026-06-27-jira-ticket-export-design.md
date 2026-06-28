@@ -122,7 +122,8 @@ Jira Cloud REST **v2** (string comment body - simpler than v3's ADF JSON):
 
 Add to the existing dialog (reusing `SaveStatusLabel` for feedback):
 
-- A **TextBox** `JiraKeyBox` with watermark/placeholder `DESK-12345`. Input is
+- A **TextBox** `JiraKeyBox` preceded by an inline "Jira issue:" label (WPF has no
+  native watermark; the label conveys the expected `DESK-12345` format). Input is
   upper-cased on change.
 - A **Button** `SendJiraButton` ("Send to Jira") in the dialog's button row.
 

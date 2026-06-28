@@ -73,6 +73,11 @@ function Import-NmmJiraConfig {
 }
 
 function ConvertTo-NmmJiraError {
+    # Status extraction targets Windows PowerShell 5.1 (the runtime): there,
+    # Invoke-RestMethod throws a WebException whose .Response.StatusCode is a
+    # populated enum, so the 401/403/404 messages resolve. On pwsh 7 the
+    # exception model differs and .Response is often null, collapsing to the
+    # generic "Could not reach Jira" message - acceptable, since 5.1 is target.
     param($ErrorRecord, [string]$Key)
     $status = $null
     try {
