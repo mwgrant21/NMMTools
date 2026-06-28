@@ -101,7 +101,7 @@ function Send-NmmJiraComment {
     if (-not (Test-NmmJiraKey -Key $Key)) {
         return @{ Success = $false; Message = 'Enter a valid issue key, e.g. DESK-12345.' }
     }
-    $cfg = Import-NmmJiraConfig
+    $cfg = try { Import-NmmJiraConfig } catch { $null }
     if ($null -eq $cfg) {
         return @{ Success = $false; Message = 'Jira is not configured on this machine.' }
     }

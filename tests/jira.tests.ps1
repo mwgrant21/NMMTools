@@ -112,4 +112,12 @@ Describe 'Send-NmmJiraComment' {
         $r.Success | Should -BeFalse
         [string]::IsNullOrWhiteSpace($r.Message) | Should -BeFalse
     }
+    It 'returns a friendly failure when the comment POST fails after a successful verify' {
+        Mock Invoke-RestMethod -ParameterFilter { $Method -eq 'Get' }  -MockWith { return @{ key = 'DESK-12345' } }
+        Mock Invoke-RestMethod -ParameterFilter { $Method -eq 'Post' } -MockWith { throw 'post boom' }
+        $r = Send-NmmJiraComment -Key 'DESK-12345' -Body 'x'
+        $r.Success | Should -BeFalse
+        [string]::IsNullOrWhiteSpace($r.Message) | Should -BeFalse
+        Should -Invoke Invoke-RestMethod -Exactly -Times 2
+    }
 }
