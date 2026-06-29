@@ -130,11 +130,19 @@ function Repair-OnBaseAddinPermanent {
         # Clear resiliency blocks
         if (Test-Path -LiteralPath $disabledKey) {
             Remove-Item -LiteralPath $disabledKey -Recurse -Force -ErrorAction SilentlyContinue
-            $changes.Add(('Cleared {0} DisabledItems entr(ies)' -f $disabledCount))
+            if (-not (Test-Path -LiteralPath $disabledKey)) {
+                $changes.Add(('Cleared {0} DisabledItems entr(ies)' -f $disabledCount))
+            } else {
+                Write-ToolOutput 'DisabledItems key could not be removed (may be locked)' -Level Warning
+            }
         }
         if (Test-Path -LiteralPath $crashKey) {
             Remove-Item -LiteralPath $crashKey -Recurse -Force -ErrorAction SilentlyContinue
-            $changes.Add(('Cleared {0} CrashedAddinList entr(ies)' -f $crashCount))
+            if (-not (Test-Path -LiteralPath $crashKey)) {
+                $changes.Add(('Cleared {0} CrashedAddinList entr(ies)' -f $crashCount))
+            } else {
+                Write-ToolOutput 'CrashedAddinList key could not be removed (may be locked)' -Level Warning
+            }
         }
 
         # Restore LoadBehavior = 3
@@ -142,7 +150,13 @@ function Repair-OnBaseAddinPermanent {
             if ($a.LoadBehavior -ne 3) {
                 Set-ItemProperty -LiteralPath $a.PSPath -Name 'LoadBehavior' `
                     -Value 3 -Type DWord -ErrorAction SilentlyContinue
-                $changes.Add(('{0} LoadBehavior set to 3' -f $a.ProgId))
+                $verifyLb = (Get-ItemProperty -LiteralPath $a.PSPath -Name 'LoadBehavior' `
+                             -ErrorAction SilentlyContinue).LoadBehavior
+                if ($verifyLb -eq 3) {
+                    $changes.Add(('{0} LoadBehavior set to 3' -f $a.ProgId))
+                } else {
+                    Write-ToolOutput ('{0} LoadBehavior write failed (key may be HKLM-locked)' -f $a.ProgId) -Level Warning
+                }
             }
         }
 
@@ -154,18 +168,30 @@ function Repair-OnBaseAddinPermanent {
             foreach ($a in $onbaseAddins) {
                 New-ItemProperty -LiteralPath $doNotDisKey -Name $a.ProgId `
                     -Value 1 -PropertyType DWord -Force -ErrorAction SilentlyContinue | Out-Null
-                $changes.Add(('{0} added to DoNotDisableAddinList' -f $a.ProgId))
+                $verifyDnd = (Get-ItemProperty -LiteralPath $doNotDisKey -Name $a.ProgId `
+                              -ErrorAction SilentlyContinue).$($a.ProgId)
+                if ($verifyDnd -eq 1) {
+                    $changes.Add(('{0} added to DoNotDisableAddinList' -f $a.ProgId))
+                } else {
+                    Write-ToolOutput ('{0} DoNotDisableAddinList write failed' -f $a.ProgId) -Level Warning
+                }
             }
 
             # Raise startup timeout to 5000ms
+            $addinTimeoutDir = Join-Path $resilRoot 'AddinLoadTimeOut'
+            if (-not (Test-Path -LiteralPath $addinTimeoutDir)) {
+                New-Item -LiteralPath $addinTimeoutDir -Force -ErrorAction SilentlyContinue | Out-Null
+            }
             foreach ($a in $onbaseAddins) {
-                $addinSpecificDir = Join-Path $resilRoot 'AddinLoadTimeOut'
-                if (-not (Test-Path -LiteralPath $addinSpecificDir)) {
-                    New-Item -LiteralPath $addinSpecificDir -Force -ErrorAction SilentlyContinue | Out-Null
-                }
-                New-ItemProperty -LiteralPath $addinSpecificDir -Name $a.ProgId `
+                New-ItemProperty -LiteralPath $addinTimeoutDir -Name $a.ProgId `
                     -Value 5000 -PropertyType DWord -Force -ErrorAction SilentlyContinue | Out-Null
-                $changes.Add(('{0} startup timeout raised to 5000ms' -f $a.ProgId))
+                $verifyTo = (Get-ItemProperty -LiteralPath $addinTimeoutDir -Name $a.ProgId `
+                             -ErrorAction SilentlyContinue).$($a.ProgId)
+                if ($verifyTo -eq 5000) {
+                    $changes.Add(('{0} startup timeout raised to 5000ms' -f $a.ProgId))
+                } else {
+                    Write-ToolOutput ('{0} AddinLoadTimeOut write failed' -f $a.ProgId) -Level Warning
+                }
             }
 
             # HKLM registration fallback (requires admin -- tool is RequiresAdmin=$true)
@@ -176,12 +202,14 @@ function Repair-OnBaseAddinPermanent {
                         New-Item -LiteralPath $hklmPath -Force -ErrorAction Stop | Out-Null
                         $srcProps = Get-ItemProperty -LiteralPath $a.PSPath -ErrorAction SilentlyContinue
                         if ($srcProps) {
-                            foreach ($prop in $srcProps.PSObject.Properties | Where-Object { $_.Name -notmatch '^PS' }) {
-                                New-ItemProperty -LiteralPath $hklmPath -Name $prop.Name `
-                                    -Value $prop.Value -PropertyType String -Force `
-                                    -ErrorAction SilentlyContinue | Out-Null
+                            foreach ($propName in @('FriendlyName', 'Description', 'Manifest')) {
+                                $val = $srcProps.PSObject.Properties[$propName]
+                                if ($val) {
+                                    New-ItemProperty -LiteralPath $hklmPath -Name $propName `
+                                        -Value $val.Value -PropertyType String -Force `
+                                        -ErrorAction SilentlyContinue | Out-Null
+                                }
                             }
-                            # LoadBehavior must be DWORD
                             New-ItemProperty -LiteralPath $hklmPath -Name 'LoadBehavior' `
                                 -Value 3 -PropertyType DWord -Force `
                                 -ErrorAction SilentlyContinue | Out-Null
@@ -211,14 +239,14 @@ foreach (`$progId in `$addins) {
             `$lb = (Get-ItemProperty -LiteralPath `$root -Name LoadBehavior -ErrorAction SilentlyContinue).LoadBehavior
             if (`$lb -ne 3) {
                 Set-ItemProperty -LiteralPath `$root -Name LoadBehavior -Value 3 -ErrorAction SilentlyContinue
-                Add-Content -Path `$log -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm') Healed `$progId LoadBehavior from `$lb to 3"
+                Add-Content -Path `$log -Value "`$(Get-Date -Format 'yyyy-MM-dd HH:mm') Healed `$progId LoadBehavior from `$lb to 3"
             }
         }
     }
     `$dis = Join-Path `$resil 'DisabledItems'
     if (Test-Path -LiteralPath `$dis) {
         Remove-Item -LiteralPath `$dis -Recurse -Force -ErrorAction SilentlyContinue
-        Add-Content -Path `$log -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm') Cleared DisabledItems"
+        Add-Content -Path `$log -Value "`$(Get-Date -Format 'yyyy-MM-dd HH:mm') Cleared DisabledItems"
     }
 }
 "@
@@ -236,7 +264,7 @@ foreach (`$progId in `$addins) {
             }
             Register-ScheduledTask -TaskName $taskName `
                 -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings `
-                -RunLevel Limited -Force -ErrorAction SilentlyContinue | Out-Null
+                -RunLevel Highest -Force -ErrorAction SilentlyContinue | Out-Null
 
             $verifyTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
             if ($verifyTask) {
