@@ -5,5 +5,5 @@ param(
     [switch]$Force,       # allow Disruptive tools under -Silent
     [switch]$ListTools,   # print the tool inventory and exit
     [string]$LogPath,     # directory for the session log file
-    [ValidateSet('Auto','Console','GUI')][string]$Mode = 'Auto'
+    [ValidateSet('Auto','Console','GUI')][string]$Mode = 'GUI'
 )
