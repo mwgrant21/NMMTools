@@ -47,11 +47,22 @@ function Get-TeamsMeetingQuality {
                 $results = @(Test-Connection -ComputerName $target -Count 5 -ErrorAction SilentlyContinue)
                 $totalSent += 5
                 foreach ($r in $results) {
-                    $status = if ($r.PSObject.Properties.Name -contains 'Status') { $r.Status } else { 'Success' }
-                    $ms     = if ($r.PSObject.Properties.Name -contains 'ResponseTime') { $r.ResponseTime } `
-                              elseif ($r.PSObject.Properties.Name -contains 'Latency') { $r.Latency } `
-                              else { $null }
-                    if ($status -ne 'Success' -and $status -ne 0) {
+                    # Win32_PingStatus (PS5.1): StatusCode=0 means success; ResponseTime holds ms
+                    # PSPingStatus (PS7): Status='Success'; Latency holds ms
+                    $isSuccess = $false
+                    $ms        = $null
+                    if ($r.PSObject.Properties.Name -contains 'StatusCode') {
+                        $isSuccess = ($r.StatusCode -eq 0)
+                        if ($isSuccess -and $r.PSObject.Properties.Name -contains 'ResponseTime') {
+                            $ms = $r.ResponseTime
+                        }
+                    } elseif ($r.PSObject.Properties.Name -contains 'Status') {
+                        $isSuccess = ($r.Status -eq 'Success')
+                        if ($isSuccess -and $r.PSObject.Properties.Name -contains 'Latency') {
+                            $ms = $r.Latency
+                        }
+                    }
+                    if (-not $isSuccess) {
                         $totalLost++
                     } elseif ($null -ne $ms -and $ms -gt 0) {
                         $allSamples.Add([double]$ms)
@@ -77,10 +88,11 @@ function Get-TeamsMeetingQuality {
         }
         $lossRate = if ($totalSent -gt 0) { [math]::Round(($totalLost / $totalSent) * 100, 1) } else { 0 }
 
-        $latLevel  = if ($avgMs -gt 150) { 'Warning' } elseif ($avgMs -gt 80) { 'Warning' } else { 'Info' }
+        $latLevel  = if ($avgMs -gt 80) { 'Warning' } else { 'Info' }
         $jitLevel  = if ($jitter -gt 30)  { 'Warning' } else { 'Info' }
         $lossLevel = if ($lossRate -gt 1) { 'Warning' } else { 'Info' }
-        Write-ToolOutput ('Latency to M365: {0}ms avg (min {1} / max {2}) | Jitter: {3}ms' -f $avgMs, $minMs, $maxMs, $jitter) -Level $latLevel
+        Write-ToolOutput ('Latency to M365: {0}ms avg (min {1} / max {2})' -f $avgMs, $minMs, $maxMs) -Level $latLevel
+        Write-ToolOutput ('Jitter: {0}ms' -f $jitter) -Level $jitLevel
         Write-ToolOutput ('Packet loss: {0}%' -f $lossRate) -Level $lossLevel
 
         # --- DNS resolution time ---
