@@ -76,7 +76,7 @@ function Repair-OnBaseAddinPermanent {
             $crashCount = @($cp).Count
         }
         Write-ToolOutput ('Resiliency DisabledItems: {0}; CrashedAddinList: {1}' -f `
-            $disabledCount, $crashCount) -Level (if ($disabledCount -gt 0 -or $crashCount -gt 0) { 'Warning' } else { 'Info' })
+            $disabledCount, $crashCount) -Level $(if ($disabledCount -gt 0 -or $crashCount -gt 0) { 'Warning' } else { 'Info' })
 
         # --- Load time ---
         $recordedMs = $null
@@ -101,8 +101,8 @@ function Repair-OnBaseAddinPermanent {
                 if ($val -eq 1) { $alreadyPinned = $true; break }
             }
         }
-        Write-ToolOutput ('DoNotDisableAddinList: {0}' -f (if ($alreadyPinned) { 'Already pinned' } else { 'Not set' })) `
-            -Level (if ($alreadyPinned) { 'Info' } else { 'Warning' })
+        Write-ToolOutput ('DoNotDisableAddinList: {0}' -f $(if ($alreadyPinned) { 'Already pinned' } else { 'Not set' })) `
+            -Level $(if ($alreadyPinned) { 'Info' } else { 'Warning' })
 
         # --- Self-heal task check ---
         $taskName  = 'NMMTools-OnBaseAddinCheck'
@@ -111,8 +111,8 @@ function Repair-OnBaseAddinPermanent {
             $existing = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
             $taskExists = $null -ne $existing
         } catch { }
-        Write-ToolOutput ('Self-heal task ({0}): {1}' -f $taskName, (if ($taskExists) { 'Exists' } else { 'Not created' })) `
-            -Level (if ($taskExists) { 'Info' } else { 'Warning' })
+        Write-ToolOutput ('Self-heal task ({0}): {1}' -f $taskName, $(if ($taskExists) { 'Exists' } else { 'Not created' })) `
+            -Level $(if ($taskExists) { 'Info' } else { 'Warning' })
 
         # --- Action ---
         $action = Read-ToolChoice -Prompt 'OnBase add-in permanent fix' `
@@ -253,6 +253,11 @@ foreach (`$progId in `$addins) {
             $encodedCmd = [Convert]::ToBase64String(
                 [Text.Encoding]::Unicode.GetBytes($healScript)
             )
+            $loggedOnUser = (Get-WmiObject Win32_ComputerSystem).UserName
+            # UserName is 'DOMAIN\user' or '' if no one is logged on
+            if ([string]::IsNullOrWhiteSpace($loggedOnUser)) { $loggedOnUser = $env:USERNAME }
+            $taskPrincipal = New-ScheduledTaskPrincipal -UserId $loggedOnUser -LogonType Interactive -RunLevel Highest
+
             $taskAction  = New-ScheduledTaskAction -Execute 'PowerShell.exe' `
                 -Argument ('-NonInteractive -WindowStyle Hidden -EncodedCommand {0}' -f $encodedCmd)
             $taskTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At '8:00AM'
@@ -264,7 +269,7 @@ foreach (`$progId in `$addins) {
             }
             Register-ScheduledTask -TaskName $taskName `
                 -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings `
-                -RunLevel Highest -Force -ErrorAction SilentlyContinue | Out-Null
+                -Principal $taskPrincipal -Force -ErrorAction SilentlyContinue | Out-Null
 
             $verifyTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
             if ($verifyTask) {

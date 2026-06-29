@@ -129,7 +129,7 @@ function Get-TeamsMeetingQuality {
             $qosConfigured = $teamsQos.Count -gt 0
         }
         $qosLevel = if ($qosConfigured) { 'Info' } else { 'Warning' }
-        Write-ToolOutput ('QoS/DSCP marking: {0}' -f (if ($qosConfigured) { 'Configured' } else { 'Not configured' })) `
+        Write-ToolOutput ('QoS/DSCP marking: {0}' -f $(if ($qosConfigured) { 'Configured' } else { 'Not configured' })) `
             -Level $qosLevel
 
         # --- Hardware video encoder ---

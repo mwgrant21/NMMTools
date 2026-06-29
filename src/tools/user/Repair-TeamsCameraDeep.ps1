@@ -146,8 +146,8 @@ function Repair-TeamsCameraDeep {
                     $cfg = Get-Content $teamsPrefs -Raw -Encoding UTF8 | ConvertFrom-Json
                     if ($cfg.PSObject.Properties.Name -contains 'cameraDeviceId') {
                         $cfg.PSObject.Properties.Remove('cameraDeviceId')
-                        $cfg | ConvertTo-Json -Depth 10 |
-                            Set-Content $teamsPrefs -Encoding UTF8 -ErrorAction SilentlyContinue
+                        $json = $cfg | ConvertTo-Json -Depth 10
+                        [System.IO.File]::WriteAllText($teamsPrefs, $json, (New-Object System.Text.UTF8Encoding($false)))
                         $fixApplied.Add('Teams camera preference cleared')
                     }
                 } catch { }
@@ -162,8 +162,8 @@ function Repair-TeamsCameraDeep {
                     $cfg = Get-Content $teamsPrefs -Raw -Encoding UTF8 | ConvertFrom-Json
                     $cfg | Add-Member -NotePropertyName 'cameraDeviceId' `
                         -NotePropertyValue $physicalCam.InstanceId -Force
-                    $cfg | ConvertTo-Json -Depth 10 |
-                        Set-Content $teamsPrefs -Encoding UTF8 -ErrorAction SilentlyContinue
+                    $json = $cfg | ConvertTo-Json -Depth 10
+                    [System.IO.File]::WriteAllText($teamsPrefs, $json, (New-Object System.Text.UTF8Encoding($false)))
                     $fixApplied.Add(('Teams preferred camera set to: {0}' -f $physicalCam.FriendlyName))
                 } catch { }
             }
