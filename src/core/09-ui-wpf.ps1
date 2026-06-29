@@ -907,9 +907,13 @@ $script:JiraSetupDialogXaml = @'
                  Background="#0C0C0C" Foreground="#CCCCCC" BorderBrush="#3E3E42" BorderThickness="1"
                  Padding="6,5" FontSize="11" Margin="0,0,0,10"/>
 
-    <TextBlock Grid.Row="4" Grid.ColumnSpan="2" x:Name="SetupHintLabel"
-               FontSize="10" Foreground="#5C8DDF" TextWrapping="Wrap" Margin="0,0,0,6"
-               Text="Get your API token at id.atlassian.com - Security - API tokens"/>
+    <TextBlock Grid.Row="4" Grid.ColumnSpan="2"
+               FontSize="10" Foreground="#858585" TextWrapping="Wrap" Margin="0,0,0,6">
+      <Run Text="Don't have an API token? Generate one at "/>
+      <Hyperlink x:Name="ApiTokenLink"
+                 NavigateUri="https://id.atlassian.com/manage-profile/security/api-tokens"
+                 Foreground="#5C8DDF">id.atlassian.com - Security - API tokens</Hyperlink>
+    </TextBlock>
 
     <TextBlock Grid.Row="5" Grid.ColumnSpan="2" x:Name="SetupStatusLabel"
                FontSize="11" Foreground="#F44747" TextWrapping="Wrap"/>
@@ -933,14 +937,20 @@ function Show-NmmJiraSetupDialog {
     $win       = [System.Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($xml))
     if ($Owner) { $win.Owner = $Owner }
 
-    $urlBox    = $win.FindName('UrlBox')
-    $emailBox  = $win.FindName('EmailBox')
-    $tokenBox  = $win.FindName('TokenBox')
-    $statusLbl = $win.FindName('SetupStatusLabel')
-    $saveBtn   = $win.FindName('SaveSetupButton')
-    $cancelBtn = $win.FindName('CancelSetupButton')
+    $urlBox       = $win.FindName('UrlBox')
+    $emailBox     = $win.FindName('EmailBox')
+    $tokenBox     = $win.FindName('TokenBox')
+    $statusLbl    = $win.FindName('SetupStatusLabel')
+    $saveBtn      = $win.FindName('SaveSetupButton')
+    $cancelBtn    = $win.FindName('CancelSetupButton')
+    $apiTokenLink = $win.FindName('ApiTokenLink')
 
     $urlBox.Text = 'https://newmexicomutual.atlassian.net'
+
+    $apiTokenLink.Add_RequestNavigate({
+        [System.Diagnostics.Process]::Start($_.Uri.AbsoluteUri) | Out-Null
+        $_.Handled = $true
+    })
 
     $state = @{ Saved = $false }
 
