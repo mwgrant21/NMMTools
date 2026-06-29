@@ -424,6 +424,9 @@ $script:TicketExportDialogXaml = @'
                VerticalContentAlignment="Center" Margin="0,0,8,0"/>
       <Button x:Name="SendJiraButton" Content="Send to Jira"
               Background="#5C8DDF" Foreground="#FFFFFF" BorderThickness="0"
+              Padding="14,6,14,6" Cursor="Hand" Margin="0,0,8,0"/>
+      <Button x:Name="SetupJiraButton" Content="Set up Jira..."
+              Background="#3E3E42" Foreground="#CCCCCC" BorderThickness="0"
               Padding="14,6,14,6" Cursor="Hand"/>
     </StackPanel>
     <TextBlock Grid.Row="3" x:Name="SaveStatusLabel" Foreground="#858585"
@@ -860,6 +863,128 @@ function Invoke-DisruptiveConfirmDialog {
     }
 }
 
+# ---- Jira setup dialog ------------------------------------------------------
+$script:JiraSetupDialogXaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Set up Jira" Width="440" Height="310"
+        Background="#1E1E1E" Foreground="#CCCCCC"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+  <Grid Margin="20">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="90"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+               Text="Jira Cloud Configuration" FontSize="13" FontWeight="SemiBold"
+               Foreground="#CCCCCC" Margin="0,0,0,14"/>
+
+    <TextBlock Grid.Row="1" Grid.Column="0" Text="Base URL:"
+               Foreground="#858585" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,10"/>
+    <TextBox Grid.Row="1" Grid.Column="1" x:Name="UrlBox"
+             Background="#0C0C0C" Foreground="#CCCCCC" BorderBrush="#3E3E42" BorderThickness="1"
+             Padding="6,5" FontSize="11" Margin="0,0,0,10"/>
+
+    <TextBlock Grid.Row="2" Grid.Column="0" Text="Email:"
+               Foreground="#858585" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,10"/>
+    <TextBox Grid.Row="2" Grid.Column="1" x:Name="EmailBox"
+             Background="#0C0C0C" Foreground="#CCCCCC" BorderBrush="#3E3E42" BorderThickness="1"
+             Padding="6,5" FontSize="11" Margin="0,0,0,10"/>
+
+    <TextBlock Grid.Row="3" Grid.Column="0" Text="API Token:"
+               Foreground="#858585" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,10"/>
+    <PasswordBox Grid.Row="3" Grid.Column="1" x:Name="TokenBox"
+                 Background="#0C0C0C" Foreground="#CCCCCC" BorderBrush="#3E3E42" BorderThickness="1"
+                 Padding="6,5" FontSize="11" Margin="0,0,0,10"/>
+
+    <TextBlock Grid.Row="4" Grid.ColumnSpan="2" x:Name="SetupHintLabel"
+               FontSize="10" Foreground="#5C8DDF" TextWrapping="Wrap" Margin="0,0,0,6"
+               Text="Get your API token at id.atlassian.com - Security - API tokens"/>
+
+    <TextBlock Grid.Row="5" Grid.ColumnSpan="2" x:Name="SetupStatusLabel"
+               FontSize="11" Foreground="#F44747" TextWrapping="Wrap"/>
+
+    <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Horizontal"
+                HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="SaveSetupButton" Content="Save"
+              Background="#5C8DDF" Foreground="#FFFFFF" BorderThickness="0"
+              Padding="24,7" Margin="0,0,8,0" Cursor="Hand" FontWeight="SemiBold"/>
+      <Button x:Name="CancelSetupButton" Content="Cancel"
+              Background="#3E3E42" Foreground="#CCCCCC" BorderThickness="0"
+              Padding="16,7" Cursor="Hand"/>
+    </StackPanel>
+  </Grid>
+</Window>
+'@
+
+function Show-NmmJiraSetupDialog {
+    param($Owner)
+    [xml]$xml  = $script:JiraSetupDialogXaml
+    $win       = [System.Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($xml))
+    if ($Owner) { $win.Owner = $Owner }
+
+    $urlBox    = $win.FindName('UrlBox')
+    $emailBox  = $win.FindName('EmailBox')
+    $tokenBox  = $win.FindName('TokenBox')
+    $statusLbl = $win.FindName('SetupStatusLabel')
+    $saveBtn   = $win.FindName('SaveSetupButton')
+    $cancelBtn = $win.FindName('CancelSetupButton')
+
+    $state = @{ Saved = $false }
+
+    $capturedUrl    = $urlBox
+    $capturedEmail  = $emailBox
+    $capturedToken  = $tokenBox
+    $capturedStatus = $statusLbl
+    $capturedState  = $state
+    $capturedWin    = $win
+
+    $saveBtn.Add_Click({
+        $url   = $capturedUrl.Text.Trim()
+        $email = $capturedEmail.Text.Trim()
+        $token = $capturedToken.Password
+
+        if ([string]::IsNullOrWhiteSpace($url)) {
+            $capturedStatus.Text = 'Base URL is required.'; return
+        }
+        if ($url -notmatch '^https?://') {
+            $capturedStatus.Text = 'URL must start with https://'; return
+        }
+        if ([string]::IsNullOrWhiteSpace($email)) {
+            $capturedStatus.Text = 'Email is required.'; return
+        }
+        if ([string]::IsNullOrWhiteSpace($token)) {
+            $capturedStatus.Text = 'API token is required.'; return
+        }
+
+        try {
+            Save-NmmJiraConfig -BaseUrl $url -Email $email -Token $token
+            $capturedState.Saved = $true
+            $capturedWin.Close()
+        } catch {
+            $capturedStatus.Text = ('Save failed: {0}' -f $_.Exception.Message)
+        }
+    }.GetNewClosure())
+
+    $cancelBtn.Add_Click({ $capturedWin.Close() })
+    $win.Add_KeyDown({
+        if ($_.Key -eq [System.Windows.Input.Key]::Escape) { $capturedWin.Close() }
+    }.GetNewClosure())
+
+    $win.ShowDialog() | Out-Null
+    return $state.Saved
+}
+
 # ---- Ticket export dialog -----------------------------------------------
 function Invoke-TicketExportDialog {
     $sync = $script:GuiSync
@@ -915,35 +1040,38 @@ function Invoke-TicketExportDialog {
     })
 
     # ---- Jira export ----
-    $jiraKeyBox = $dlg.FindName('JiraKeyBox')
-    $sendJira   = $dlg.FindName('SendJiraButton')
-    # Guard for boundary symmetry with the send path: a modal dialog must never
-    # crash on open even if config loading is changed later.
-    $jiraCfg    = try { Import-NmmJiraConfig } catch { $null }
+    $jiraKeyBox  = $dlg.FindName('JiraKeyBox')
+    $sendJira    = $dlg.FindName('SendJiraButton')
+    $setupJira   = $dlg.FindName('SetupJiraButton')
 
-    if ($null -eq $jiraCfg) {
-        $jiraKeyBox.IsEnabled = $false
-        $sendJira.IsEnabled   = $false
-        $statusLbl.Text       = 'Jira not configured on this machine.'
-    } else {
-        $sendJira.IsEnabled = $false   # enabled only once a valid key is typed
+    # Extracted so it can be called both at open (when already configured) and
+    # after setup completes (when the user just saved credentials).
+    function Register-JiraSendHandlers {
+        param($KeyBox, $SendBtn, $SetupBtn, $StatusLbl, $TicketBox, $Dialog)
+        $SendBtn.IsEnabled  = $false
+        $SetupBtn.Visibility = [System.Windows.Visibility]::Collapsed
 
-        $jiraKeyBox.Add_TextChanged({
-            $upper = $jiraKeyBox.Text.ToUpper()
-            if ($jiraKeyBox.Text -cne $upper) {
-                $jiraKeyBox.Text = $upper
-                $jiraKeyBox.CaretIndex = $upper.Length
+        $capKB     = $KeyBox
+        $capSend   = $SendBtn
+        $capStatus = $StatusLbl
+        $capTicket = $TicketBox
+
+        $KeyBox.Add_TextChanged({
+            $upper = $capKB.Text.ToUpper()
+            if ($capKB.Text -cne $upper) {
+                $capKB.Text = $upper
+                $capKB.CaretIndex = $upper.Length
             }
-            $sendJira.IsEnabled = (Test-NmmJiraKey -Key $jiraKeyBox.Text)
+            $capSend.IsEnabled = (Test-NmmJiraKey -Key $capKB.Text)
         }.GetNewClosure())
 
-        $sendJira.Add_Click({
-            $key  = $jiraKeyBox.Text
-            $body = $ticketBox.Text
-            $sendJira.IsEnabled   = $false
-            $sendJira.Content     = 'Sending...'
-            $statusLbl.Foreground = ConvertTo-WpfBrush '#858585'
-            $statusLbl.Text       = ('Sending to {0}...' -f $key)
+        $SendBtn.Add_Click({
+            $key  = $capKB.Text
+            $body = $capTicket.Text
+            $capSend.IsEnabled   = $false
+            $capSend.Content     = 'Sending...'
+            $capStatus.Foreground = ConvertTo-WpfBrush '#858585'
+            $capStatus.Text       = ('Sending to {0}...' -f $key)
 
             $rs = New-NmmToolRunspace
             $ps = [System.Management.Automation.PowerShell]::Create()
@@ -956,9 +1084,9 @@ function Invoke-TicketExportDialog {
             $capturedPs     = $ps
             $capturedHandle = $handle
             $capturedRs     = $rs
-            $capturedSend   = $sendJira
-            $capturedStatus = $statusLbl
-            $capturedKeyBox = $jiraKeyBox
+            $capturedSend   = $capSend
+            $capturedStatus = $capStatus
+            $capturedKeyBox = $capKB
 
             $timer = [System.Windows.Threading.DispatcherTimer]::new()
             $timer.Interval = [System.TimeSpan]::FromMilliseconds(150)
@@ -982,6 +1110,39 @@ function Invoke-TicketExportDialog {
                 }
             }.GetNewClosure())
             $timer.Start()
+        }.GetNewClosure())
+    }
+
+    # Guard: dialog must never crash on config load failure.
+    $jiraCfg = try { Import-NmmJiraConfig } catch { $null }
+
+    if ($null -ne $jiraCfg) {
+        Register-JiraSendHandlers -KeyBox $jiraKeyBox -SendBtn $sendJira `
+            -SetupBtn $setupJira -StatusLbl $statusLbl -TicketBox $ticketBox -Dialog $dlg
+    } else {
+        # Not configured yet - hide the send controls, show Set up button.
+        $jiraKeyBox.Visibility = [System.Windows.Visibility]::Collapsed
+        $sendJira.Visibility   = [System.Windows.Visibility]::Collapsed
+        $statusLbl.Text        = 'Jira not set up for this user. Click "Set up Jira..." to configure.'
+
+        $capKeyBox   = $jiraKeyBox
+        $capSend     = $sendJira
+        $capSetup    = $setupJira
+        $capStatus   = $statusLbl
+        $capTicket   = $ticketBox
+        $capDlg      = $dlg
+
+        $setupJira.Add_Click({
+            $saved = Show-NmmJiraSetupDialog -Owner $capDlg
+            if ($saved) {
+                $capSetup.Visibility  = [System.Windows.Visibility]::Collapsed
+                $capKeyBox.Visibility = [System.Windows.Visibility]::Visible
+                $capSend.Visibility   = [System.Windows.Visibility]::Visible
+                $capStatus.Foreground = ConvertTo-WpfBrush '#4EC94E'
+                $capStatus.Text       = 'Jira configured. Enter an issue key to send.'
+                Register-JiraSendHandlers -KeyBox $capKeyBox -SendBtn $capSend `
+                    -SetupBtn $capSetup -StatusLbl $capStatus -TicketBox $capTicket -Dialog $capDlg
+            }
         }.GetNewClosure())
     }
 

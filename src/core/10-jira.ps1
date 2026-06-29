@@ -1,14 +1,14 @@
 # Jira Cloud ticket export. Pushes the session summary onto an existing issue as a
-# comment. Config + shared service-account token live in %PROGRAMDATA%\NMMTools\jira.json;
-# the token is DPAPI-encrypted (LocalMachine) at rest. All config/network failures are
-# returned, never thrown - the Ticket Export dialog must never crash on them.
+# comment. Config is per-user: %APPDATA%\NMMTools\jira.json, token DPAPI-encrypted
+# (CurrentUser scope). All config/network failures are returned, never thrown -
+# the Ticket Export dialog must never crash on them.
 
 $script:JiraConfigPathOverride = $null   # tests set this to a temp file
 
 function Get-NmmJiraConfigPath {
     if ($script:JiraConfigPathOverride) { return $script:JiraConfigPathOverride }
-    $base = [Environment]::GetFolderPath('CommonApplicationData')
-    if ([string]::IsNullOrWhiteSpace($base)) { $base = $env:ProgramData }
+    $base = [Environment]::GetFolderPath('ApplicationData')
+    if ([string]::IsNullOrWhiteSpace($base)) { $base = $env:APPDATA }
     return (Join-Path $base 'NMMTools\jira.json')
 }
 
@@ -23,7 +23,7 @@ function Protect-NmmJiraToken {
     Add-Type -AssemblyName System.Security -ErrorAction SilentlyContinue
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($Plain)
     $enc   = [System.Security.Cryptography.ProtectedData]::Protect(
-                $bytes, $null, [System.Security.Cryptography.DataProtectionScope]::LocalMachine)
+                $bytes, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
     return [Convert]::ToBase64String($enc)
 }
 
@@ -32,8 +32,24 @@ function Unprotect-NmmJiraToken {
     Add-Type -AssemblyName System.Security -ErrorAction SilentlyContinue
     $enc = [Convert]::FromBase64String($Cipher)
     $dec = [System.Security.Cryptography.ProtectedData]::Unprotect(
-                $enc, $null, [System.Security.Cryptography.DataProtectionScope]::LocalMachine)
+                $enc, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
     return [System.Text.Encoding]::UTF8.GetString($dec)
+}
+
+function Save-NmmJiraConfig {
+    param(
+        [Parameter(Mandatory)][string]$BaseUrl,
+        [Parameter(Mandatory)][string]$Email,
+        [Parameter(Mandatory)][string]$Token
+    )
+    $path = Get-NmmJiraConfigPath
+    $dir  = Split-Path $path -Parent
+    if ($dir -and -not (Test-Path $dir -PathType Container)) {
+        New-Item -ItemType Directory -Force $dir | Out-Null
+    }
+    # Save plain text; Import-NmmJiraConfig will encrypt on first load
+    $out = [ordered]@{ BaseUrl = $BaseUrl.TrimEnd('/'); Email = $Email; Token = $Token; TokenProtected = $false }
+    ($out | ConvertTo-Json) | Set-Content -Path $path -Encoding UTF8 -ErrorAction Stop
 }
 
 function Import-NmmJiraConfig {
@@ -58,7 +74,7 @@ function Import-NmmJiraConfig {
         try { $token = Unprotect-NmmJiraToken -Cipher $rawToken } catch { return $null }
     } else {
         $token = $rawToken
-        # First run after deployment: re-save with the token encrypted. Non-fatal on failure.
+        # First load after setup: encrypt the plain-text token in place. Non-fatal on failure.
         try {
             $cipher = Protect-NmmJiraToken -Plain $token
             $out = [ordered]@{ BaseUrl = $baseUrl; Email = $email; Token = $cipher; TokenProtected = $true }
@@ -91,8 +107,8 @@ function ConvertTo-NmmJiraError {
         return @{ Success = $false; Message = ('Could not reach Jira ({0}).' -f $ErrorRecord.Exception.Message) }
     }
     switch ($status) {
-        401     { return @{ Success = $false; Message = 'Authentication failed - check the Jira service account token.' } }
-        403     { return @{ Success = $false; Message = 'Authentication failed - check the Jira service account token.' } }
+        401     { return @{ Success = $false; Message = 'Authentication failed - check your Jira API token.' } }
+        403     { return @{ Success = $false; Message = 'Authentication failed - check your Jira API token.' } }
         404     { return @{ Success = $false; Message = ('Issue {0} not found or not accessible.' -f $Key) } }
         default { return @{ Success = $false; Message = ('Jira returned an error ({0}).' -f $status) } }
     }
@@ -108,7 +124,7 @@ function Send-NmmJiraComment {
     }
     $cfg = try { Import-NmmJiraConfig } catch { $null }
     if ($null -eq $cfg) {
-        return @{ Success = $false; Message = 'Jira is not configured on this machine.' }
+        return @{ Success = $false; Message = 'Jira is not configured for this user.' }
     }
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
