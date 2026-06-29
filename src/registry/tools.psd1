@@ -1236,5 +1236,17 @@
             Risk          = 'ReadOnly'
             Tags          = @('teams','quality','network','latency','jitter','qos','vpn','displaylink','diagnostic')
         }
+        @{
+            Id            = 'outlook-search-all'
+            LegacyId      = '108'
+            Name          = 'Outlook Search: All Mailboxes Fix'
+            Category      = 'User'
+            Function      = 'Repair-OutlookSearchScope'
+            Description   = 'Fix Outlook search showing results only from the current mailbox. Sets SearchDefaultScope=1 (All Mailboxes), checks each .ost/.pst data file in the active profile for Windows Search coverage, raises the per-file size limit for oversized archives, and triggers a targeted scope re-index. See also outlook-search-repair for full index rebuild.'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','search','mailbox','ost','pst','scope','index')
+        }
     )
 }
