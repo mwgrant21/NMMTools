@@ -1224,5 +1224,17 @@
             Risk          = 'Modifies'
             Tags          = @('teams','camera','displaylink','docking','ir','d6000','wd19','usb')
         }
+        @{
+            Id            = 'teams-meeting-quality'
+            LegacyId      = '107'
+            Name          = 'Teams Meeting Quality Diagnostic'
+            Category      = 'Cloud'
+            Function      = 'Get-TeamsMeetingQuality'
+            Description   = 'Read-only meeting quality check: detect active NIC (flags D6000 DisplayLink USB NIC), measure latency/jitter/packet-loss to M365 endpoints, check VPN tunnel status, QoS/DSCP marking, hardware video encoder, CPU/RAM, and sample Teams logs for recent quality events. Produces a scored verdict.'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('teams','quality','network','latency','jitter','qos','vpn','displaylink','diagnostic')
+        }
     )
 }
