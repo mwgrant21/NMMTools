@@ -189,15 +189,38 @@ function Send-NmmJiraComment {
         return (ConvertTo-NmmJiraError -ErrorRecord $_ -Key $Key)
     }
 
-    $commentUrl = '{0}/rest/api/2/issue/{1}/comment' -f $cfg.BaseUrl, $Key
     $attribution = 'NMMToolkit export by {0} on {1}' -f $env:USERNAME, $env:COMPUTERNAME
     $wrapped     = "{0}`n{{code}}`n{1}`n{{code}}" -f $attribution, $Body
-    $payload     = @{ body = $wrapped } | ConvertTo-Json
+
+    # Try JSM service desk endpoint first so the comment lands as an internal
+    # note (not visible to the customer). Falls back to the standard API for
+    # non-JSM projects where the service desk endpoint returns 404.
+    $sdUrl      = '{0}/rest/servicedeskapi/request/{1}/comment' -f $cfg.BaseUrl, $Key
+    $sdPayload  = @{ body = $wrapped; public = $false } | ConvertTo-Json
+    $sdHeaders  = $headers.Clone()
+    $sdHeaders['X-ExperimentalApi'] = 'opt-in'
+    $posted = $false
     try {
-        Invoke-RestMethod -Method Post -Uri $commentUrl -Headers $headers `
-            -ContentType 'application/json' -Body $payload -TimeoutSec 30 -ErrorAction Stop | Out-Null
+        Invoke-RestMethod -Method Post -Uri $sdUrl -Headers $sdHeaders `
+            -ContentType 'application/json' -Body $sdPayload -TimeoutSec 30 -ErrorAction Stop | Out-Null
+        $posted = $true
     } catch {
-        return (ConvertTo-NmmJiraError -ErrorRecord $_ -Key $Key)
+        $errStatus = $null
+        try { $errStatus = [int]$_.Exception.Response.StatusCode } catch { }
+        if ($errStatus -ne 404) {
+            return (ConvertTo-NmmJiraError -ErrorRecord $_ -Key $Key)
+        }
+    }
+
+    if (-not $posted) {
+        $commentUrl = '{0}/rest/api/2/issue/{1}/comment' -f $cfg.BaseUrl, $Key
+        $payload    = @{ body = $wrapped } | ConvertTo-Json
+        try {
+            Invoke-RestMethod -Method Post -Uri $commentUrl -Headers $headers `
+                -ContentType 'application/json' -Body $payload -TimeoutSec 30 -ErrorAction Stop | Out-Null
+        } catch {
+            return (ConvertTo-NmmJiraError -ErrorRecord $_ -Key $Key)
+        }
     }
     return @{ Success = $true; Message = ('Added comment to {0}.' -f $Key) }
 }
