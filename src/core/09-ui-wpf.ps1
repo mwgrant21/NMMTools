@@ -940,6 +940,8 @@ function Show-NmmJiraSetupDialog {
     $saveBtn   = $win.FindName('SaveSetupButton')
     $cancelBtn = $win.FindName('CancelSetupButton')
 
+    $urlBox.Text = 'https://newmexicomutual.atlassian.net'
+
     $state = @{ Saved = $false }
 
     $capturedUrl    = $urlBox
