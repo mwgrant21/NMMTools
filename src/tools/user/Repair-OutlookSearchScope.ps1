@@ -133,7 +133,13 @@ function Repair-OutlookSearchScope {
             $wdsKey = 'HKLM:\SOFTWARE\Microsoft\Windows Search'
             Set-ItemProperty -LiteralPath $wdsKey -Name 'MaxObjectSize' `
                 -Value 0 -Type DWord -ErrorAction SilentlyContinue
-            $changes.Add(('{0} large file(s) -- WSearch MaxObjectSize limit raised' -f $largeFiles.Count))
+            $verifyMax = (Get-ItemProperty -LiteralPath $wdsKey -Name 'MaxObjectSize' `
+                          -ErrorAction SilentlyContinue).MaxObjectSize
+            if ($verifyMax -eq 0) {
+                $changes.Add(('{0} large file(s) -- WSearch MaxObjectSize limit raised' -f $largeFiles.Count))
+            } else {
+                Write-ToolOutput ('Large file(s) found but MaxObjectSize could not be set (elevation required for HKLM write)') -Level Warning
+            }
         }
 
         # Start WSearch if stopped
@@ -151,14 +157,9 @@ function Repair-OutlookSearchScope {
         Remove-ItemProperty -LiteralPath $searchKey -Name 'Catalog' -ErrorAction SilentlyContinue
         $changes.Add('Outlook index registration cleared (re-registers on next Outlook launch)')
 
-        if ($changes.Count -eq 0) {
-            Complete-ToolRun $run -Status Success `
-                -Summary 'Search scope already correct and WSearch healthy; no changes needed'
-        } else {
-            Complete-ToolRun $run -Status Success `
-                -Summary ('{0} change(s): {1}. Restart Outlook for full effect.' -f `
-                    $changes.Count, ($changes -join '; '))
-        }
+        Complete-ToolRun $run -Status Success `
+            -Summary ('{0} change(s): {1}. Restart Outlook for full effect.' -f `
+                $changes.Count, ($changes -join '; '))
     }
     catch {
         Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message
