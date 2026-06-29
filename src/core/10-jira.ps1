@@ -2,7 +2,7 @@
 # comment. Supports three config paths checked in order:
 #   Personal : %APPDATA%\NMMTools\jira.json              (CurrentUser DPAPI)
 #   Machine  : %PROGRAMDATA%\NMMTools\jira.json          (LocalMachine DPAPI)
-#   Network  : \\prodnmmfs3\it\mattspsscripts\NMMTools\jira.json (plaintext, NTFS-restricted)
+#   Network  : \\prodnmmfs3\it\matts ps scripts\NMMTools\jira.json (plaintext, NTFS-restricted)
 # All config/network failures are returned, never thrown -
 # the Ticket Export dialog must never crash on them.
 
@@ -22,7 +22,7 @@ function Get-NmmJiraSharedConfigPath {
 }
 
 function Get-NmmJiraNetworkConfigPath {
-    return '\\prodnmmfs3\it\mattspsscripts\NMMTools\jira.json'
+    return '\\prodnmmfs3\it\matts ps scripts\NMMTools\jira.json'
 }
 
 function Test-NmmJiraKey {
