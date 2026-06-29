@@ -1212,5 +1212,17 @@
             Risk          = 'Disruptive'
             Tags          = @('quickfix','browser','backup','bookmarks')
         }
+        @{
+            Id            = 'teams-camera-deep'
+            LegacyId      = '106'
+            Name          = 'Teams Camera Deep Fix'
+            Category      = 'User'
+            Function      = 'Repair-TeamsCameraDeep'
+            Description   = 'Detect dock type (Dell D6000 DisplayLink or WD19 Thunderbolt), identify camera failure mode (consent store wiped, DisplayLink virtual camera priority, or IR camera conflict), apply targeted fix, and harden against recurrence (USB suspend off, power mgmt pinned). Logs fix history to %PROGRAMDATA%\NMMTools\camera-fix-history.json.'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('teams','camera','displaylink','docking','ir','d6000','wd19','usb')
+        }
     )
 }
