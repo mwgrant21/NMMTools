@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '9.0.0-dev',
+    [string]$Version = '9.1.0',
     [switch]$SkipAnalyzer
 )
 $ErrorActionPreference = 'Stop'
