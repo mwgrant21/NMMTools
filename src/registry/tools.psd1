@@ -1248,5 +1248,17 @@
             Risk          = 'Modifies'
             Tags          = @('outlook','search','mailbox','ost','pst','scope','index')
         }
+        @{
+            Id            = 'onbase-addin-fix'
+            LegacyId      = '109'
+            Name          = 'OnBase Add-in Permanent Enable'
+            Category      = 'User'
+            Function      = 'Repair-OnBaseAddinPermanent'
+            Description   = 'Permanently prevent Outlook from auto-disabling the Hyland/OnBase add-in. Detects Resiliency DisabledItems/CrashedAddinList state, re-enables LoadBehavior=3, adds to DoNotDisableAddinList, raises the add-in startup timeout to 5s, optionally adds HKLM registration (survives profile resets), and creates a weekly self-heal scheduled task (NMMTools-OnBaseAddinCheck). See also outlook-addin-repair.'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('onbase','hyland','outlook','addin','resiliency','loadbehavior','permanentfix')
+        }
     )
 }
