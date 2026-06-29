@@ -1,7 +1,8 @@
 # Jira Cloud ticket export. Pushes the session summary onto an existing issue as a
-# comment. Supports two config paths:
-#   Personal : %APPDATA%\NMMTools\jira.json  (CurrentUser DPAPI  - checked first)
-#   Shared   : %PROGRAMDATA%\NMMTools\jira.json (LocalMachine DPAPI - team fallback)
+# comment. Supports three config paths checked in order:
+#   Personal : %APPDATA%\NMMTools\jira.json              (CurrentUser DPAPI)
+#   Machine  : %PROGRAMDATA%\NMMTools\jira.json          (LocalMachine DPAPI)
+#   Network  : \\prodnmmfs3\it\matts ps scripts\NMMTools\jira.json (plaintext, NTFS-restricted)
 # All config/network failures are returned, never thrown -
 # the Ticket Export dialog must never crash on them.
 
@@ -18,6 +19,10 @@ function Get-NmmJiraSharedConfigPath {
     $base = [Environment]::GetFolderPath('CommonApplicationData')
     if ([string]::IsNullOrWhiteSpace($base)) { $base = $env:PROGRAMDATA }
     return (Join-Path $base 'NMMTools\jira.json')
+}
+
+function Get-NmmJiraNetworkConfigPath {
+    return '\\prodnmmfs3\it\matts ps scripts\NMMTools\jira.json'
 }
 
 function Test-NmmJiraKey {
@@ -85,10 +90,13 @@ function Save-NmmJiraSharedConfig {
 }
 
 function Import-NmmJiraConfigFromPath {
-    # Internal: load and (if needed) auto-encrypt config at a specific path/scope.
+    # Internal: load config at a specific path. When NoEncrypt is false (default)
+    # and the token is plain-text, auto-encrypts in place on first load.
+    # Pass -NoEncrypt for the network share path where write-back is unwanted.
     param(
         [Parameter(Mandatory)][string]$Path,
-        [string]$Scope = 'CurrentUser'
+        [string]$Scope = 'CurrentUser',
+        [switch]$NoEncrypt
     )
     if (-not (Test-Path $Path -PathType Leaf)) { return $null }
     try {
@@ -110,30 +118,54 @@ function Import-NmmJiraConfigFromPath {
         try { $token = Unprotect-NmmJiraToken -Cipher $rawToken -Scope $Scope } catch { return $null }
     } else {
         $token = $rawToken
-        # First load: encrypt the plain-text token in place. Non-fatal on failure.
-        try {
-            $cipher = Protect-NmmJiraToken -Plain $token -Scope $Scope
-            $out = [ordered]@{ BaseUrl = $baseUrl; Email = $email; Token = $cipher; TokenProtected = $true }
-            $dir = Split-Path $Path -Parent
-            if ($dir -and -not (Test-Path $dir -PathType Container)) {
-                New-Item -ItemType Directory -Force $dir | Out-Null
-            }
-            ($out | ConvertTo-Json) | Set-Content -Path $Path -Encoding UTF8 -ErrorAction Stop
-        } catch { }
+        if (-not $NoEncrypt) {
+            # First load: encrypt the plain-text token in place. Non-fatal on failure.
+            try {
+                $cipher = Protect-NmmJiraToken -Plain $token -Scope $Scope
+                $out = [ordered]@{ BaseUrl = $baseUrl; Email = $email; Token = $cipher; TokenProtected = $true }
+                $dir = Split-Path $Path -Parent
+                if ($dir -and -not (Test-Path $dir -PathType Container)) {
+                    New-Item -ItemType Directory -Force $dir | Out-Null
+                }
+                ($out | ConvertTo-Json) | Set-Content -Path $Path -Encoding UTF8 -ErrorAction Stop
+            } catch { }
+        }
     }
     return @{ BaseUrl = $baseUrl.TrimEnd('/'); Email = $email; Token = $token }
 }
 
+function Save-NmmJiraNetworkConfig {
+    # Writes the shared team key to the IT network share as plain text.
+    # NTFS permissions on the folder control who can read/write it.
+    # Do not set TokenProtected - the file must stay readable by all machines.
+    param(
+        [Parameter(Mandatory)][string]$BaseUrl,
+        [Parameter(Mandatory)][string]$Email,
+        [Parameter(Mandatory)][string]$Token
+    )
+    $path = Get-NmmJiraNetworkConfigPath
+    $dir  = Split-Path $path -Parent
+    if ($dir -and -not (Test-Path $dir -PathType Container)) {
+        New-Item -ItemType Directory -Force $dir | Out-Null
+    }
+    $out = [ordered]@{ BaseUrl = $BaseUrl.TrimEnd('/'); Email = $Email; Token = $Token; TokenProtected = $false }
+    ($out | ConvertTo-Json) | Set-Content -Path $path -Encoding UTF8 -ErrorAction Stop
+}
+
 function Import-NmmJiraConfig {
-    # Personal config (%APPDATA%) takes priority over shared (%PROGRAMDATA%).
-    # Tests can override the personal path via $script:JiraConfigPathOverride.
+    # Priority: personal (%APPDATA%) > machine (%PROGRAMDATA%) > network share.
+    # Tests override the personal path via $script:JiraConfigPathOverride and
+    # skip the machine/network paths so they don't pick up real credentials.
     $personal = Import-NmmJiraConfigFromPath -Path (Get-NmmJiraConfigPath) -Scope 'CurrentUser'
     if ($null -ne $personal) { return $personal }
 
-    # Only fall through to shared path when no override is set (tests use override only).
     if (-not $script:JiraConfigPathOverride) {
-        $shared = Import-NmmJiraConfigFromPath -Path (Get-NmmJiraSharedConfigPath) -Scope 'LocalMachine'
-        if ($null -ne $shared) { return $shared }
+        $machine = Import-NmmJiraConfigFromPath -Path (Get-NmmJiraSharedConfigPath) -Scope 'LocalMachine'
+        if ($null -ne $machine) { return $machine }
+
+        # Network share: plaintext, no write-back (other machines must read same file).
+        $network = Import-NmmJiraConfigFromPath -Path (Get-NmmJiraNetworkConfigPath) -NoEncrypt
+        if ($null -ne $network) { return $network }
     }
     return $null
 }
