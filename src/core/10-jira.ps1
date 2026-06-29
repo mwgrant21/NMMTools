@@ -1,6 +1,8 @@
 # Jira Cloud ticket export. Pushes the session summary onto an existing issue as a
-# comment. Config is per-user: %APPDATA%\NMMTools\jira.json, token DPAPI-encrypted
-# (CurrentUser scope). All config/network failures are returned, never thrown -
+# comment. Supports two config paths:
+#   Personal : %APPDATA%\NMMTools\jira.json  (CurrentUser DPAPI  - checked first)
+#   Shared   : %PROGRAMDATA%\NMMTools\jira.json (LocalMachine DPAPI - team fallback)
+# All config/network failures are returned, never thrown -
 # the Ticket Export dialog must never crash on them.
 
 $script:JiraConfigPathOverride = $null   # tests set this to a temp file
@@ -12,6 +14,12 @@ function Get-NmmJiraConfigPath {
     return (Join-Path $base 'NMMTools\jira.json')
 }
 
+function Get-NmmJiraSharedConfigPath {
+    $base = [Environment]::GetFolderPath('CommonApplicationData')
+    if ([string]::IsNullOrWhiteSpace($base)) { $base = $env:PROGRAMDATA }
+    return (Join-Path $base 'NMMTools\jira.json')
+}
+
 function Test-NmmJiraKey {
     param([string]$Key)
     if ([string]::IsNullOrWhiteSpace($Key)) { return $false }
@@ -19,20 +27,26 @@ function Test-NmmJiraKey {
 }
 
 function Protect-NmmJiraToken {
-    param([Parameter(Mandatory)][string]$Plain)
+    param(
+        [Parameter(Mandatory)][string]$Plain,
+        [string]$Scope = 'CurrentUser'
+    )
     Add-Type -AssemblyName System.Security -ErrorAction SilentlyContinue
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Plain)
-    $enc   = [System.Security.Cryptography.ProtectedData]::Protect(
-                $bytes, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
+    $bytes     = [System.Text.Encoding]::UTF8.GetBytes($Plain)
+    $dpiaScope = [System.Security.Cryptography.DataProtectionScope]::$Scope
+    $enc       = [System.Security.Cryptography.ProtectedData]::Protect($bytes, $null, $dpiaScope)
     return [Convert]::ToBase64String($enc)
 }
 
 function Unprotect-NmmJiraToken {
-    param([Parameter(Mandatory)][string]$Cipher)
+    param(
+        [Parameter(Mandatory)][string]$Cipher,
+        [string]$Scope = 'CurrentUser'
+    )
     Add-Type -AssemblyName System.Security -ErrorAction SilentlyContinue
-    $enc = [Convert]::FromBase64String($Cipher)
-    $dec = [System.Security.Cryptography.ProtectedData]::Unprotect(
-                $enc, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
+    $enc       = [Convert]::FromBase64String($Cipher)
+    $dpiaScope = [System.Security.Cryptography.DataProtectionScope]::$Scope
+    $dec       = [System.Security.Cryptography.ProtectedData]::Unprotect($enc, $null, $dpiaScope)
     return [System.Text.Encoding]::UTF8.GetString($dec)
 }
 
@@ -52,11 +66,33 @@ function Save-NmmJiraConfig {
     ($out | ConvertTo-Json) | Set-Content -Path $path -Encoding UTF8 -ErrorAction Stop
 }
 
-function Import-NmmJiraConfig {
-    $path = Get-NmmJiraConfigPath
-    if (-not (Test-Path $path -PathType Leaf)) { return $null }
+function Save-NmmJiraSharedConfig {
+    # Writes the team/shared key to %PROGRAMDATA%\NMMTools\jira.json.
+    # Requires admin rights. Saved as plain text; first Import encrypts with
+    # LocalMachine DPAPI so any user on that machine can read it.
+    param(
+        [Parameter(Mandatory)][string]$BaseUrl,
+        [Parameter(Mandatory)][string]$Email,
+        [Parameter(Mandatory)][string]$Token
+    )
+    $path = Get-NmmJiraSharedConfigPath
+    $dir  = Split-Path $path -Parent
+    if ($dir -and -not (Test-Path $dir -PathType Container)) {
+        New-Item -ItemType Directory -Force $dir | Out-Null
+    }
+    $out = [ordered]@{ BaseUrl = $BaseUrl.TrimEnd('/'); Email = $Email; Token = $Token; TokenProtected = $false }
+    ($out | ConvertTo-Json) | Set-Content -Path $path -Encoding UTF8 -ErrorAction Stop
+}
+
+function Import-NmmJiraConfigFromPath {
+    # Internal: load and (if needed) auto-encrypt config at a specific path/scope.
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [string]$Scope = 'CurrentUser'
+    )
+    if (-not (Test-Path $Path -PathType Leaf)) { return $null }
     try {
-        $json = Get-Content $path -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        $json = Get-Content $Path -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
     } catch { return $null }
     if (-not $json) { return $null }
 
@@ -71,21 +107,35 @@ function Import-NmmJiraConfig {
     if ($null -ne $json.TokenProtected) { $protected = [bool]$json.TokenProtected }
 
     if ($protected) {
-        try { $token = Unprotect-NmmJiraToken -Cipher $rawToken } catch { return $null }
+        try { $token = Unprotect-NmmJiraToken -Cipher $rawToken -Scope $Scope } catch { return $null }
     } else {
         $token = $rawToken
-        # First load after setup: encrypt the plain-text token in place. Non-fatal on failure.
+        # First load: encrypt the plain-text token in place. Non-fatal on failure.
         try {
-            $cipher = Protect-NmmJiraToken -Plain $token
+            $cipher = Protect-NmmJiraToken -Plain $token -Scope $Scope
             $out = [ordered]@{ BaseUrl = $baseUrl; Email = $email; Token = $cipher; TokenProtected = $true }
-            $dir = Split-Path $path -Parent
+            $dir = Split-Path $Path -Parent
             if ($dir -and -not (Test-Path $dir -PathType Container)) {
                 New-Item -ItemType Directory -Force $dir | Out-Null
             }
-            ($out | ConvertTo-Json) | Set-Content -Path $path -Encoding UTF8 -ErrorAction Stop
+            ($out | ConvertTo-Json) | Set-Content -Path $Path -Encoding UTF8 -ErrorAction Stop
         } catch { }
     }
     return @{ BaseUrl = $baseUrl.TrimEnd('/'); Email = $email; Token = $token }
+}
+
+function Import-NmmJiraConfig {
+    # Personal config (%APPDATA%) takes priority over shared (%PROGRAMDATA%).
+    # Tests can override the personal path via $script:JiraConfigPathOverride.
+    $personal = Import-NmmJiraConfigFromPath -Path (Get-NmmJiraConfigPath) -Scope 'CurrentUser'
+    if ($null -ne $personal) { return $personal }
+
+    # Only fall through to shared path when no override is set (tests use override only).
+    if (-not $script:JiraConfigPathOverride) {
+        $shared = Import-NmmJiraConfigFromPath -Path (Get-NmmJiraSharedConfigPath) -Scope 'LocalMachine'
+        if ($null -ne $shared) { return $shared }
+    }
+    return $null
 }
 
 function ConvertTo-NmmJiraError {
@@ -140,8 +190,9 @@ function Send-NmmJiraComment {
     }
 
     $commentUrl = '{0}/rest/api/2/issue/{1}/comment' -f $cfg.BaseUrl, $Key
-    $wrapped    = "{{code}}`n{0}`n{{code}}" -f $Body
-    $payload    = @{ body = $wrapped } | ConvertTo-Json
+    $attribution = 'NMMToolkit export by {0} on {1}' -f $env:USERNAME, $env:COMPUTERNAME
+    $wrapped     = "{0}`n{{code}}`n{1}`n{{code}}" -f $attribution, $Body
+    $payload     = @{ body = $wrapped } | ConvertTo-Json
     try {
         Invoke-RestMethod -Method Post -Uri $commentUrl -Headers $headers `
             -ContentType 'application/json' -Body $payload -TimeoutSec 30 -ErrorAction Stop | Out-Null
