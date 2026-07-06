@@ -26,7 +26,7 @@ specific tools.
    - First act inside try: `$run = New-ToolRun -Id '<registry Id>'` - the Id
      string must equal the registry Id exactly.
    - Every code path ends in exactly one `Complete-ToolRun` with Status one
-     of Success/Warning/Failed/Skipped/Refused; catch block does
+     of Success/Warning/Failed/Skipped (Refused is dispatcher-issued only - a tool must never pass it to Complete-ToolRun); catch block does
      `Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message`.
    - All output via `Write-ToolOutput`; all prompting via `Read-ToolChoice`
      with `-Silent:$Silent`. Zero `Write-Host`, `Read-Host`.

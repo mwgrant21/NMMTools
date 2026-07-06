@@ -42,13 +42,14 @@ Otherwise read the staged change:
 
     git -C "$env:USERPROFILE\Claude-Files" --no-pager diff --cached --stat
 
-and read `git -C C:\Users\IT\Desktop\NMMToolkit log --oneline` since the
-last ship to know WHAT is in this release.
+and read the NMMToolkit commits since the last ship - use the date of the previous nmm-toolkit commit in Claude-Files (git -C "$env:USERPROFILE\Claude-Files" log -1 --format=%ci -- nmm-toolkit/) as the --since anchor for git log in NMMToolkit - to know WHAT is in this release.
 
 ## Step 5 - commit message and push
 
 Compose a message: first line "NMMTools vX.Y.Z - <one-line summary>", then
 a bullet per tool added/changed (from the NMMToolkit commits). Then:
+
+Version = the v number stamped in the dist\NMMTools.ps1 header (set by build.ps1 -Version, default currently 9.1.0). Bump build.ps1's default first if this release warrants a version change.
 
     & "$env:USERPROFILE\Claude-Files\nmm-toolkit\sync.ps1" -Message "<the message>"
 

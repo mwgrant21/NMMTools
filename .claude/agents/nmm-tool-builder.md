@@ -43,7 +43,9 @@ Required reading before any work, in this order:
 5. **Self-review.** Apply Part 1 of the nmm-review checklist to your own
    diff. Then dispatch `ps-code-reviewer` and `security-code-reviewer`
    (Part 2 of the checklist) with your diff and the checklist text. Apply
-   confirmed findings; rerun build + tests after any change.
+   confirmed findings; rerun build + tests after any change. If you cannot
+   dispatch agents from your context, apply the Part 2 review criteria
+   yourself and flag in your report that external review was skipped.
 6. **Commit locally.**
    `git add <tool file> src\registry\tools.psd1`
    `git commit -m "feat(<category>): add <tool-id> tool"`

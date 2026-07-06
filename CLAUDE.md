@@ -51,8 +51,10 @@ function Verb-Noun {
 }
 ```
 
-   Statuses: Success | Warning | Failed | Skipped | Refused. Every code path
-   must end in exactly one Complete-ToolRun.
+   Statuses: Success | Warning | Failed | Skipped. Every code path
+   must end in exactly one Complete-ToolRun. Refused is dispatcher-issued
+   only (silent/admin gates) - never pass it to Complete-ToolRun; it
+   appears only in the artifact exit-code contract.
 
 2. Add the registry entry in `src\registry\tools.psd1` - fields, exactly
    these, in this order:
