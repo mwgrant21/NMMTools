@@ -1,3 +1,4 @@
 dist/
 *.log
 .claude/agent-memory/
+testResults.xml
