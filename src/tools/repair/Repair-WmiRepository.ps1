@@ -2,6 +2,65 @@ function Repair-WmiRepository {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 
+    # --- Private helpers (nested: not registry-scanned as tools) ---
+
+    function Invoke-WmiVerifyRepositoryCheck {
+        # Runs winmgmt /verifyrepository once, captures its exit code alongside the
+        # parsed text verdict, and returns both so no caller has to duplicate the
+        # native-exe-plus-parse dance (house pattern: see Invoke-DISMRepair.ps1).
+        # Verdict is one of: Inconsistent | Consistent | Unrecognized | NotRun.
+        # NOTE: check 'inconsistent' before 'consistent' - 'consistent' is a
+        # substring of 'inconsistent', so the order is deliberate and load-bearing.
+        $result = [PSCustomObject]@{
+            Output   = ''
+            ExitCode = $null
+            Ran      = $false
+            Verdict  = 'NotRun'
+        }
+        try {
+            $out = (& winmgmt.exe /verifyrepository 2>&1 | Out-String)
+            $result.ExitCode = $LASTEXITCODE
+            $result.Output = $out.Trim()
+            $result.Ran = $true
+            if ($result.Output -match 'inconsistent') {
+                $result.Verdict = 'Inconsistent'
+            } elseif ($result.Output -match 'consistent') {
+                $result.Verdict = 'Consistent'
+            } else {
+                $result.Verdict = 'Unrecognized'
+            }
+        } catch {
+            $result.Output = $_.Exception.Message
+        }
+        return $result
+    }
+
+    function Invoke-WmiDependentRestart {
+        # Attempts Start-Service on each supplied service, confirms it actually
+        # reached Running (not just that Start-Service didn't throw), and reports
+        # which ones are confirmed restarted vs. which are still down.
+        param([Parameter(Mandatory)][AllowNull()][array]$Services)
+        $restarted = New-Object System.Collections.ArrayList
+        $failed = New-Object System.Collections.ArrayList
+        foreach ($svc in @($Services)) {
+            try {
+                Start-Service -Name $svc.Name -ErrorAction Stop
+                $cur = Get-Service -Name $svc.Name -ErrorAction SilentlyContinue
+                if ($cur -and $cur.Status -eq 'Running') {
+                    [void]$restarted.Add($svc.Name)
+                    Write-ToolOutput ('Restarted dependent service: {0}' -f $svc.Name) -Level Info
+                } else {
+                    [void]$failed.Add($svc.Name)
+                    Write-ToolOutput ('Dependent service {0} did not reach Running state after Start-Service' -f $svc.Name) -Level Warning
+                }
+            } catch {
+                [void]$failed.Add($svc.Name)
+                Write-ToolOutput ('Could not restart dependent service {0}: {1}' -f $svc.Name, $_.Exception.Message) -Level Warning
+            }
+        }
+        return [PSCustomObject]@{ Restarted = @($restarted); Failed = @($failed) }
+    }
+
     $run = $null
     try {
         $run = New-ToolRun -Id 'wmi-repair'
@@ -29,22 +88,37 @@ function Repair-WmiRepository {
         }
 
         # --- Report: winmgmt /verifyrepository verdict ---
+        $verifyResult = Invoke-WmiVerifyRepositoryCheck
         $verifyInconsistent = $false
-        try {
-            $verifyOut = & winmgmt.exe /verifyrepository 2>&1 | Out-String
-            $verifyOut = $verifyOut.Trim()
-            Write-ToolOutput ('winmgmt /verifyrepository: {0}' -f $verifyOut) -Level Info
-            if ($verifyOut -match 'inconsistent') {
-                $verifyInconsistent = $true
-                Write-ToolOutput 'WMI repository verdict: INCONSISTENT' -Level Warning
-            } elseif ($verifyOut -match 'consistent') {
-                Write-ToolOutput 'WMI repository verdict: consistent' -Level Detail
-            } else {
-                Write-ToolOutput 'WMI repository verdict: unrecognized output' -Level Warning
+        $verifyConfirmedOk = $false
+        if ($verifyResult.Ran) {
+            Write-ToolOutput ('winmgmt /verifyrepository: {0}' -f $verifyResult.Output) -Level Info
+            if ($verifyResult.ExitCode -ne 0) {
+                Write-ToolOutput ('winmgmt /verifyrepository exited {0}' -f $verifyResult.ExitCode) -Level Warning
             }
-        } catch {
-            Write-ToolOutput ('winmgmt /verifyrepository could not be run: {0}' -f $_.Exception.Message) -Level Warning
+            switch ($verifyResult.Verdict) {
+                'Inconsistent' {
+                    $verifyInconsistent = $true
+                    Write-ToolOutput 'WMI repository verdict: INCONSISTENT' -Level Warning
+                }
+                'Consistent' {
+                    if ($verifyResult.ExitCode -eq 0) {
+                        $verifyConfirmedOk = $true
+                        Write-ToolOutput 'WMI repository verdict: consistent' -Level Detail
+                    } else {
+                        Write-ToolOutput ('WMI repository reported consistent but winmgmt exited {0}' -f $verifyResult.ExitCode) -Level Warning
+                    }
+                }
+                default {
+                    Write-ToolOutput 'WMI repository verdict: unrecognized output' -Level Warning
+                }
+            }
+        } else {
+            Write-ToolOutput ('winmgmt /verifyrepository could not be run: {0}' -f $verifyResult.Output) -Level Warning
         }
+        # Tri-state: verifyInconsistent (confirmed bad), verifyConfirmedOk (confirmed
+        # good), or neither (could not verify - never claim "consistent" for this case).
+        $verifyUnconfirmed = (-not $verifyInconsistent -and -not $verifyConfirmedOk)
 
         # --- Report: live CIM smoke query ---
         $cimOk = $false
@@ -59,7 +133,12 @@ function Repair-WmiRepository {
         # --- Report: recent WinMgmt-related Application event log errors ---
         Write-ToolOutput 'Recent WinMgmt/WMI Application log entries (last 7 days, up to 10):' -Level Info
         try {
-            $events = @(Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddDays(-7) } -ErrorAction Stop |
+            # MaxEvents bounds the raw log scan (newest 500 matching LogName/StartTime)
+            # before the ProviderName regex filter runs, instead of walking the whole
+            # 7-day Application log. The regex stays broader than an exact ProviderName
+            # match so near-miss provider names (e.g. Microsoft-Windows-WMI-Activity)
+            # are still caught.
+            $events = @(Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddDays(-7) } -MaxEvents 500 -ErrorAction Stop |
                 Where-Object { $_.ProviderName -match 'WinMgmt|WMI' } |
                 Select-Object -First 10)
             if ($events.Count -eq 0) {
@@ -83,18 +162,29 @@ function Repair-WmiRepository {
 
             'VerifyRepository' {
                 Write-ToolOutput 'Re-running winmgmt /verifyrepository...' -Level Info
-                try {
-                    $out = (& winmgmt.exe /verifyrepository 2>&1 | Out-String).Trim()
-                    Write-ToolOutput $out -Level Detail
-                    if ($out -match 'inconsistent') {
-                        Complete-ToolRun $run -Status Warning -Summary 'WMI repository verified as INCONSISTENT'
-                    } elseif ($out -match 'consistent') {
-                        Complete-ToolRun $run -Status Success -Summary 'WMI repository verified as consistent'
-                    } else {
-                        Complete-ToolRun $run -Status Warning -Summary 'WMI repository verify returned an unrecognized result'
+                $result = Invoke-WmiVerifyRepositoryCheck
+                if (-not $result.Ran) {
+                    Complete-ToolRun $run -Status Failed -Summary ('Verify failed: {0}' -f $result.Output)
+                    return
+                }
+                Write-ToolOutput $result.Output -Level Detail
+                if ($result.ExitCode -ne 0) {
+                    Write-ToolOutput ('winmgmt /verifyrepository exited {0}' -f $result.ExitCode) -Level Warning
+                }
+                switch ($result.Verdict) {
+                    'Inconsistent' {
+                        Complete-ToolRun $run -Status Warning -Summary ('WMI repository verified as INCONSISTENT (exit code {0})' -f $result.ExitCode)
                     }
-                } catch {
-                    Complete-ToolRun $run -Status Failed -Summary ('Verify failed: {0}' -f $_.Exception.Message)
+                    'Consistent' {
+                        if ($result.ExitCode -eq 0) {
+                            Complete-ToolRun $run -Status Success -Summary ('WMI repository verified as consistent (exit code {0})' -f $result.ExitCode)
+                        } else {
+                            Complete-ToolRun $run -Status Warning -Summary ('WMI repository reported consistent but winmgmt exited {0}' -f $result.ExitCode)
+                        }
+                    }
+                    default {
+                        Complete-ToolRun $run -Status Warning -Summary ('WMI repository verify returned an unrecognized result (exit code {0})' -f $result.ExitCode)
+                    }
                 }
             }
 
@@ -117,25 +207,54 @@ function Repair-WmiRepository {
                 }
 
                 $wasRunning = @($dependents | Where-Object { $_.Status -eq 'Running' })
+                $depResult = [PSCustomObject]@{ Restarted = @(); Failed = @() }
+
                 try {
                     Write-ToolOutput 'Stopping winmgmt service (and running dependents)...' -Level Info
                     Stop-Service -Name 'winmgmt' -Force -ErrorAction Stop
-                    Write-ToolOutput 'Starting winmgmt service...' -Level Info
-                    Start-Service -Name 'winmgmt' -ErrorAction Stop
 
-                    foreach ($d in $wasRunning) {
+                    Write-ToolOutput 'Starting winmgmt service...' -Level Info
+                    try {
+                        Start-Service -Name 'winmgmt' -ErrorAction Stop
+                    } catch {
+                        Write-ToolOutput ('winmgmt failed to start: {0}; retrying once...' -f $_.Exception.Message) -Level Warning
                         try {
-                            Start-Service -Name $d.Name -ErrorAction Stop
-                            Write-ToolOutput ('Restarted dependent service: {0}' -f $d.Name) -Level Info
+                            Start-Service -Name 'winmgmt' -ErrorAction Stop
                         } catch {
-                            Write-ToolOutput ('Could not restart dependent service {0}: {1}' -f $d.Name, $_.Exception.Message) -Level Warning
+                            Write-ToolOutput ('winmgmt retry start also failed: {0}' -f $_.Exception.Message) -Level Warning
                         }
                     }
 
-                    $final = Get-Service -Name 'winmgmt'
-                    Complete-ToolRun $run -Status Success -Summary ('WMI service restarted (Status={0}); {1} dependent service(s) restarted' -f $final.Status, $wasRunning.Count)
+                    $depResult = Invoke-WmiDependentRestart -Services $wasRunning
                 } catch {
-                    Complete-ToolRun $run -Status Failed -Summary ('WMI service restart failed: {0}' -f $_.Exception.Message)
+                    # winmgmt did not stop cleanly. Do not strand every dependent on a
+                    # bare exception - still attempt to bring winmgmt back up and
+                    # restart whatever was running before we touched anything.
+                    Write-ToolOutput ('Stopping winmgmt failed: {0}' -f $_.Exception.Message) -Level Warning
+                    Write-ToolOutput 'Still attempting to bring winmgmt and its dependents back up...' -Level Info
+                    try {
+                        Start-Service -Name 'winmgmt' -ErrorAction Stop
+                    } catch {
+                        Write-ToolOutput ('Attempt to start winmgmt after stop failure also failed: {0}' -f $_.Exception.Message) -Level Warning
+                    }
+                    $depResult = Invoke-WmiDependentRestart -Services $wasRunning
+                }
+
+                # Residual-state check: runs regardless of which path above executed,
+                # so a failed restart is never silently reported as healthy.
+                $restartedCount = @($depResult.Restarted).Count
+                $winmgmtFinal = Get-Service -Name 'winmgmt' -ErrorAction SilentlyContinue
+                $finalStatusText = if ($winmgmtFinal) { $winmgmtFinal.Status } else { 'Unknown' }
+                $winmgmtDown = (-not $winmgmtFinal -or $winmgmtFinal.Status -ne 'Running')
+                $depsDown = @($depResult.Failed)
+
+                if ($winmgmtDown) {
+                    $downList = (@('winmgmt') + $depsDown) -join ', '
+                    Complete-ToolRun $run -Status Failed -Summary ('WMI service restart failed (winmgmt Status={0}); {1} of {2} dependent service(s) restarted; still down: {3}' -f $finalStatusText, $restartedCount, $wasRunning.Count, $downList)
+                } elseif ($depsDown.Count -gt 0) {
+                    Complete-ToolRun $run -Status Warning -Summary ('WMI service restarted (Status={0}) but {1} of {2} dependent service(s) failed to restart: {3}' -f $finalStatusText, $depsDown.Count, $wasRunning.Count, ($depsDown -join ', '))
+                } else {
+                    Complete-ToolRun $run -Status Success -Summary ('WMI service restarted (Status={0}); {1} of {2} dependent service(s) restarted' -f $finalStatusText, $restartedCount, $wasRunning.Count)
                 }
             }
 
@@ -143,8 +262,13 @@ function Repair-WmiRepository {
                 Write-ToolOutput 'Running winmgmt /salvagerepository...' -Level Info
                 try {
                     $out = (& winmgmt.exe /salvagerepository 2>&1 | Out-String).Trim()
+                    $exitCode = $LASTEXITCODE
                     Write-ToolOutput $out -Level Detail
-                    Complete-ToolRun $run -Status Success -Summary 'WMI repository salvage completed'
+                    if ($exitCode -eq 0) {
+                        Complete-ToolRun $run -Status Success -Summary ('WMI repository salvage completed (exit code {0})' -f $exitCode)
+                    } else {
+                        Complete-ToolRun $run -Status Failed -Summary ('WMI repository salvage failed (exit code {0})' -f $exitCode)
+                    }
                 } catch {
                     Complete-ToolRun $run -Status Failed -Summary ('Salvage failed: {0}' -f $_.Exception.Message)
                 }
@@ -153,17 +277,34 @@ function Repair-WmiRepository {
             'ResetRepository' {
                 Write-ToolOutput 'WARNING: Resetting the WMI repository rebuilds it from scratch (winmgmt /resetrepository).' -Level Warning
                 Write-ToolOutput 'WARNING: SCCM, monitoring agents, and other WMI-dependent management agents may stop reporting and need re-registration/repair after this.' -Level Warning
-                $gate = Read-ToolChoice -Prompt 'Type RESET to permanently reset the WMI repository, or Cancel to abort' `
-                    -Choices @('RESET', 'Cancel') -Default 'Cancel' -Silent:$Silent
-                if ($gate -ne 'RESET') {
+
+                # Exact-match typed confirm: Read-ToolChoice prefix-matches its
+                # -Choices (a single 'r' would fire the reset), so this irreversible
+                # gate uses a direct, case-sensitive Read-Host instead. Read-Host is
+                # reached only from this interactive-only action (the action menu
+                # above defaults to None, and -Silent auto-selects None before this
+                # point is ever reached), but the try/catch still fails safe to
+                # Cancel if a non-interactive host somehow gets here.
+                try {
+                    $typed = Read-Host 'Type RESET to permanently reset the WMI repository, or press Enter to cancel'
+                } catch {
+                    $typed = $null
+                }
+                if ($typed -cne 'RESET') {
                     Complete-ToolRun $run -Status Skipped -Summary 'User declined WMI repository reset'
                     return
                 }
+
                 try {
                     Write-ToolOutput 'Running winmgmt /resetrepository...' -Level Info
                     $out = (& winmgmt.exe /resetrepository 2>&1 | Out-String).Trim()
+                    $exitCode = $LASTEXITCODE
                     Write-ToolOutput $out -Level Detail
-                    Complete-ToolRun $run -Status Success -Summary 'WMI repository reset; re-register/repair SCCM and other management agents if they stop reporting'
+                    if ($exitCode -eq 0) {
+                        Complete-ToolRun $run -Status Success -Summary ('WMI repository reset (exit code {0}); re-register/repair SCCM and other management agents if they stop reporting' -f $exitCode)
+                    } else {
+                        Complete-ToolRun $run -Status Failed -Summary ('WMI repository reset failed (exit code {0})' -f $exitCode)
+                    }
                 } catch {
                     Complete-ToolRun $run -Status Failed -Summary ('Reset failed: {0}' -f $_.Exception.Message)
                 }
@@ -172,6 +313,8 @@ function Repair-WmiRepository {
             default {
                 if (-not $cimOk -or $verifyInconsistent) {
                     Complete-ToolRun $run -Status Warning -Summary 'WMI health issue detected (see report above); no action taken'
+                } elseif ($verifyUnconfirmed) {
+                    Complete-ToolRun $run -Status Warning -Summary 'WMI repository consistency could not be confirmed (see report above); no action taken'
                 } else {
                     Complete-ToolRun $run -Status Success -Summary 'WMI healthy (service running, repository consistent, CIM query succeeded); no action taken'
                 }
