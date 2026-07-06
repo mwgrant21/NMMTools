@@ -1272,5 +1272,17 @@
             Risk          = 'ReadOnly'
             Tags          = @('certificate','expiry','ssl','tls','security','localmachine')
         }
+        @{
+            Id            = 'wmi-repair'
+            LegacyId      = '111'
+            Name          = 'WMI Repository Repair'
+            Category      = 'Repair'
+            Function      = 'Repair-WmiRepository'
+            Description   = 'Checks WMI repository health and repairs it if corrupted'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('wmi', 'repository', 'repair', 'cim')
+        }
     )
 }
