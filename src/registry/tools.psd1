@@ -1260,5 +1260,17 @@
             Risk          = 'Modifies'
             Tags          = @('onbase','hyland','outlook','addin','resiliency','loadbehavior','permanentfix')
         }
+        @{
+            Id            = 'cert-expiry'
+            LegacyId      = '110'
+            Name          = 'Certificate Expiry Report'
+            Category      = 'Security'
+            Function      = 'Get-CertificateExpiry'
+            Description   = 'Reports machine certificates (LocalMachine\My) expiring within 60 days or already expired, with subject, thumbprint, NotAfter, and days remaining'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('certificate','expiry','ssl','tls','security','localmachine')
+        }
     )
 }
