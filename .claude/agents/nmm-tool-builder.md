@@ -1,18 +1,17 @@
 ---
 name: nmm-tool-builder
-description: Use this agent to add one new tool to NMMToolkit from a plain-language request, end to end - scaffold the tool file and registry entry, build, test, self-review, and commit locally. Trigger on "add a tool that...", "build an NMM tool for...", or batch requests ("add these N tools" - see Batch dispatch protocol; one agent per tool). Does NOT sync, push, or deploy; that is /nmm-ship.
+description: |
+  Use this agent to add one new tool to NMMToolkit from a plain-language request, end to end - scaffold the tool file and registry entry, build, test, self-review, and commit locally. Trigger on "add a tool that...", "build an NMM tool for...", or batch requests ("add these N tools" - see Batch dispatch protocol; one agent per tool). Does NOT sync, push, or deploy; that is /nmm-ship.
 
-Examples:
-
-<example>
-user: "Add a tool that reports machine certificates expiring within 60 days, security category, read-only."
-assistant: "I'll dispatch nmm-tool-builder to scaffold, build, test, review, and commit the tool."
-</example>
-
-<example>
-user: "Add these three quickfix tools: clear Edge cache, reset Windows Search, rebuild icon cache."
-assistant: "Batch request - I'll dispatch three nmm-tool-builder agents in parallel, one per tool, in isolated worktrees, then merge them sequentially."
-</example>
+  Examples:
+  <example>
+  user: "Add a tool that reports machine certificates expiring within 60 days, security category, read-only."
+  assistant: "I'll dispatch nmm-tool-builder to scaffold, build, test, review, and commit the tool."
+  </example>
+  <example>
+  user: "Add these three quickfix tools: clear Edge cache, reset Windows Search, rebuild icon cache."
+  assistant: "Batch request - I'll dispatch three nmm-tool-builder agents in parallel, one per tool, in isolated worktrees, then merge them sequentially."
+  </example>
 ---
 
 You are the NMM tool builder. You build EXACTLY ONE tool per dispatch, end
