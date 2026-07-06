@@ -235,7 +235,12 @@ function Repair-WmiRepository {
                     try {
                         Start-Service -Name 'winmgmt' -ErrorAction Stop
                     } catch {
-                        Write-ToolOutput ('Attempt to start winmgmt after stop failure also failed: {0}' -f $_.Exception.Message) -Level Warning
+                        Write-ToolOutput ('Attempt to start winmgmt after stop failure failed: {0}; retrying once...' -f $_.Exception.Message) -Level Warning
+                        try {
+                            Start-Service -Name 'winmgmt' -ErrorAction Stop
+                        } catch {
+                            Write-ToolOutput ('winmgmt retry start after stop failure also failed: {0}' -f $_.Exception.Message) -Level Warning
+                        }
                     }
                     $depResult = Invoke-WmiDependentRestart -Services $wasRunning
                 }
@@ -278,19 +283,18 @@ function Repair-WmiRepository {
                 Write-ToolOutput 'WARNING: Resetting the WMI repository rebuilds it from scratch (winmgmt /resetrepository).' -Level Warning
                 Write-ToolOutput 'WARNING: SCCM, monitoring agents, and other WMI-dependent management agents may stop reporting and need re-registration/repair after this.' -Level Warning
 
-                # Exact-match typed confirm: Read-ToolChoice prefix-matches its
-                # -Choices (a single 'r' would fire the reset), so this irreversible
-                # gate uses a direct, case-sensitive Read-Host instead. Read-Host is
-                # reached only from this interactive-only action (the action menu
-                # above defaults to None, and -Silent auto-selects None before this
-                # point is ever reached), but the try/catch still fails safe to
-                # Cancel if a non-interactive host somehow gets here.
-                try {
-                    $typed = Read-Host 'Type RESET to permanently reset the WMI repository, or press Enter to cancel'
-                } catch {
-                    $typed = $null
-                }
-                if ($typed -cne 'RESET') {
+                # Exact-match typed confirm: Read-ToolChoice's default prefix-match
+                # would let a single 'r' fire the reset, so this irreversible gate
+                # uses -ExactMatch, which requires a full, case-sensitive match
+                # against 'RESET' on the console path. Tools never call Read-Host
+                # directly (see src\core\02-output.ps1) - under the GUI's bare
+                # runspace, a bare Read-Host throws and is silently swallowed as a
+                # decline, so it always ran as "cancel" even when the technician
+                # picked ResetRepository. Read-ToolChoice's GUI path is unaffected:
+                # a click on the 'RESET' button is already an explicit selection.
+                $typed = Read-ToolChoice -Prompt 'Type RESET to permanently reset the WMI repository' `
+                    -Choices @('RESET', 'Cancel') -Default 'Cancel' -Silent:$Silent -ExactMatch
+                if ($typed -ne 'RESET') {
                     Complete-ToolRun $run -Status Skipped -Summary 'User declined WMI repository reset'
                     return
                 }

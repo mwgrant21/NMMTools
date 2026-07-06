@@ -65,3 +65,34 @@ Describe 'Read-ToolChoice' {
         { Read-ToolChoice -Prompt 'x' -Choices @('Yes','No') -Default 'Abort' -Silent } | Should -Throw
     }
 }
+
+Describe 'Read-ToolChoice -ExactMatch' {
+    It 'returns the choice on an exact, case-sensitive match' {
+        Mock Read-Host { 'RESET' }
+        Read-ToolChoice -Prompt 'Confirm' -Choices @('RESET','Cancel') -Default 'Cancel' -ExactMatch | Should -Be 'RESET'
+    }
+
+    It 'does not select on a prefix match; re-prompts then falls through to the default on Enter' {
+        $script:promptCalls = 0
+        Mock Read-Host {
+            $script:promptCalls++
+            if ($script:promptCalls -eq 1) { 'R' } else { '' }
+        }
+        Read-ToolChoice -Prompt 'Confirm' -Choices @('RESET','Cancel') -Default 'Cancel' -ExactMatch | Should -Be 'Cancel'
+        $script:promptCalls | Should -Be 2
+    }
+
+    It 'does not select on a wrong-case match; re-prompts then falls through to the default on Enter' {
+        $script:promptCalls = 0
+        Mock Read-Host {
+            $script:promptCalls++
+            if ($script:promptCalls -eq 1) { 'reset' } else { '' }
+        }
+        Read-ToolChoice -Prompt 'Confirm' -Choices @('RESET','Cancel') -Default 'Cancel' -ExactMatch | Should -Be 'Cancel'
+        $script:promptCalls | Should -Be 2
+    }
+
+    It 'returns the default in silent mode without prompting, even with -ExactMatch' {
+        Read-ToolChoice -Prompt 'Confirm' -Choices @('RESET','Cancel') -Default 'Cancel' -Silent -ExactMatch | Should -Be 'Cancel'
+    }
+}

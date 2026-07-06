@@ -66,7 +66,14 @@ function Read-ToolChoice {
         [Parameter(Mandatory)][string]$Prompt,
         [ValidateCount(1,100)][string[]]$Choices = @('Yes','No'),
         [Parameter(Mandatory)][string]$Default,
-        [switch]$Silent
+        [switch]$Silent,
+        # Console path only: require an exact, case-sensitive match against a
+        # choice name instead of the default prefix-match. Use for destructive
+        # confirms where a single leading letter must not select the action
+        # (e.g. typing 'R' must not select 'RESET'). GUI and Silent paths are
+        # unaffected - a GUI button click is already an explicit selection, and
+        # Silent always auto-selects -Default.
+        [switch]$ExactMatch
     )
     if ($Choices -notcontains $Default) {
         throw "Read-ToolChoice: Default '$Default' is not one of the choices ($($Choices -join '/'))."
@@ -104,6 +111,13 @@ function Read-ToolChoice {
             return $Default
         }
         if ([string]::IsNullOrWhiteSpace($answer)) { return $Default }
+        if ($ExactMatch) {
+            $typed = $answer.Trim()
+            $hits = @($Choices | Where-Object { $_ -ceq $typed })
+            if ($hits.Count -eq 1) { return $hits[0] }
+            Write-ToolOutput "Invalid choice. Enter one of: $choiceText (exact match, case-sensitive)" -Level Warning
+            continue
+        }
         $needle = $answer.Trim().ToLower()
         $hits = @($Choices | Where-Object { $_.ToLower().StartsWith($needle) })
         if ($hits.Count -eq 1) { return $hits[0] }
