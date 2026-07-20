@@ -7,13 +7,18 @@ function Get-RingCentralStatus {
         $run = New-ToolRun -Id 'ringcentral-status'
 
         # --- Install detection ---
-        $installPaths = @(
-            (Join-Path $env:LOCALAPPDATA 'Programs\RingCentral'),
-            (Join-Path $env:LOCALAPPDATA 'Glip')
+        $installCandidates = @(
+            @{ Path = (Join-Path $env:LOCALAPPDATA 'Programs\RingCentral'); ProcessName = 'RingCentral' },
+            @{ Path = (Join-Path $env:LOCALAPPDATA 'Glip');                 ProcessName = 'Glip' }
         )
-        $installDir = $null
-        foreach ($p in $installPaths) {
-            if (Test-Path -LiteralPath $p) { $installDir = $p; break }
+        $installDir  = $null
+        $processName = $null
+        foreach ($c in $installCandidates) {
+            if (Test-Path -LiteralPath $c.Path) {
+                $installDir  = $c.Path
+                $processName = $c.ProcessName
+                break
+            }
         }
         if (-not $installDir) {
             Write-ToolOutput 'RingCentral is not installed (no matching install directory found under AppData\Local)' -Level Warning
@@ -32,10 +37,10 @@ function Get-RingCentralStatus {
         Write-ToolOutput ('Version: {0}' -f $version) -Level Info
 
         # --- Process check ---
-        $process = Get-Process -Name 'RingCentral' -ErrorAction SilentlyContinue | Select-Object -First 1
+        $process = Get-Process -Name $processName -ErrorAction SilentlyContinue | Select-Object -First 1
         $processLevel = if ($process) { 'Info' } else { 'Warning' }
         $processText  = if ($process) { 'Running' } else { 'Not running' }
-        Write-ToolOutput ('Process: {0}' -f $processText) -Level $processLevel
+        Write-ToolOutput ('Process ({0}): {1}' -f $processName, $processText) -Level $processLevel
 
         # --- Default audio device ---
         $audioDevice = Get-CimInstance -ClassName Win32_SoundDevice -ErrorAction SilentlyContinue |
@@ -45,26 +50,30 @@ function Get-RingCentralStatus {
         Write-ToolOutput ('Audio device: {0}' -f $audioText) -Level $audioLevel
 
         # --- Log scan ---
-        $logDir = Join-Path $env:LOCALAPPDATA 'RingCentral\RingCentralLogs'
         $logErrors = New-Object System.Collections.Generic.List[string]
-        if (Test-Path -LiteralPath $logDir) {
-            $latestLog = Get-ChildItem -LiteralPath $logDir -Filter '*.log' -ErrorAction SilentlyContinue |
-                Sort-Object LastWriteTime -Descending | Select-Object -First 1
-            if ($latestLog) {
-                try {
-                    $tail = Get-Content -LiteralPath $latestLog.FullName -ErrorAction SilentlyContinue | Select-Object -Last 300
-                    $hits = @($tail | Where-Object { $_ -match 'error|fail|disconnect|timeout' })
-                    foreach ($h in ($hits | Select-Object -Last 5)) {
-                        $logErrors.Add($h.Trim())
-                    }
-                } catch { }
+        if ($processName -eq 'RingCentral') {
+            $logDir = Join-Path $env:LOCALAPPDATA 'RingCentral\RingCentralLogs'
+            if (Test-Path -LiteralPath $logDir) {
+                $latestLog = Get-ChildItem -LiteralPath $logDir -Filter '*.log' -ErrorAction SilentlyContinue |
+                    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                if ($latestLog) {
+                    try {
+                        $tail = Get-Content -LiteralPath $latestLog.FullName -ErrorAction SilentlyContinue | Select-Object -Last 300
+                        $hits = @($tail | Where-Object { $_ -match 'error|fail|disconnect|timeout' })
+                        foreach ($h in ($hits | Select-Object -Last 5)) {
+                            $logErrors.Add($h.Trim())
+                        }
+                    } catch { }
+                }
             }
-        }
-        if ($logErrors.Count -gt 0) {
-            Write-ToolOutput ('Recent log errors ({0}):' -f $logErrors.Count) -Level Warning
-            foreach ($e in $logErrors) { Write-ToolOutput ('  {0}' -f $e) -Level Detail }
+            if ($logErrors.Count -gt 0) {
+                Write-ToolOutput ('Recent log errors ({0}):' -f $logErrors.Count) -Level Warning
+                foreach ($e in $logErrors) { Write-ToolOutput ('  {0}' -f $e) -Level Detail }
+            } else {
+                Write-ToolOutput 'No recent log errors found' -Level Detail
+            }
         } else {
-            Write-ToolOutput 'No recent log errors found' -Level Detail
+            Write-ToolOutput 'Log location not confirmed for legacy Glip-branded install; skipping log scan' -Level Detail
         }
 
         # --- Reachability ---
