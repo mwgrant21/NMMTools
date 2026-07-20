@@ -1344,5 +1344,17 @@
             Risk          = 'ReadOnly'
             Tags          = @('bundle', 'diagnostic', 'ticket', 'export', 'zip')
         }
+        @{
+            Id            = 'globalprotect-status'
+            LegacyId      = '117'
+            Name          = 'GlobalProtect VPN Status'
+            Category      = 'Business'
+            Function      = 'Get-GlobalProtectStatus'
+            Description   = 'Checks GlobalProtect VPN connection state, service health, and recent log errors'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('globalprotect', 'vpn', 'paloalto', 'business')
+        }
     )
 }
