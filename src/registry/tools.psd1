@@ -1332,5 +1332,17 @@
             Risk          = 'ReadOnly'
             Tags          = @('crash', 'dump', 'wer', 'application')
         }
+        @{
+            Id            = 'diagnostic-bundle'
+            LegacyId      = '116'
+            Name          = 'NMM Diagnostic Bundle'
+            Category      = 'Diagnostics'
+            Function      = 'Invoke-DiagnosticBundle'
+            Description   = 'Runs a set of diagnostic checks and zips raw output plus a health summary and ticket-ready text to the Desktop'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('bundle', 'diagnostic', 'ticket', 'export', 'zip')
+        }
     )
 }
