@@ -1284,5 +1284,17 @@
             Risk          = 'Disruptive'
             Tags          = @('wmi', 'repository', 'repair', 'cim')
         }
+        @{
+            Id            = 'reliability-history'
+            LegacyId      = '112'
+            Name          = 'Reliability Monitor History'
+            Category      = 'Diagnostics'
+            Function      = 'Get-ReliabilityHistory'
+            Description   = 'Summarizes recurring failure sources from Reliability Monitor within a lookback window'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('reliability', 'crash', 'history', 'stability')
+        }
     )
 }
