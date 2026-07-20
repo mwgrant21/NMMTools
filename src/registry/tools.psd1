@@ -1212,5 +1212,77 @@
             Risk          = 'Disruptive'
             Tags          = @('quickfix','browser','backup','bookmarks')
         }
+        @{
+            Id            = 'teams-camera-deep'
+            LegacyId      = '106'
+            Name          = 'Teams Camera Deep Fix'
+            Category      = 'User'
+            Function      = 'Repair-TeamsCameraDeep'
+            Description   = 'Detect dock type (Dell D6000 DisplayLink or WD19 Thunderbolt), identify camera failure mode (consent store wiped, DisplayLink virtual camera priority, or IR camera conflict), apply targeted fix, and harden against recurrence (USB suspend off, power mgmt pinned). Logs fix history to %PROGRAMDATA%\NMMTools\camera-fix-history.json.'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('teams','camera','displaylink','docking','ir','d6000','wd19','usb')
+        }
+        @{
+            Id            = 'teams-meeting-quality'
+            LegacyId      = '107'
+            Name          = 'Teams Meeting Quality Diagnostic'
+            Category      = 'Cloud'
+            Function      = 'Get-TeamsMeetingQuality'
+            Description   = 'Read-only meeting quality check: detect active NIC (flags D6000 DisplayLink USB NIC), measure latency/jitter/packet-loss to M365 endpoints, check VPN tunnel status, QoS/DSCP marking, hardware video encoder, CPU/RAM, and sample Teams logs for recent quality events. Produces a scored verdict.'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('teams','quality','network','latency','jitter','qos','vpn','displaylink','diagnostic')
+        }
+        @{
+            Id            = 'outlook-search-all'
+            LegacyId      = '108'
+            Name          = 'Outlook Search: All Mailboxes Fix'
+            Category      = 'User'
+            Function      = 'Repair-OutlookSearchScope'
+            Description   = 'Fix Outlook search showing results only from the current mailbox. Sets SearchDefaultScope=1 (All Mailboxes), checks each .ost/.pst data file in the active profile for Windows Search coverage, raises the per-file size limit for oversized archives, and triggers a targeted scope re-index. See also outlook-search-repair for full index rebuild.'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('outlook','search','mailbox','ost','pst','scope','index')
+        }
+        @{
+            Id            = 'onbase-addin-fix'
+            LegacyId      = '109'
+            Name          = 'OnBase Add-in Permanent Enable'
+            Category      = 'User'
+            Function      = 'Repair-OnBaseAddinPermanent'
+            Description   = 'Permanently prevent Outlook from auto-disabling the Hyland/OnBase add-in. Detects Resiliency DisabledItems/CrashedAddinList state, re-enables LoadBehavior=3, adds to DoNotDisableAddinList, raises the add-in startup timeout to 5s, optionally adds HKLM registration (survives profile resets), and creates a weekly self-heal scheduled task (NMMTools-OnBaseAddinCheck). See also outlook-addin-repair.'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Modifies'
+            Tags          = @('onbase','hyland','outlook','addin','resiliency','loadbehavior','permanentfix')
+        }
+        @{
+            Id            = 'cert-expiry'
+            LegacyId      = '110'
+            Name          = 'Certificate Expiry Report'
+            Category      = 'Security'
+            Function      = 'Get-CertificateExpiry'
+            Description   = 'Reports machine certificates (LocalMachine\My) expiring within 60 days or already expired, with subject, thumbprint, NotAfter, and days remaining'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('certificate','expiry','ssl','tls','security','localmachine')
+        }
+        @{
+            Id            = 'wmi-repair'
+            LegacyId      = '111'
+            Name          = 'WMI Repository Repair'
+            Category      = 'Repair'
+            Function      = 'Repair-WmiRepository'
+            Description   = 'Checks WMI repository health and repairs it if corrupted'
+            RequiresAdmin = $true
+            SilentCapable = $true
+            Risk          = 'Disruptive'
+            Tags          = @('wmi', 'repository', 'repair', 'cim')
+        }
     )
 }

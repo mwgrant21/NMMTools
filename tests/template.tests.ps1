@@ -11,6 +11,20 @@ BeforeAll {
             $script:ToolAsts[$fn.Name] = $fn
         }
     }
+
+    # Source of truth for valid Complete-ToolRun statuses: the ValidateSet on its
+    # Status parameter in 03-results.ps1 (read via AST so the test tracks the code).
+    $parseErrors = $null
+    $resultsAst = [System.Management.Automation.Language.Parser]::ParseFile(
+        (Join-Path $repoRoot 'src\core\03-results.ps1'), [ref]$null, [ref]$parseErrors)
+    if ($parseErrors -and $parseErrors.Count -gt 0) { throw 'Parse errors in 03-results.ps1' }
+    $completeFn = $resultsAst.FindAll({
+        $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+        $args[0].Name -eq 'Complete-ToolRun' }, $true) | Select-Object -First 1
+    $statusParam = $completeFn.Body.ParamBlock.Parameters |
+        Where-Object { $_.Name.VariablePath.UserPath -eq 'Status' }
+    $script:ValidStatuses = @(($statusParam.Attributes |
+        Where-Object { $_.TypeName.Name -eq 'ValidateSet' }).PositionalArguments.Value)
 }
 
 Describe 'Tool template compliance' {
@@ -59,6 +73,29 @@ Describe 'Tool template compliance' {
                 }
                 $idArg | Should -Not -BeNullOrEmpty -Because "$name must pass -Id to New-ToolRun"
                 $idArg.Value | Should -Be $entry.Id -Because "$name's New-ToolRun -Id must match its registry Id (a mismatch silently breaks PDQ exit codes)"
+            }
+        }
+    }
+
+    It 'every Complete-ToolRun -Status literal is in the real ValidateSet' {
+        # Guards doc/source drift: a bad literal (e.g. 'Refused', dispatcher-only)
+        # parses and builds fine but throws a binding error at runtime that the
+        # tool's own catch swallows into a baffling Failed summary.
+        $script:ValidStatuses.Count | Should -BeGreaterThan 0 -Because 'the ValidateSet must be readable from 03-results.ps1'
+        foreach ($name in $script:ToolAsts.Keys) {
+            $calls = $script:ToolAsts[$name].FindAll({
+                $args[0] -is [System.Management.Automation.Language.CommandAst] -and
+                $args[0].GetCommandName() -eq 'Complete-ToolRun' }, $true)
+            foreach ($call in $calls) {
+                for ($i = 0; $i -lt $call.CommandElements.Count; $i++) {
+                    $el = $call.CommandElements[$i]
+                    if ($el -is [System.Management.Automation.Language.CommandParameterAst] -and $el.ParameterName -eq 'Status') {
+                        $statusArg = $call.CommandElements[$i + 1]
+                        if ($statusArg -is [System.Management.Automation.Language.StringConstantExpressionAst]) {
+                            $statusArg.Value | Should -BeIn $script:ValidStatuses -Because "$name passes -Status '$($statusArg.Value)', which Complete-ToolRun's ValidateSet rejects at runtime"
+                        }
+                    }
+                }
             }
         }
     }

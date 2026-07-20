@@ -4,7 +4,7 @@
 
 function Invoke-DismRestoreHealth {
     Write-ToolOutput 'DISM RestoreHealth: repairing component store (10-20 min, may contact Windows Update)...' -Level Info
-    $lines = @(& dism.exe /Online /Cleanup-Image /RestoreHealth 2>&1)
+    $lines = @(& "$env:SystemRoot\System32\dism.exe" /Online /Cleanup-Image /RestoreHealth 2>&1)
     $exit = $LASTEXITCODE
     foreach ($line in $lines) {
         $text = [string]$line
@@ -26,7 +26,7 @@ function Invoke-SfcScan {
     $sfcExit = 0
     try {
         [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
-        $lines = @(& sfc.exe /scannow 2>&1)
+        $lines = @(& "$env:SystemRoot\System32\sfc.exe" /scannow 2>&1)
         $sfcExit = $LASTEXITCODE
     } finally {
         [Console]::OutputEncoding = $savedEnc
@@ -55,7 +55,7 @@ function Invoke-SfcScan {
 }
 
 function Invoke-ConservativeTempCleanup {
-    Write-ToolOutput 'Temp cleanup: clearing user TEMP and C:\Windows\Temp...' -Level Info
+    Write-ToolOutput 'Temp cleanup: clearing current-process TEMP and C:\Windows\Temp...' -Level Info
     $tempPaths = @($env:TEMP, 'C:\Windows\Temp')
     $totalFreed = [int64]0
     foreach ($path in $tempPaths) {
@@ -72,7 +72,7 @@ function Invoke-ConservativeTempCleanup {
             $sz = (Get-ChildItem $path -Recurse -Force -ErrorAction SilentlyContinue |
                 Measure-Object -Property Length -Sum).Sum
             if ($sz) { $before = [int64]$sz }
-        } catch {}
+        } catch { Write-ToolOutput '  (size measurement unavailable)' -Level Detail }
         Get-ChildItem $path -Force -ErrorAction SilentlyContinue |
             ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
         $after = [int64]0
@@ -80,7 +80,7 @@ function Invoke-ConservativeTempCleanup {
             $sz = (Get-ChildItem $path -Recurse -Force -ErrorAction SilentlyContinue |
                 Measure-Object -Property Length -Sum).Sum
             if ($sz) { $after = [int64]$sz }
-        } catch {}
+        } catch { Write-ToolOutput '  (size measurement unavailable)' -Level Detail }
         $freed = [math]::Max([int64]0, $before - $after)
         $totalFreed += $freed
         Write-ToolOutput ('  {0}: freed {1:N1} MB' -f $path, ($freed / 1MB)) -Level Info
