@@ -1356,5 +1356,17 @@
             Risk          = 'ReadOnly'
             Tags          = @('globalprotect', 'vpn', 'paloalto', 'business')
         }
+        @{
+            Id            = 'nitro-pro-status'
+            LegacyId      = '118'
+            Name          = 'Nitro PDF Pro Status'
+            Category      = 'Business'
+            Function      = 'Get-NitroProStatus'
+            Description   = 'Checks Nitro PDF Pro install, license/activation state, and default PDF handler'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('nitro', 'pdf', 'license', 'business')
+        }
     )
 }
