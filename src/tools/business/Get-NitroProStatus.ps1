@@ -26,13 +26,18 @@ function Get-NitroProStatus {
         Write-ToolOutput ('Installed: {0} (version {1})' -f $installed.DisplayName, $installed.DisplayVersion) -Level Info
 
         # --- License / activation state ---
-        $nitroBase     = 'HKLM:\SOFTWARE\Nitro\PDF Pro'
+        $nitroBases = @(
+            'HKLM:\SOFTWARE\Nitro\PDF Pro',
+            'HKLM:\SOFTWARE\WOW6432Node\Nitro\PDF Pro'
+        )
         $licenseFound  = $false
         $licenseStatus = 'Unknown'
-        if (Test-Path -LiteralPath $nitroBase) {
+        foreach ($nitroBase in $nitroBases) {
+            if ($licenseFound) { break }
+            if (-not (Test-Path -LiteralPath $nitroBase)) { continue }
             $verKeys = @(Get-ChildItem -LiteralPath $nitroBase -ErrorAction SilentlyContinue)
             foreach ($verKey in $verKeys) {
-                $nlsPath = 'HKLM:\SOFTWARE\Nitro\PDF Pro\{0}\settings\NLS' -f $verKey.PSChildName
+                $nlsPath = '{0}\{1}\settings\NLS' -f $nitroBase, $verKey.PSChildName
                 if (Test-Path -LiteralPath $nlsPath) {
                     $nls = Get-ItemProperty -LiteralPath $nlsPath -ErrorAction SilentlyContinue
                     if ($nls) {
