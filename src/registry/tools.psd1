@@ -1296,5 +1296,17 @@
             Risk          = 'ReadOnly'
             Tags          = @('reliability', 'crash', 'history', 'stability')
         }
+        @{
+            Id            = 'group-policy-result'
+            LegacyId      = '113'
+            Name          = 'Group Policy Result'
+            Category      = 'Diagnostics'
+            Function      = 'Get-GroupPolicyResult'
+            Description   = 'Runs gpresult /r and reports applied GPOs, group membership, and last refresh time'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('gpresult', 'grouppolicy', 'rsop', 'policy')
+        }
     )
 }
