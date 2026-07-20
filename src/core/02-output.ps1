@@ -2,9 +2,12 @@
 # Write-ToolOutput and Read-ToolChoice so console, log, and silent modes
 # are one code path. (Replaces the v8 GUI's Write-Host-override hack.)
 
-$script:OutputSink = 'Console'
-$script:LogFilePath = $null
-$script:GuiSync     = $null
+$script:OutputSink      = 'Console'
+$script:LogFilePath     = $null
+$script:GuiSync         = $null
+$script:CaptureBuffer   = $null
+$script:CapturePrevSink = $null
+$script:CapturePrevLog  = $null
 
 function Set-OutputSink {
     param(
@@ -58,7 +61,31 @@ function Write-ToolOutput {
             Message = $Message
             Level   = $Level
         })
+    } elseif ($script:OutputSink -eq 'Capture') {
+        [void]$script:CaptureBuffer.AppendLine($Message)
     }
+}
+
+function Start-ToolOutputCapture {
+    # Redirects Write-ToolOutput into an in-memory buffer instead of the
+    # console/log/GUI sink, so a caller (e.g. the diagnostic bundle) can run
+    # another tool and collect its raw text without touching the console.
+    $script:CapturePrevSink = $script:OutputSink
+    $script:CapturePrevLog  = $script:LogFilePath
+    $script:CaptureBuffer   = New-Object System.Text.StringBuilder
+    $script:OutputSink      = 'Capture'
+    $script:LogFilePath     = $null
+}
+
+function Stop-ToolOutputCapture {
+    # Returns the buffered text and restores the sink/log path that were
+    # active before Start-ToolOutputCapture was called.
+    $text = ''
+    if ($script:CaptureBuffer) { $text = $script:CaptureBuffer.ToString() }
+    $script:OutputSink    = $script:CapturePrevSink
+    $script:LogFilePath   = $script:CapturePrevLog
+    $script:CaptureBuffer = $null
+    return $text
 }
 
 function Read-ToolChoice {

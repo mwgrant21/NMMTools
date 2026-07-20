@@ -65,3 +65,42 @@ Describe 'Read-ToolChoice' {
         { Read-ToolChoice -Prompt 'x' -Choices @('Yes','No') -Default 'Abort' -Silent } | Should -Throw
     }
 }
+
+Describe 'Start-ToolOutputCapture / Stop-ToolOutputCapture' {
+    AfterEach { Set-OutputSink -Sink Console }
+
+    It 'buffers Write-ToolOutput calls instead of writing to console' {
+        Set-OutputSink -Sink Console
+        Start-ToolOutputCapture
+        Write-ToolOutput 'line one'
+        Write-ToolOutput 'line two' -Level Warning
+        $text = Stop-ToolOutputCapture
+        $text | Should -Match 'line one'
+        $text | Should -Match 'line two'
+    }
+
+    It 'restores the prior sink after Stop-ToolOutputCapture' {
+        Set-OutputSink -Sink Silent
+        Start-ToolOutputCapture
+        Write-ToolOutput 'captured'
+        [void](Stop-ToolOutputCapture)
+        $script:OutputSink | Should -Be 'Silent'
+    }
+
+    It 'restores the prior log path after Stop-ToolOutputCapture' {
+        $tmpDir = Join-Path $env:TEMP "nmm-test-$(Get-Random)"
+        New-Item -ItemType Directory -Force $tmpDir | Out-Null
+        Set-OutputSink -Sink Console -LogDirectory $tmpDir
+        $priorLog = $script:LogFilePath
+        Start-ToolOutputCapture
+        Write-ToolOutput 'should not hit the log file'
+        [void](Stop-ToolOutputCapture)
+        $script:LogFilePath | Should -Be $priorLog
+        Remove-Item $tmpDir -Recurse -Force
+    }
+
+    It 'returns an empty string when nothing was written' {
+        Start-ToolOutputCapture
+        Stop-ToolOutputCapture | Should -Be ''
+    }
+}
