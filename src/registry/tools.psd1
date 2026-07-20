@@ -1368,5 +1368,17 @@
             Risk          = 'ReadOnly'
             Tags          = @('nitro', 'pdf', 'license', 'business')
         }
+        @{
+            Id            = 'ringcentral-status'
+            LegacyId      = '119'
+            Name          = 'RingCentral App Status'
+            Category      = 'Business'
+            Function      = 'Get-RingCentralStatus'
+            Description   = 'Checks RingCentral desktop app install/run state, audio device, and recent log errors'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('ringcentral', 'softphone', 'audio', 'business')
+        }
     )
 }
