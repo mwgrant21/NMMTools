@@ -1320,5 +1320,17 @@
             Risk          = 'ReadOnly'
             Tags          = @('device', 'driver', 'pnp', 'configmanager')
         }
+        @{
+            Id            = 'wer-crash-inventory'
+            LegacyId      = '115'
+            Name          = 'Application Crash Dump Inventory'
+            Category      = 'Diagnostics'
+            Function      = 'Get-CrashDumpInventory'
+            Description   = 'Lists Windows Error Reporting application-crash dump files within a lookback window'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('crash', 'dump', 'wer', 'application')
+        }
     )
 }
