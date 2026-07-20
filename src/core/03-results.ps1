@@ -50,16 +50,20 @@ function Complete-ToolRun {
 }
 
 function Export-TicketSummary {
-    param([string]$Path)
+    param(
+        [string]$Path,
+        $Runs = $script:ToolRuns
+    )
     $sb = New-Object System.Text.StringBuilder
     [void]$sb.AppendLine('NMM Toolkit Session Summary')
     [void]$sb.AppendLine(('Computer: {0}    User: {1}' -f $env:COMPUTERNAME, $env:USERNAME))
     [void]$sb.AppendLine(('Session:  {0:g} - {1:g}' -f $script:SessionStart, (Get-Date)))
     [void]$sb.AppendLine('')
-    if ($script:ToolRuns.Count -eq 0) {
+    $runList = @($Runs)
+    if ($runList.Count -eq 0) {
         [void]$sb.AppendLine('No tools were run this session.')
     }
-    foreach ($run in $script:ToolRuns) {
+    foreach ($run in $runList) {
         $dur = '--:--'
         if ($run.Duration) {
             if ($run.Duration.TotalHours -ge 1) {

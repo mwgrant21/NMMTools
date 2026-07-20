@@ -85,4 +85,20 @@ Describe 'Export-TicketSummary' {
         Get-Content $file -Raw | Should -Match 'NMM Toolkit Session Summary'
         Remove-Item $file -Force
     }
+
+    It 'summarizes only the runs passed via -Runs, not the full session' {
+        $keep = New-ToolRun -Id 'fake-tool'
+        Complete-ToolRun $keep -Status Success -Summary 'kept'
+        $drop = New-ToolRun -Id 'fake-tool'
+        Complete-ToolRun $drop -Status Failed -Summary 'dropped'
+        $text = Export-TicketSummary -Runs @($keep)
+        $text | Should -Match 'kept'
+        $text | Should -Not -Match 'dropped'
+    }
+
+    It 'defaults to the full session when -Runs is omitted (regression guard)' {
+        $run = New-ToolRun -Id 'fake-tool'
+        Complete-ToolRun $run -Status Success -Summary 'still default'
+        Export-TicketSummary | Should -Match 'still default'
+    }
 }
