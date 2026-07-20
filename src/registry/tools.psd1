@@ -1308,5 +1308,17 @@
             Risk          = 'ReadOnly'
             Tags          = @('gpresult', 'grouppolicy', 'rsop', 'policy')
         }
+        @{
+            Id            = 'device-manager-errors'
+            LegacyId      = '114'
+            Name          = 'Device Manager Errors'
+            Category      = 'Diagnostics'
+            Function      = 'Get-DeviceManagerErrors'
+            Description   = 'Scans for devices reporting a Device Manager error code and decodes the common ones'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('device', 'driver', 'pnp', 'configmanager')
+        }
     )
 }
