@@ -50,8 +50,9 @@ function Get-RingCentralStatus {
         Write-ToolOutput ('Audio device: {0}' -f $audioText) -Level $audioLevel
 
         # --- Log scan ---
-        $logErrors = New-Object System.Collections.Generic.List[string]
-        if ($processName -eq 'RingCentral') {
+        $logErrors  = New-Object System.Collections.Generic.List[string]
+        $logChecked = ($processName -eq 'RingCentral')
+        if ($logChecked) {
             $logDir = Join-Path $env:LOCALAPPDATA 'RingCentral\RingCentralLogs'
             if (Test-Path -LiteralPath $logDir) {
                 $latestLog = Get-ChildItem -LiteralPath $logDir -Filter '*.log' -ErrorAction SilentlyContinue |
@@ -102,6 +103,7 @@ function Get-RingCentralStatus {
         if (-not $process)           { $issues.Add('app not running') }
         if (-not $audioDevice)       { $issues.Add('no working audio device') }
         if ($logErrors.Count -gt 0)  { $issues.Add('{0} recent log error(s)' -f $logErrors.Count) }
+        if (-not $logChecked)        { $issues.Add('log location not confirmed for legacy Glip-branded install') }
         if ($dnsFail)                { $issues.Add('service unreachable (DNS failure)') }
 
         $verdict = if ($issues.Count -eq 0) {
