@@ -39,3 +39,11 @@ v8 monolith (`C:\Users\IT\Desktop\NMMTools.ps1`) is the feature-frozen reference
 Exit code 0 = Success/Warning/Skipped, 1 = Failed/Refused/unknown tool.
 `-Silent` refuses tools registered `SilentCapable = $false`, and refuses
 `Risk = 'Disruptive'` tools unless `-Force` is added.
+
+## How this was built
+
+Full transparency: the v9 modularization was implemented by directing Claude Code against
+the approved spec in `docs\superpowers\specs\`. The tool inventory, registry design, risk
+gating, and build-gate requirements come from real support work on our fleet; I reviewed
+and tested every tool against the v8 reference before shipping. AI wrote most of the
+keystrokes — the operational judgment is mine.

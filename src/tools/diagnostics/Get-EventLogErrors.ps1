@@ -1,18 +1,21 @@
 function Get-EventLogErrors {
     [CmdletBinding()]
-    param([switch]$Silent)   # required by dispatcher even when unused
+    param(
+        [switch]$Silent,   # required by dispatcher even when unused
+        [int]$HoursBack = 24
+    )
 
     $run = $null
     try {
         $run = New-ToolRun -Id 'event-log-errors'
 
-        $yesterday = (Get-Date).AddHours(-24)
+        $cutoff = (Get-Date).AddHours(-$HoursBack)
 
         $evtErrors = @()
         $events = @(Get-WinEvent -FilterHashtable @{
             LogName   = 'System', 'Application'
             Level     = 2
-            StartTime = $yesterday
+            StartTime = $cutoff
         } -MaxEvents 20 -ErrorAction SilentlyContinue -ErrorVariable evtErrors)
 
         # Distinguish real access/query failures from the benign "no matching events" non-terminating error
@@ -23,7 +26,7 @@ function Get-EventLogErrors {
         }
 
         if ($events.Count -eq 0) {
-            Complete-ToolRun $run -Status Success -Summary '0 errors in last 24h'
+            Complete-ToolRun $run -Status Success -Summary ('0 errors in last {0}h' -f $HoursBack)
             return
         }
 
@@ -33,7 +36,7 @@ function Get-EventLogErrors {
             Write-ToolOutput ('{0:g}  {1}  ID {2}' -f $e.TimeCreated, $e.ProviderName, $e.Id) -Level Detail
         }
 
-        Complete-ToolRun $run -Status Warning -Summary ('{0} errors in last 24h' -f $events.Count)
+        Complete-ToolRun $run -Status Warning -Summary ('{0} errors in last {1}h' -f $events.Count, $HoursBack)
     }
     catch {
         Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message

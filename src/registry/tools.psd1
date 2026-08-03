@@ -1284,5 +1284,101 @@
             Risk          = 'Disruptive'
             Tags          = @('wmi', 'repository', 'repair', 'cim')
         }
+        @{
+            Id            = 'reliability-history'
+            LegacyId      = '112'
+            Name          = 'Reliability Monitor History'
+            Category      = 'Diagnostics'
+            Function      = 'Get-ReliabilityHistory'
+            Description   = 'Summarizes recurring failure sources from Reliability Monitor within a lookback window'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('reliability', 'crash', 'history', 'stability')
+        }
+        @{
+            Id            = 'group-policy-result'
+            LegacyId      = '113'
+            Name          = 'Group Policy Result'
+            Category      = 'Diagnostics'
+            Function      = 'Get-GroupPolicyResult'
+            Description   = 'Runs gpresult /r and reports applied GPOs, group membership, and last refresh time'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('gpresult', 'grouppolicy', 'rsop', 'policy')
+        }
+        @{
+            Id            = 'device-manager-errors'
+            LegacyId      = '114'
+            Name          = 'Device Manager Errors'
+            Category      = 'Diagnostics'
+            Function      = 'Get-DeviceManagerErrors'
+            Description   = 'Scans for devices reporting a Device Manager error code and decodes the common ones'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('device', 'driver', 'pnp', 'configmanager')
+        }
+        @{
+            Id            = 'wer-crash-inventory'
+            LegacyId      = '115'
+            Name          = 'Application Crash Dump Inventory'
+            Category      = 'Diagnostics'
+            Function      = 'Get-CrashDumpInventory'
+            Description   = 'Lists Windows Error Reporting application-crash dump files within a lookback window'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('crash', 'dump', 'wer', 'application')
+        }
+        @{
+            Id            = 'diagnostic-bundle'
+            LegacyId      = '116'
+            Name          = 'NMM Diagnostic Bundle'
+            Category      = 'Diagnostics'
+            Function      = 'Invoke-DiagnosticBundle'
+            Description   = 'Runs a set of diagnostic checks and zips raw output plus a health summary and ticket-ready text to the Desktop'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('bundle', 'diagnostic', 'ticket', 'export', 'zip')
+        }
+        @{
+            Id            = 'globalprotect-status'
+            LegacyId      = '117'
+            Name          = 'GlobalProtect VPN Status'
+            Category      = 'Business'
+            Function      = 'Get-GlobalProtectStatus'
+            Description   = 'Checks GlobalProtect VPN connection state, service health, and recent log errors'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('globalprotect', 'vpn', 'paloalto', 'business')
+        }
+        @{
+            Id            = 'nitro-pro-status'
+            LegacyId      = '118'
+            Name          = 'Nitro PDF Pro Status'
+            Category      = 'Business'
+            Function      = 'Get-NitroProStatus'
+            Description   = 'Checks Nitro PDF Pro install, license/activation state, and default PDF handler'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('nitro', 'pdf', 'license', 'business')
+        }
+        @{
+            Id            = 'ringcentral-status'
+            LegacyId      = '119'
+            Name          = 'RingCentral App Status'
+            Category      = 'Business'
+            Function      = 'Get-RingCentralStatus'
+            Description   = 'Checks RingCentral desktop app install/run state, audio device, and recent log errors'
+            RequiresAdmin = $false
+            SilentCapable = $true
+            Risk          = 'ReadOnly'
+            Tags          = @('ringcentral', 'softphone', 'audio', 'business')
+        }
     )
 }
