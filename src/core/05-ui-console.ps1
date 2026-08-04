@@ -16,6 +16,7 @@ function Get-CategoryColor {
     param([Parameter(Mandatory)][string]$Category)
     switch ($Category) {
         'Browser'     { 'White' }
+        'Business'    { 'DarkCyan' }
         'Cloud'       { 'Yellow' }
         'Diagnostics' { 'Cyan' }
         'Laptop'      { 'Green' }
