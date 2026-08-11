@@ -4,6 +4,7 @@ param(
     [switch]$Silent,      # no prompts; Read-ToolChoice returns declared defaults
     [switch]$Force,       # allow Disruptive tools under -Silent
     [switch]$ListTools,   # print the tool inventory and exit
+    [switch]$Version,     # print build provenance and exit
     [string]$LogPath,     # directory for the session log file
     [ValidateSet('Auto','Console','GUI')][string]$Mode = 'GUI'
 )

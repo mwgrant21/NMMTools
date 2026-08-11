@@ -1,3 +1,12 @@
+# -Version is handled before anything else - it is the lowest-risk path and must
+# not depend on elevation detection, sink setup, or tool resolution succeeding.
+if ($Version) {
+    Write-ToolOutput ('NMM System Toolkit v{0}' -f $script:ToolkitVersion) -Level Info
+    Write-ToolOutput ('Commit: {0}' -f $script:ToolkitCommit) -Level Info
+    Write-ToolOutput ('Built: {0}' -f $script:ToolkitBuildDate) -Level Info
+    exit 0
+}
+
 # ---- Entry point ------------------------------------------------------------
 $script:IsAdmin = Test-IsAdmin
 

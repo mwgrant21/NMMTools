@@ -50,6 +50,14 @@ Describe 'Built artifact' {
         ($out -join "`n") | Should -Match 'temp-cleanup'
     }
 
+    It 'prints provenance and exits 0 with -Version' {
+        $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script:Artifact -Version
+        $LASTEXITCODE | Should -Be 0
+        ($out -join "`n") | Should -Match 'NMM System Toolkit v\d+\.\d+\.\d+'
+        ($out -join "`n") | Should -Match 'Commit: '
+        ($out -join "`n") | Should -Match 'Built: '
+    }
+
     It 'runs a read-only tool silently with exit code 0' {
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script:Artifact `
             -Tool system-uptime -Silent | Out-Null
