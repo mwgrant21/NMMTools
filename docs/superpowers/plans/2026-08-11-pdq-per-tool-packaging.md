@@ -706,7 +706,11 @@ To confirm these tests are not vacuous, temporarily change the generated entry p
 
 Run: `.\build.ps1 -Pdq` then `Invoke-Pester .\tests`
 
-Expected: build succeeds, suite passes. 172 + 4 = **176 passing, 0 failing**.
+Expected: build succeeds, suite passes. **180 passing, 0 failing**.
+
+Note: the plan originally predicted 172 after Task 3. Two fix rounds added an unplanned
+registry invariant test and three generated-script constraint tests, so the real running
+totals are 164 after Task 2, 176 after Task 3, 180 after Task 4, and 181 after Task 5.
 
 - [ ] **Step 4: Commit**
 
@@ -721,6 +725,173 @@ process, [Console]::Out and Write-Host are indistinguishable.
 Also covers -Version, -LogPath writing a file alongside stdout, and the
 central claim of the feature: the script copied to an empty directory
 with no repo and no NMMTools.ps1 still runs and exits 0."
+```
+
+---
+
+### Task 5: Gate emitted scripts on self-containment
+
+Added after Task 3's review. The emitter includes exactly one tool file out of 115, but
+`src\tools\diagnostics\Invoke-DiagnosticBundle.ps1` invokes twelve other tool functions
+via `& $fn`. If that tool were ever flagged `PdqDeployable = $true`, the emitted script
+would contain none of them; each call would throw `CommandNotFoundException` into the
+tool's own inner catch, producing a bundle full of error text that still completes and
+reports Success - a silently wrong result on every endpoint, with nothing failing at
+build time. The dropped-core test does not cover this: it checks only the four omitted
+core files.
+
+**Files:**
+- Modify: `build.ps1` (add the gate inside the emitter, after the analyzer gate)
+- Modify: `tests\pdq-emit.tests.ps1` (assert the same invariant)
+
+**Interfaces:**
+- Consumes: the emitter and `$script:PdqDir` / `$script:RepoRoot` from Task 3.
+- Produces: nothing later tasks depend on. This is the final task.
+
+**The check, and why it is shaped this way.** Collect every function name defined
+anywhere under `src\`. For each emitted script, collect the function names it defines
+itself and the command names it invokes. An offender is a name the script INVOKES that
+is defined somewhere in `src\` but NOT defined in that script.
+
+Matching against the `src\`-wide function set rather than `Get-Command` is deliberate:
+`Get-Command` would resolve against whatever modules happen to be present on the build
+machine, so a tool calling a cmdlet from a module absent locally would produce a false
+failure, and the gate's verdict would vary by machine. Restricting to names the toolkit
+itself defines makes the check machine-independent and precise - external cmdlets are
+simply not in the set.
+
+- [ ] **Step 1: Write the test**
+
+Add to `tests\pdq-emit.tests.ps1`, inside `Describe 'PDQ per-tool emitter'`, immediately
+after the dropped-core test:
+
+```powershell
+    It 'emits scripts that define every toolkit function they call' {
+        # A per-tool script contains one tool out of 115. Invoke-DiagnosticBundle
+        # calls twelve sibling tool functions via & $fn, so flagging it would emit
+        # a script missing all of them - and the failure would be swallowed by the
+        # tool's own catch, reporting Success with a bundle full of errors.
+        #
+        # Matched against names the toolkit defines, not Get-Command: resolving
+        # against the build machine's available commands would fail differently on
+        # different machines whenever a tool calls a cmdlet from a module that is
+        # not installed locally.
+        $srcFunctions = @()
+        foreach ($f in (Get-ChildItem (Join-Path $script:RepoRoot 'src') -Recurse -Filter *.ps1)) {
+            $srcFunctions += [regex]::Matches((Get-Content $f.FullName -Raw), '(?m)^function\s+([\w-]+)') |
+                             ForEach-Object { $_.Groups[1].Value }
+        }
+        $srcFunctions = @($srcFunctions | Sort-Object -Unique)
+
+        $offenders = @()
+        foreach ($f in Get-ChildItem $script:PdqDir -Filter *.ps1) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $f.FullName, [ref]$null, [ref]$null)
+            $defined = @($ast.FindAll({
+                param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst]
+            }, $true) | ForEach-Object { $_.Name })
+            $called = @($ast.FindAll({
+                param($n) $n -is [System.Management.Automation.Language.CommandAst]
+            }, $true) | ForEach-Object { $_.GetCommandName() } | Where-Object { $_ })
+            foreach ($c in ($called | Sort-Object -Unique)) {
+                if (($srcFunctions -contains $c) -and ($defined -notcontains $c)) {
+                    $offenders += ('{0} calls {1} but does not define it' -f $f.Name, $c)
+                }
+            }
+        }
+        $offenders -join '; ' | Should -BeNullOrEmpty
+    }
+```
+
+- [ ] **Step 2: Prove the test can fail**
+
+It passes trivially today, since `system-info` is self-contained. Manufacture the failure:
+
+1. In `src\registry\tools.psd1`, temporarily set the `diagnostic-bundle` entry's
+   `PdqDeployable` to `$true`.
+2. Run `.\build.ps1 -Pdq -SkipAnalyzer` - it still succeeds at this point, because the
+   emitter gate does not exist yet. That is the whole problem being fixed.
+3. Run `Invoke-Pester .\tests\pdq-emit.tests.ps1`. The new test must FAIL, naming
+   `diagnostic-bundle.ps1` and several sibling function names.
+4. Revert the registry edit. Do NOT leave it flagged.
+
+Record the verbatim failure and confirm `git diff -- src/registry/tools.psd1` is empty
+afterwards.
+
+- [ ] **Step 3: Add the gate to the emitter**
+
+In `build.ps1`, inside the `if ($Pdq)` block, hoist the source-function set above the
+`foreach ($tool ...)` loop, next to where `$q` is defined:
+
+```powershell
+    # Every function the toolkit defines anywhere under src\. Used to gate emitted
+    # scripts on self-containment. Deliberately not Get-Command: that resolves
+    # against whatever modules exist on the build machine, so the verdict would
+    # vary by machine whenever a tool calls a cmdlet not installed locally.
+    $srcFunctionNames = @()
+    foreach ($sf in (Get-ChildItem (Join-Path $root 'src') -Recurse -Filter *.ps1)) {
+        $srcFunctionNames += [regex]::Matches((Get-Content $sf.FullName -Raw), '(?m)^function\s+([\w-]+)') |
+                             ForEach-Object { $_.Groups[1].Value }
+    }
+    $srcFunctionNames = @($srcFunctionNames | Sort-Object -Unique)
+```
+
+Then, immediately after the per-script analyzer gate and before `$emitted++`, add:
+
+```powershell
+        # Self-containment gate. A tool that calls a sibling tool's function would
+        # otherwise emit a script missing it, and the CommandNotFoundException would
+        # be swallowed by the tool's own catch - reporting Success on every endpoint
+        # while doing nothing useful.
+        $emittedAst = [System.Management.Automation.Language.Parser]::ParseFile($outFile, [ref]$null, [ref]$null)
+        $definedHere = @($emittedAst.FindAll({
+            param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst]
+        }, $true) | ForEach-Object { $_.Name })
+        $calledHere = @($emittedAst.FindAll({
+            param($n) $n -is [System.Management.Automation.Language.CommandAst]
+        }, $true) | ForEach-Object { $_.GetCommandName() } | Where-Object { $_ })
+        $missing = @()
+        foreach ($c in ($calledHere | Sort-Object -Unique)) {
+            if (($srcFunctionNames -contains $c) -and ($definedHere -notcontains $c)) {
+                $missing += $c
+            }
+        }
+        if ($missing.Count -gt 0) {
+            throw ("PDQ script for '{0}' calls toolkit function(s) it does not contain: {1}. A tool that calls sibling tool functions cannot be packaged standalone." -f $tool.Id, ($missing -join ', '))
+        }
+```
+
+- [ ] **Step 4: Prove the gate throws**
+
+Repeat Step 2's flag of `diagnostic-bundle`, then run `.\build.ps1 -Pdq -SkipAnalyzer`.
+The build must now THROW, naming `diagnostic-bundle` and the missing function names,
+rather than emitting a broken script. Record the verbatim error, then revert the registry
+edit and confirm `git diff -- src/registry/tools.psd1` is empty.
+
+- [ ] **Step 5: Run the full gate**
+
+Run: `.\build.ps1 -Pdq` then `Invoke-Pester .\tests`
+
+Expected: build succeeds, suite passes. 180 + 1 = **181 passing, 0 failing**.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add build.ps1 tests/pdq-emit.tests.ps1
+git commit -m "feat(build): gate emitted PDQ scripts on self-containment
+
+A per-tool script contains one tool out of 115, but Invoke-DiagnosticBundle
+calls twelve sibling tool functions via & \$fn. Flagging it would have
+emitted a script missing all of them, and the CommandNotFoundException
+would have been swallowed by the tool's own catch - reporting Success on
+every endpoint while producing a bundle full of error text.
+
+The build now throws instead, naming the tool and the missing functions.
+
+Matched against the set of functions the toolkit defines under src\,
+not Get-Command: resolving against the build machine's available commands
+would make the verdict vary by machine whenever a tool calls a cmdlet from
+a module that is not installed locally."
 ```
 
 ---
