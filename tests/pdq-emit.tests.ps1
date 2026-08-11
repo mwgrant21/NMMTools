@@ -208,8 +208,12 @@ Describe 'Generated PDQ script behaviour' {
         try {
             $copy = Join-Path $tmp 'system-info.ps1'
             Copy-Item $script:Seed $copy
-            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $copy | Out-Null
+            $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $copy
             $LASTEXITCODE | Should -Be 0
+            # Assert what the run produced, not merely that it did not crash. The
+            # '[Level  ]' prefix is emitted only by the Pdq sink, so this proves
+            # both that the sink is active and that the tool body actually ran.
+            ($out -join "`n") | Should -Match '\[Info\s+\]'
         } finally {
             Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
         }
