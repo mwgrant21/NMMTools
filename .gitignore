@@ -4,3 +4,7 @@ dist/
 testResults.xml
 .claude/worktrees/
 .superpowers/
+
+# Environment-probe reports. The probe script is tracked; its output is not -
+# each report names the machine and the logged-on user.
+tools/nmm-env-probe-*.txt
