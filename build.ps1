@@ -137,10 +137,17 @@ if ($Pdq) {
     # scripts on self-containment. Deliberately not Get-Command: that resolves
     # against whatever modules exist on the build machine, so the verdict would
     # vary by machine whenever a tool calls a cmdlet not installed locally.
+    #
+    # AST-derived, same as $definedHere below, so both sides of the self-
+    # containment comparison are computed the same way and cannot drift. A
+    # column-zero regex (e.g. '(?m)^function\s+([\w-]+)') would miss any
+    # function nested inside another function's body.
     $srcFunctionNames = @()
     foreach ($sf in (Get-ChildItem (Join-Path $root 'src') -Recurse -Filter *.ps1)) {
-        $srcFunctionNames += [regex]::Matches((Get-Content $sf.FullName -Raw), '(?m)^function\s+([\w-]+)') |
-                             ForEach-Object { $_.Groups[1].Value }
+        $sfAst = [System.Management.Automation.Language.Parser]::ParseFile($sf.FullName, [ref]$null, [ref]$null)
+        $srcFunctionNames += @($sfAst.FindAll({
+            param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst]
+        }, $true) | ForEach-Object { $_.Name })
     }
     $srcFunctionNames = @($srcFunctionNames | Sort-Object -Unique)
 
@@ -248,10 +255,18 @@ if ($Pdq) {
         $outFile = Join-Path $pdqDir ($tool.Id + '.ps1')
         [System.IO.File]::WriteAllText($outFile, ($g -join "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
 
+        # Parsed once here and reused by the self-containment gate below - both
+        # gates need the AST of the same just-written file, and re-parsing it a
+        # second time would be redundant work for no behavioral difference.
         $pdqParseErrors = $null
-        [void][System.Management.Automation.Language.Parser]::ParseFile($outFile, [ref]$null, [ref]$pdqParseErrors)
+        $emittedAst = [System.Management.Automation.Language.Parser]::ParseFile($outFile, [ref]$null, [ref]$pdqParseErrors)
         if ($pdqParseErrors.Count -gt 0) {
             $pdqParseErrors | ForEach-Object { Write-Host ('{0} (line {1})' -f $_.Message, $_.Extent.StartLineNumber) -ForegroundColor Red }
+            # A gate that rejects a script must not leave it in the deployment
+            # staging directory - dist\pdq\ is what gets handed to PDQ Deploy,
+            # and a script that failed a gate has no business sitting next to
+            # ones that passed.
+            Remove-Item $outFile -Force -ErrorAction SilentlyContinue
             throw ("PDQ script for '{0}' has {1} parse error(s) - build failed" -f $tool.Id, $pdqParseErrors.Count)
         }
 
@@ -259,6 +274,7 @@ if ($Pdq) {
             $pdqFindings = Invoke-ScriptAnalyzer -Path $outFile -Severity Error
             if ($pdqFindings) {
                 $pdqFindings | Format-Table RuleName, Line, Message -AutoSize | Out-String | Write-Host
+                Remove-Item $outFile -Force -ErrorAction SilentlyContinue
                 throw ("PDQ script for '{0}' has {1} analyzer error(s) - build failed" -f $tool.Id, @($pdqFindings).Count)
             }
         }
@@ -266,26 +282,33 @@ if ($Pdq) {
         # Self-containment gate. A tool that calls a sibling tool's function would
         # otherwise emit a script missing it, and the CommandNotFoundException would
         # be swallowed by the tool's own catch - reporting Success on every endpoint
-        # while doing nothing useful.
+        # while doing nothing useful. Reuses $emittedAst captured by the parse gate
+        # above - both sides of the comparison below are AST-derived, so there is
+        # no second parse of the same file and no drift between how $srcFunctionNames
+        # and $definedHere are computed.
         #
-        # Candidate names come from two sources, not just invoked commands. The
-        # toolkit dispatches sibling tools indirectly via `& $fn` (a variable), and
-        # CommandAst.GetCommandName() returns empty for that call form - there is no
-        # static name at the call site for the AST to see. The sibling names DO
-        # survive as string literals (e.g. the $checks array Invoke-DiagnosticBundle
-        # loops over), and those literals are emitted into the script verbatim, so
-        # scanning StringConstantExpressionAst nodes recovers what the CommandAst
-        # scan alone cannot. Comments are not string literals, so this can't repeat
-        # the earlier false positive where a text scan matched a function name only
-        # mentioned in documentation.
+        # Candidate names come from two sources: CommandAst.GetCommandName() and
+        # StringConstantExpressionAst.Value. In this codebase the literal scan
+        # currently subsumes the invocation scan - every bareword command name IS a
+        # string constant, so the literal scan alone yields every name the
+        # invocation scan produces (verified empty-diff across all seven headless
+        # core files). Both scans are kept deliberately anyway: the invocation scan
+        # documents the actual intent (find what's called), and it stays correct on
+        # its own if the literal scan is ever narrowed (e.g. to exclude some class of
+        # string constant) in a way that would otherwise silently drop coverage.
+        # Comments are not string literals, so this can't repeat the earlier false
+        # positive where a text scan matched a function name only mentioned in
+        # documentation.
         #
-        # Honest limitation: this is a fail-safe gate, not a proof. A tool that
-        # computed a sibling's name at runtime (string concatenation, a config
-        # lookup, etc.) would still slip past both the CommandAst and the literal
-        # scan, because no static text anywhere in the script would spell the name
-        # out. Both composite tools in this codebase use literals, so the scan
-        # covers the known cases, but it does not cover every conceivable one.
-        $emittedAst = [System.Management.Automation.Language.Parser]::ParseFile($outFile, [ref]$null, [ref]$null)
+        # Honest limitation: this is a fail-safe gate, not a proof. The same family
+        # of blind spot covers any sibling name that exists only at runtime and
+        # never as static text: string concatenation, Invoke-Expression over a
+        # built-up string, a name arriving through a parameter default, and
+        # splatted invocation (@params with the command name itself computed).
+        # Aliases do NOT escape this gate - a `Set-Alias` target is itself a string
+        # literal, so it is still caught by the literal scan. Both composite tools
+        # in this codebase use plain literals, so the scan covers the known cases,
+        # but it does not cover every conceivable one.
         $definedHere = @($emittedAst.FindAll({
             param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst]
         }, $true) | ForEach-Object { $_.Name })
@@ -303,6 +326,7 @@ if ($Pdq) {
             }
         }
         if ($missing.Count -gt 0) {
+            Remove-Item $outFile -Force -ErrorAction SilentlyContinue
             throw ("PDQ script for '{0}' references toolkit function(s) it does not contain: {1}. A tool that invokes other tools cannot be packaged standalone - clear its PdqDeployable flag, or refactor it to not depend on sibling tools." -f $tool.Id, ($missing -join ', '))
         }
 
