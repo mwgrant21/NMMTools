@@ -34,6 +34,14 @@ Describe 'Built artifact' {
         $provenanceIndex | Should -BeGreaterThan $paramIndex
     }
 
+    It 'renders the header comment and the runtime block from one capture' {
+        $content = Get-Content $script:Artifact -Raw
+        $header  = [regex]::Match($content, '# NMM System Toolkit v(\S+) \((\S+)\) \| built (\d{4}-\d{2}-\d{2} \d{2}:\d{2})')
+        $header.Success | Should -BeTrue
+        $content | Should -Match ("ToolkitCommit\s*=\s*'{0}'"    -f [regex]::Escape($header.Groups[2].Value))
+        $content | Should -Match ("ToolkitBuildDate\s*=\s*'{0}'" -f [regex]::Escape($header.Groups[3].Value))
+    }
+
     It 'contains the core functions and pilot tools' {
         $content = Get-Content $script:Artifact -Raw
         foreach ($fn in 'Write-ToolOutput','Read-ToolChoice','New-ToolRun','Complete-ToolRun',

@@ -45,9 +45,17 @@ $parts.Add((Get-Content (Join-Path $root 'src\entry\00-param.ps1') -Raw -Encodin
 
 # 1b. Provenance as real variables, readable at runtime by -Version. Must come
 # after the param block, which has to remain the first statement in the file.
+#
+# Escape single quotes by doubling them before interpolating into the
+# single-quoted literals below - an operator-supplied -Version containing a
+# quote (e.g. -Version "9.1.0'") would otherwise break out of the literal and
+# fail the parse gate. Applied to $commit too, since it lands in the same kind
+# of literal even though git output doesn't normally contain a quote.
+$versionEscaped = $Version -replace "'", "''"
+$commitEscaped  = $commit  -replace "'", "''"
 $parts.Add('#region provenance')
-$parts.Add(("`$script:ToolkitVersion   = '{0}'" -f $Version))
-$parts.Add(("`$script:ToolkitCommit    = '{0}'" -f $commit))
+$parts.Add(("`$script:ToolkitVersion   = '{0}'" -f $versionEscaped))
+$parts.Add(("`$script:ToolkitCommit    = '{0}'" -f $commitEscaped))
 $parts.Add(("`$script:ToolkitBuildDate = '{0:yyyy-MM-dd HH:mm}'" -f $buildDate))
 $parts.Add('#endregion')
 

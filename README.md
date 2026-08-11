@@ -35,6 +35,7 @@ v8 monolith (`C:\Users\IT\Desktop\NMMTools.ps1`) is the feature-frozen reference
     NMMTools.ps1 -Tool system-uptime -Silent
     NMMTools.ps1 -Tool 20 -Silent                      # legacy v8 menu number
     NMMTools.ps1 -Tool temp-cleanup -Silent -LogPath C:\Logs
+    NMMTools.ps1 -Version                              # print build provenance and exit
 
 Exit code 0 = Success/Warning/Skipped, 1 = Failed/Refused/unknown tool.
 `-Silent` refuses tools registered `SilentCapable = $false`, and refuses

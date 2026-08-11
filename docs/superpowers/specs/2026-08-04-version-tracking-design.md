@@ -63,12 +63,14 @@ label) or the tag-per-release convention — it adds a tamper-evident layer unde
       exit 0
   }
   ```
-  Using `Write-ToolOutput` (never `Write-Host`) keeps this on the same Console/GUI/Capture
-  sink routing as the rest of the toolkit. Note it does NOT reach the session log: `-Version`
-  exits before `Set-OutputSink` runs, so `-LogPath` has no effect on the banner. That is
-  deliberate - `-Version` is the lowest-risk path and must not depend on log-directory
-  creation succeeding. An earlier draft of this spec claimed the opposite; the ordering
-  requirement above governs.
+  Using `Write-ToolOutput` (never `Write-Host`) is for consistency with every other output
+  path in the toolkit, not for sink routing: `-Version` exits before `Set-OutputSink` runs, so
+  `$script:OutputSink` is still the load-time default `'Console'` and `Write-ToolOutput`
+  always resolves to `Write-Host` here, regardless of which sink the rest of a run would use.
+  A consequence of that same ordering is that the banner does NOT reach the session log -
+  `-LogPath` has no effect on it. That is deliberate - `-Version` is the lowest-risk path and
+  must not depend on log-directory creation succeeding. An earlier draft of this spec claimed
+  the opposite; the ordering requirement above governs.
 - No registry entry needed — this is a toolkit-level flag, not a dispatched tool, matching how
   `-ListTools` is already handled.
 
