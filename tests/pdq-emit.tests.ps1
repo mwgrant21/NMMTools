@@ -162,3 +162,56 @@ Describe 'PDQ per-tool emitter' {
         Test-Path $stale | Should -BeFalse
     }
 }
+
+Describe 'Generated PDQ script behaviour' {
+    BeforeAll {
+        $script:Seed = Join-Path $script:PdqDir 'system-info.ps1'
+    }
+
+    It 'runs the tool and exits 0 with output captured from a child process' {
+        # Must be a child process with redirected stdout. In-process,
+        # [Console]::Out and Write-Host are indistinguishable - the Pdq sink
+        # exists for its behaviour under redirection, which only exists when
+        # something is actually redirecting.
+        $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script:Seed
+        $LASTEXITCODE | Should -Be 0
+        ($out -join "`n").Trim() | Should -Not -BeNullOrEmpty
+    }
+
+    It 'prints provenance and exits 0 with -Version' {
+        $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script:Seed -Version
+        $LASTEXITCODE | Should -Be 0
+        ($out -join "`n") | Should -Match 'NMM PDQ tool: system-info'
+        ($out -join "`n") | Should -Match 'Commit: '
+    }
+
+    It 'writes a log file when -LogPath is supplied, in addition to stdout' {
+        $tmp = Join-Path $env:TEMP "nmm-pdq-test-$(Get-Random)"
+        New-Item -ItemType Directory -Force $tmp | Out-Null
+        try {
+            $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script:Seed -LogPath $tmp
+            $LASTEXITCODE | Should -Be 0
+            ($out -join "`n").Trim() | Should -Not -BeNullOrEmpty
+            $log = Get-ChildItem $tmp -Filter *.log | Select-Object -First 1
+            $log | Should -Not -BeNullOrEmpty
+            (Get-Content $log.FullName -Raw).Trim() | Should -Not -BeNullOrEmpty
+        } finally {
+            Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'runs without the toolkit present' {
+        # The point of the whole feature: copy the script somewhere with no repo
+        # and no NMMTools.ps1 alongside it, and it still works.
+        $tmp = Join-Path $env:TEMP "nmm-pdq-iso-$(Get-Random)"
+        New-Item -ItemType Directory -Force $tmp | Out-Null
+        try {
+            $copy = Join-Path $tmp 'system-info.ps1'
+            Copy-Item $script:Seed $copy
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $copy | Out-Null
+            $LASTEXITCODE | Should -Be 0
+        } finally {
+            Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
