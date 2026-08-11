@@ -11,7 +11,7 @@ $script:CapturePrevLog  = $null
 
 function Set-OutputSink {
     param(
-        [Parameter(Mandatory)][ValidateSet('Console','Silent','GUI')][string]$Sink,
+        [Parameter(Mandatory)][ValidateSet('Console','Silent','GUI','Pdq')][string]$Sink,
         [string]$LogDirectory
     )
     if ($LogDirectory) {
@@ -49,6 +49,15 @@ function Write-ToolOutput {
             default   { 'White' }
         }
         Write-Host $Message -ForegroundColor $color
+    } elseif ($script:OutputSink -eq 'Pdq') {
+        # PDQ Deploy captures the step's stdout. [Console]::Out writes to process
+        # stdout directly, which is redirect-safe in every host - including hosts
+        # with no console UI, where Write-Host has nowhere to go. It also never
+        # touches the pipeline: Invoke-NmmTool ends with 'return $run.Status', so
+        # emitting log lines on the success stream (Write-Output) would fold them
+        # into that return value and corrupt any status-to-exit-code mapping.
+        # The fixed-width level prefix also makes captured lines greppable.
+        [Console]::Out.WriteLine(('[{0,-7}] {1}' -f $Level, $Message))
     } elseif ($script:OutputSink -eq 'GUI') {
         # Marshal DATA, never a scriptblock. A scriptblock built here would carry
         # this (tool) Runspace's affinity; when the UI thread tried to run it,

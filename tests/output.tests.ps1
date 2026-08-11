@@ -135,3 +135,67 @@ Describe 'Start-ToolOutputCapture / Stop-ToolOutputCapture' {
         Stop-ToolOutputCapture | Should -Be ''
     }
 }
+
+Describe 'Pdq output sink' {
+    AfterEach { Set-OutputSink -Sink Console }
+
+    It 'accepts Pdq as a sink' {
+        { Set-OutputSink -Sink Pdq } | Should -Not -Throw
+    }
+
+    It 'writes to stdout and nothing to the PowerShell success stream' {
+        # Two assertions, because either alone is passable by broken code:
+        #   - Should -BeNullOrEmpty alone passes if the Pdq branch is deleted
+        #     entirely (Write-ToolOutput falls through and returns $null).
+        #   - Asserting only that stdout got the line would not catch a change
+        #     from [Console]::Out.WriteLine to Write-Output, which is the
+        #     regression that matters: Invoke-NmmTool ends with
+        #     'return $run.Status', so log lines on the success stream would
+        #     fold into that return value and corrupt the exit-code mapping.
+        $sw   = New-Object System.IO.StringWriter
+        $prev = [Console]::Out
+        try {
+            [Console]::SetOut($sw)
+            Set-OutputSink -Sink Pdq
+            $captured = Write-ToolOutput 'must not reach the pipeline' -Level Info
+        } finally {
+            [Console]::SetOut($prev)
+        }
+        $captured | Should -BeNullOrEmpty
+        $sw.ToString() | Should -Match '\[Info\s+\] must not reach the pipeline'
+    }
+
+    It 'still writes to the log file when a log directory is set' {
+        # Integration check only, not a discriminator: the log write happens in
+        # an unconditional block ahead of sink dispatch and never reads
+        # $script:OutputSink, so this passes with the Pdq branch deleted. It is
+        # here to confirm the new sink does not break logging, nothing more.
+        $script:tmpDir = Join-Path $env:TEMP "nmm-test-$(Get-Random)"
+        New-Item -ItemType Directory -Force $script:tmpDir | Out-Null
+        Set-OutputSink -Sink Pdq -LogDirectory $script:tmpDir
+        Write-ToolOutput 'pdq line to log' -Level Warning
+        $logFile = Get-ChildItem $script:tmpDir -Filter *.log | Select-Object -First 1
+        $logFile | Should -Not -BeNullOrEmpty
+        Get-Content $logFile.FullName -Raw | Should -Match 'pdq line to log'
+        Set-OutputSink -Sink Console
+        Remove-Item $script:tmpDir -Recurse -Force
+        $script:tmpDir = $null
+    }
+
+    It 'reaches redirected stdout of a child process' {
+        # [Console]::Out and Write-Host are indistinguishable in-process: both
+        # appear on the console and both look correct. The sink exists for its
+        # behaviour under redirection, which only exists when something redirects.
+        $repoRoot = Split-Path $PSScriptRoot -Parent
+        $core     = Join-Path $repoRoot 'src\core\02-output.ps1'
+        $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
+            ". '$core'; Set-OutputSink -Sink Pdq; Write-ToolOutput 'child stdout probe' -Level Info"
+        $LASTEXITCODE | Should -Be 0
+        # Assert the level prefix, not just the message text. Write-Host (the
+        # Console branch) also reaches a child ConsoleHost's redirected stdout,
+        # so matching the bare message cannot distinguish the two sinks - this
+        # test passed against the unimplemented sink for exactly that reason.
+        # The '[Level  ]' prefix is produced only by the Pdq branch.
+        ($out -join "`n") | Should -Match '\[Info\s+\]\s+child stdout probe'
+    }
+}
