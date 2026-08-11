@@ -133,6 +133,17 @@ if ($Pdq) {
 
     $q = { param([string]$s) $s -replace "'", "''" }
 
+    # Every function the toolkit defines anywhere under src\. Used to gate emitted
+    # scripts on self-containment. Deliberately not Get-Command: that resolves
+    # against whatever modules exist on the build machine, so the verdict would
+    # vary by machine whenever a tool calls a cmdlet not installed locally.
+    $srcFunctionNames = @()
+    foreach ($sf in (Get-ChildItem (Join-Path $root 'src') -Recurse -Filter *.ps1)) {
+        $srcFunctionNames += [regex]::Matches((Get-Content $sf.FullName -Raw), '(?m)^function\s+([\w-]+)') |
+                             ForEach-Object { $_.Groups[1].Value }
+    }
+    $srcFunctionNames = @($srcFunctionNames | Sort-Object -Unique)
+
     $emitted = 0
     foreach ($tool in @($registryData.Tools)) {
         if (-not $tool.PdqDeployable) { continue }
@@ -250,6 +261,49 @@ if ($Pdq) {
                 $pdqFindings | Format-Table RuleName, Line, Message -AutoSize | Out-String | Write-Host
                 throw ("PDQ script for '{0}' has {1} analyzer error(s) - build failed" -f $tool.Id, @($pdqFindings).Count)
             }
+        }
+
+        # Self-containment gate. A tool that calls a sibling tool's function would
+        # otherwise emit a script missing it, and the CommandNotFoundException would
+        # be swallowed by the tool's own catch - reporting Success on every endpoint
+        # while doing nothing useful.
+        #
+        # Candidate names come from two sources, not just invoked commands. The
+        # toolkit dispatches sibling tools indirectly via `& $fn` (a variable), and
+        # CommandAst.GetCommandName() returns empty for that call form - there is no
+        # static name at the call site for the AST to see. The sibling names DO
+        # survive as string literals (e.g. the $checks array Invoke-DiagnosticBundle
+        # loops over), and those literals are emitted into the script verbatim, so
+        # scanning StringConstantExpressionAst nodes recovers what the CommandAst
+        # scan alone cannot. Comments are not string literals, so this can't repeat
+        # the earlier false positive where a text scan matched a function name only
+        # mentioned in documentation.
+        #
+        # Honest limitation: this is a fail-safe gate, not a proof. A tool that
+        # computed a sibling's name at runtime (string concatenation, a config
+        # lookup, etc.) would still slip past both the CommandAst and the literal
+        # scan, because no static text anywhere in the script would spell the name
+        # out. Both composite tools in this codebase use literals, so the scan
+        # covers the known cases, but it does not cover every conceivable one.
+        $emittedAst = [System.Management.Automation.Language.Parser]::ParseFile($outFile, [ref]$null, [ref]$null)
+        $definedHere = @($emittedAst.FindAll({
+            param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst]
+        }, $true) | ForEach-Object { $_.Name })
+        $calledHere = @($emittedAst.FindAll({
+            param($n) $n -is [System.Management.Automation.Language.CommandAst]
+        }, $true) | ForEach-Object { $_.GetCommandName() } | Where-Object { $_ })
+        $literalsHere = @($emittedAst.FindAll({
+            param($n) $n -is [System.Management.Automation.Language.StringConstantExpressionAst]
+        }, $true) | ForEach-Object { $_.Value } | Where-Object { $_ })
+        $candidatesHere = @($calledHere + $literalsHere | Sort-Object -Unique)
+        $missing = @()
+        foreach ($c in $candidatesHere) {
+            if (($srcFunctionNames -contains $c) -and ($definedHere -notcontains $c)) {
+                $missing += $c
+            }
+        }
+        if ($missing.Count -gt 0) {
+            throw ("PDQ script for '{0}' references toolkit function(s) it does not contain: {1}. A tool that invokes other tools cannot be packaged standalone - clear its PdqDeployable flag, or refactor it to not depend on sibling tools." -f $tool.Id, ($missing -join ', '))
         }
 
         $emitted++

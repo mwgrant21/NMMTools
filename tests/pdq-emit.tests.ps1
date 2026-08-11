@@ -74,6 +74,64 @@ Describe 'PDQ per-tool emitter' {
         $offenders -join '; ' | Should -BeNullOrEmpty
     }
 
+    It 'emits scripts that define every toolkit function they call' {
+        # A per-tool script contains one tool out of 115. Invoke-DiagnosticBundle
+        # calls twelve sibling tool functions via & $fn, so flagging it would emit
+        # a script missing all of them - and the failure would be swallowed by the
+        # tool's own catch, reporting Success with a bundle full of errors.
+        #
+        # Matched against names the toolkit defines, not Get-Command: resolving
+        # against the build machine's available commands would fail differently on
+        # different machines whenever a tool calls a cmdlet from a module that is
+        # not installed locally.
+        #
+        # Candidate names come from two sources, not just invoked commands. The
+        # toolkit dispatches sibling tools indirectly via `& $fn` (a variable), and
+        # CommandAst.GetCommandName() returns empty for that call form - there is no
+        # static name at the call site for the AST to see. The sibling names DO
+        # survive as string literals (e.g. the $checks array Invoke-DiagnosticBundle
+        # loops over), and those literals are emitted into the script verbatim, so
+        # scanning StringConstantExpressionAst nodes recovers what the CommandAst
+        # scan alone cannot. Comments are not string literals, so this can't repeat
+        # the earlier false positive where a text scan matched a function name only
+        # mentioned in documentation.
+        #
+        # Honest limitation: this is a fail-safe gate, not a proof. A tool that
+        # computed a sibling's name at runtime (string concatenation, a config
+        # lookup, etc.) would still slip past both the CommandAst and the literal
+        # scan, because no static text anywhere in the script would spell the name
+        # out. Both composite tools in this codebase use literals, so the scan
+        # covers the known cases, but it does not cover every conceivable one.
+        $srcFunctions = @()
+        foreach ($f in (Get-ChildItem (Join-Path $script:RepoRoot 'src') -Recurse -Filter *.ps1)) {
+            $srcFunctions += [regex]::Matches((Get-Content $f.FullName -Raw), '(?m)^function\s+([\w-]+)') |
+                             ForEach-Object { $_.Groups[1].Value }
+        }
+        $srcFunctions = @($srcFunctions | Sort-Object -Unique)
+
+        $offenders = @()
+        foreach ($f in Get-ChildItem $script:PdqDir -Filter *.ps1) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $f.FullName, [ref]$null, [ref]$null)
+            $defined = @($ast.FindAll({
+                param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst]
+            }, $true) | ForEach-Object { $_.Name })
+            $called = @($ast.FindAll({
+                param($n) $n -is [System.Management.Automation.Language.CommandAst]
+            }, $true) | ForEach-Object { $_.GetCommandName() } | Where-Object { $_ })
+            $literalsHere = @($ast.FindAll({
+                param($n) $n -is [System.Management.Automation.Language.StringConstantExpressionAst]
+            }, $true) | ForEach-Object { $_.Value } | Where-Object { $_ })
+            $candidates = @($called + $literalsHere | Sort-Object -Unique)
+            foreach ($c in $candidates) {
+                if (($srcFunctions -contains $c) -and ($defined -notcontains $c)) {
+                    $offenders += ('{0} references {1} but does not define it' -f $f.Name, $c)
+                }
+            }
+        }
+        $offenders -join '; ' | Should -BeNullOrEmpty
+    }
+
     It 'emits UTF-8 scripts with no BOM and no non-ASCII bytes' {
         foreach ($f in Get-ChildItem $script:PdqDir -Filter *.ps1) {
             $bytes = [System.IO.File]::ReadAllBytes($f.FullName)
