@@ -63,9 +63,12 @@ label) or the tag-per-release convention — it adds a tamper-evident layer unde
       exit 0
   }
   ```
-  Using `Write-ToolOutput` (never `Write-Host`) means the version banner is also captured to
-  the session log when `-LogPath` is supplied, consistent with every other output path, and
-  keeps this on the same Console/GUI/Capture sink routing as the rest of the toolkit.
+  Using `Write-ToolOutput` (never `Write-Host`) keeps this on the same Console/GUI/Capture
+  sink routing as the rest of the toolkit. Note it does NOT reach the session log: `-Version`
+  exits before `Set-OutputSink` runs, so `-LogPath` has no effect on the banner. That is
+  deliberate - `-Version` is the lowest-risk path and must not depend on log-directory
+  creation succeeding. An earlier draft of this spec claimed the opposite; the ordering
+  requirement above governs.
 - No registry entry needed — this is a toolkit-level flag, not a dispatched tool, matching how
   `-ListTools` is already handled.
 

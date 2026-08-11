@@ -392,9 +392,11 @@ then exits 0. Handled before mode selection, -ListTools, and -Tool: it
 is the lowest-risk path and should not depend on elevation detection or
 tool resolution succeeding first.
 
-Uses Write-ToolOutput rather than Write-Host so the banner is captured
-to the session log when -LogPath is supplied, consistent with every
-other output path in the toolkit."
+Uses Write-ToolOutput rather than Write-Host for consistency with every
+other output path in the toolkit. The banner does not reach the session
+log: -Version exits before Set-OutputSink runs, so -LogPath has no effect
+on it. That ordering is deliberate - -Version must not depend on
+log-directory creation succeeding."
 ```
 
 ---
