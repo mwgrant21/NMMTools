@@ -16,9 +16,11 @@ work.
 
 ## Gate 1 - build
 
-    .\build.ps1
+    .\build.ps1 -Pdq
 
-Any throw (parse gate, analyzer gate) = STOP.
+Any throw (parse gate, analyzer gate) = STOP. `-Pdq` also emits the
+per-tool scripts under `dist\pdq\` - these are the artifacts to attach to
+PDQ Deploy packages, one script per flagged tool.
 
 ## Gate 2 - tests
 

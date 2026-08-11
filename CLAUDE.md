@@ -7,10 +7,13 @@ ship the concatenated artifact `dist\NMMTools.ps1`. PowerShell 5.1 target.
 
     .\build.ps1                  # concatenate + parse gate + analyzer gate
     .\build.ps1 -SkipAnalyzer    # faster inner loop
+    .\build.ps1 -Pdq             # also emits per-tool scripts to dist\pdq\
     Invoke-Pester .\tests        # full suite (Pester >= 5.0)
 
 Exit code contract for the artifact: 0 = Success/Warning/Skipped,
-1 = Failed/Refused/unknown tool.
+1 = Failed/Refused/unknown tool. Generated dist\pdq\<tool>.ps1 scripts carry
+their own five-code contract instead (0/1/2/3/4 - see the script's own
+header comment).
 
 ## Layout
 

@@ -1,9 +1,18 @@
 BeforeAll {
     $script:RepoRoot = Split-Path $PSScriptRoot -Parent
-    & (Join-Path $script:RepoRoot 'build.ps1') -Pdq -SkipAnalyzer | Out-Null
-    $script:PdqDir   = Join-Path $script:RepoRoot 'dist\pdq'
+    # Build into a throwaway temp root, never dist\ - this suite must not be
+    # able to clobber the analyzer-gated release artifact that artifact.tests.ps1
+    # (which runs first, alphabetically) leaves behind as the last word.
+    $script:TempRoot = Join-Path $env:TEMP ("nmm-pdq-tests-$(Get-Random)")
+    New-Item -ItemType Directory -Force $script:TempRoot | Out-Null
+    & (Join-Path $script:RepoRoot 'build.ps1') -Pdq -SkipAnalyzer -OutputRoot $script:TempRoot | Out-Null
+    $script:PdqDir   = Join-Path $script:TempRoot 'pdq'
     $script:Registry = Import-PowerShellDataFile (Join-Path $script:RepoRoot 'src\registry\tools.psd1')
     $script:Flagged  = @(@($script:Registry.Tools) | Where-Object { $_.PdqDeployable })
+}
+
+AfterAll {
+    Remove-Item $script:TempRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Describe 'PDQ per-tool emitter' {
@@ -177,7 +186,9 @@ Describe 'PDQ per-tool emitter' {
     }
 
     It 'carries the same provenance as the main artifact' {
-        $artifact = Get-Content (Join-Path $script:RepoRoot 'dist\NMMTools.ps1') -Raw
+        # Read from the temp root, not dist\ - this run's build.ps1 -OutputRoot
+        # wrote its main artifact there, not to dist\NMMTools.ps1.
+        $artifact = Get-Content (Join-Path $script:TempRoot 'NMMTools.ps1') -Raw
         $header   = [regex]::Match($artifact, "ToolkitCommit\s*=\s*'([^']+)'")
         $header.Success | Should -BeTrue
         foreach ($f in Get-ChildItem $script:PdqDir -Filter *.ps1) {
@@ -216,7 +227,7 @@ Describe 'PDQ per-tool emitter' {
     It 'removes scripts for tools that lost the flag' {
         $stale = Join-Path $script:PdqDir 'zzz-stale-tool.ps1'
         Set-Content -Path $stale -Value '# stale'
-        & (Join-Path $script:RepoRoot 'build.ps1') -Pdq -SkipAnalyzer | Out-Null
+        & (Join-Path $script:RepoRoot 'build.ps1') -Pdq -SkipAnalyzer -OutputRoot $script:TempRoot | Out-Null
         Test-Path $stale | Should -BeFalse
     }
 }
@@ -234,6 +245,11 @@ Describe 'Generated PDQ script behaviour' {
         $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script:Seed
         $LASTEXITCODE | Should -Be 0
         ($out -join "`n").Trim() | Should -Not -BeNullOrEmpty
+        # Non-empty alone cannot distinguish the Pdq sink from Write-Host - both
+        # reach a redirected child ConsoleHost's stdout. The '[Info ]' prefix is
+        # emitted only by the Pdq sink, so this is the assertion that actually
+        # proves it, not just that something ran to a child process.
+        ($out -join "`n") | Should -Match '\[Info\s+\]'
     }
 
     It 'prints provenance and exits 0 with -Version' {
