@@ -42,6 +42,30 @@ Describe 'Built artifact' {
         $content | Should -Match ("ToolkitBuildDate\s*=\s*'{0}'" -f [regex]::Escape($header.Groups[3].Value))
     }
 
+    It 'writes the artifact as UTF-8 without a BOM' {
+        # NOTE: this assertion only has teeth when the suite runs under Windows
+        # PowerShell 5.1. Under PS 7 a regression to Set-Content -Encoding UTF8
+        # still produces a BOM-less file, so this passes on broken code. The
+        # structural test below is what actually holds the line; this one is
+        # direct evidence on the real bytes when run on the 5.1 target.
+        $bytes = [System.IO.File]::ReadAllBytes($script:Artifact)
+        $bytes.Length | Should -BeGreaterThan 3
+        $hasBom = ($bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+        $hasBom | Should -BeFalse -Because 'the shipped artifact must be UTF-8 without BOM on every shell'
+    }
+
+    It 'writes the artifact with an explicit BOM-less encoding, not Set-Content' {
+        # Set-Content -Encoding UTF8 means "with BOM" on PS 5.1 and "without BOM"
+        # on PS 7, so using it makes the shipped bytes depend on which shell ran
+        # the build - two artifacts from one commit. This is shell-independent
+        # and is the real regression guard for the test above.
+        $repoRoot = Split-Path $PSScriptRoot -Parent
+        $build    = Get-Content (Join-Path $repoRoot 'build.ps1') -Raw
+        $build | Should -Match 'WriteAllText\('
+        $build | Should -Match 'UTF8Encoding\(\$false\)'
+        $build | Should -Not -Match 'Set-Content\s+-Path\s+\$artifact'
+    }
+
     It 'contains the core functions and pilot tools' {
         $content = Get-Content $script:Artifact -Raw
         foreach ($fn in 'Write-ToolOutput','Read-ToolChoice','New-ToolRun','Complete-ToolRun',

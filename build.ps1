@@ -85,7 +85,12 @@ foreach ($f in $toolFiles) {
 # 5. Entry point last
 $parts.Add((Get-Content (Join-Path $root 'src\entry\99-main.ps1') -Raw -Encoding UTF8))
 
-Set-Content -Path $artifact -Value ($parts -join "`r`n") -Encoding UTF8
+# Write the encoding explicitly rather than via Set-Content -Encoding UTF8, which
+# means "UTF-8 with BOM" on PS 5.1 and "UTF-8 without BOM" on PS 7. Using it made
+# the shipped bytes depend on which shell ran the build, so one commit could
+# produce two different artifacts - which also defeats hash-comparing a deployed
+# copy against the commit its -Version banner claims.
+[System.IO.File]::WriteAllText($artifact, ($parts -join "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
 
 # Gate 1: parse
 $tokens = $null; $parseErrors = $null
