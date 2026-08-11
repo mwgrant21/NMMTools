@@ -41,7 +41,7 @@ function Repair-HotkeyFnKeys {
 
         # --- NumLock state ---
         $numLock = [Console]::NumberLock
-        Write-ToolOutput ('NumLock: {0}' -f (if ($numLock) { 'ON' } else { 'OFF' }))
+        Write-ToolOutput ('NumLock: {0}' -f $(if ($numLock) { 'ON' } else { 'OFF' }))
 
         # --- Fn key BIOS advisory (informational only - cannot be changed from Windows) ---
         Write-ToolOutput 'Note: Fn key behavior is controlled by BIOS. Check BIOS for Fn Lock or Function Key Mode if Fn keys are inverted.' -Level Info
