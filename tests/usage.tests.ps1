@@ -50,6 +50,25 @@ Describe 'Usage store' {
         Add-NmmUsage -Id 'tool-b'
         (Get-NmmCommonFixes -Max 2)[0].Id | Should -Be 'tool-b'
     }
+    It 'preserves sub-second precision in Last across a save/load round trip' {
+        # ConvertFrom-Json coerces an ISO-8601 string back into [DateTime], and
+        # [string] on a DateTime renders the culture short format
+        # (MM/dd/yyyy HH:mm:ss) - dropping the fractional seconds that the
+        # most-recent-use tie-break depends on.
+        Add-NmmUsage -Id 'tool-a'
+        $last = (Import-NmmUsage)['tool-a']['Last']
+        $last | Should -Match '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+'
+    }
+    It 'ranks a later year above an earlier one regardless of month digits' {
+        # Guards the culture-format string sort: as plain text '12/01/2025'
+        # sorts above '08/11/2026', so the more recent tool would rank last.
+        $store = [PSCustomObject]@{ Version = 1; Tools = [PSCustomObject]@{
+            'tool-a' = @{ Count = 1; Last = '2025-12-01T10:00:00.0000000-06:00' }
+            'tool-b' = @{ Count = 1; Last = '2026-08-11T10:00:00.0000000-06:00' }
+        } }
+        Set-Content -Path $script:UsageFilePathOverride -Value ($store | ConvertTo-Json -Depth 4) -Encoding UTF8
+        (Get-NmmCommonFixes -Max 2)[0].Id | Should -Be 'tool-b'
+    }
     It 'skips ids no longer in the registry' {
         Add-NmmUsage -Id 'ghost-tool'
         Add-NmmUsage -Id 'tool-a'

@@ -20,7 +20,15 @@ function Import-NmmUsage {
         $json = Get-Content $path -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
         if ($json -and $json.Tools) {
             foreach ($p in $json.Tools.PSObject.Properties) {
-                $table[$p.Name] = @{ Count = [int]$p.Value.Count; Last = [string]$p.Value.Last }
+                # ConvertFrom-Json silently coerces an ISO-8601 string back into
+                # [DateTime]. A plain [string] cast on that renders the culture
+                # short format (MM/dd/yyyy HH:mm:ss), which drops the fractional
+                # seconds the tie-break needs and sorts by month before year.
+                # Re-render through the round-trip format to undo both.
+                $rawLast = $p.Value.Last
+                if ($rawLast -is [datetime]) { $last = $rawLast.ToString('o') }
+                else { $last = [string]$rawLast }
+                $table[$p.Name] = @{ Count = [int]$p.Value.Count; Last = $last }
             }
         }
     } catch {
@@ -58,9 +66,16 @@ function Get-NmmCommonFixes {
     param([int]$Max = 6)
     $table = Import-NmmUsage
     if ($table.Count -eq 0) { return @() }
+    # Sort Last chronologically, not as text: a culture-formatted stamp left by
+    # an older build (MM/dd/yyyy) orders by month before year as a string.
+    # Unparseable values sort oldest rather than throwing.
     $ranked = $table.GetEnumerator() | Sort-Object `
         @{ Expression = { [int]$_.Value['Count'] }; Descending = $true }, `
-        @{ Expression = { [string]$_.Value['Last'] }; Descending = $true }
+        @{ Expression = {
+                $parsed = [datetime]::MinValue
+                if ([datetime]::TryParse([string]$_.Value['Last'], [ref]$parsed)) { $parsed }
+                else { [datetime]::MinValue }
+            }; Descending = $true }
     $out = New-Object System.Collections.Generic.List[object]
     foreach ($entry in $ranked) {
         if ($out.Count -ge $Max) { break }
