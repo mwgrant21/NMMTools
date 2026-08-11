@@ -69,6 +69,7 @@ function Verb-Noun {
     Description   = 'One line, no trailing period'
     RequiresAdmin = $false
     SilentCapable = $true                # $false only if tool cannot run headless
+    PdqDeployable = $false               # $true emits dist\pdq\<id>.ps1 via build.ps1 -Pdq
     Risk          = 'ReadOnly'           # ReadOnly | Modifies | Disruptive
     Tags          = @('a','b','c')       # lowercase search keywords
 }

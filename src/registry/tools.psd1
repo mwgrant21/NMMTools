@@ -1,4 +1,4 @@
-﻿@{
+@{
     Tools = @(
         @{
             Id            = 'system-uptime'
@@ -9,6 +9,7 @@
             Description   = 'Shows last boot time and uptime duration; flags stale uptime'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('uptime','boot','restart','reboot')
         }
@@ -21,6 +22,7 @@
             Description   = 'Clears user and system temp folders and reports space reclaimed'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('temp','cleanup','disk','space')
         }
@@ -33,6 +35,7 @@
             Description   = 'OS, hardware, BIOS, and domain summary for the machine'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $true
             Risk          = 'ReadOnly'
             Tags          = @('system','os','hardware','bios')
         }
@@ -45,6 +48,7 @@
             Description   = 'Per-volume capacity, free space, and low-space warnings'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('disk','space','storage','volume')
         }
@@ -57,6 +61,7 @@
             Description   = 'Active network adapters: name, status, link speed, and IPv4 address'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('network','ip','ipv4','adapter')
         }
@@ -69,6 +74,7 @@
             Description   = 'Top 10 processes by memory (WorkingSet)'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('process','workingset','memory')
         }
@@ -81,6 +87,7 @@
             Description   = 'All services grouped by status with counts'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('services','automatic','stopped')
         }
@@ -93,6 +100,7 @@
             Description   = 'Recent System/Application error events (Level 2) in the last 24 hours'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('events','errors','eventlog')
         }
@@ -105,6 +113,7 @@
             Description   = 'Memory usage percentage and running process count; warns if memory exceeds 80%'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('performance','memory','counters')
         }
@@ -117,6 +126,7 @@
             Description   = 'Installed applications from registry uninstall keys'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('software','installed','apps','programs')
         }
@@ -129,6 +139,7 @@
             Description   = 'Most recent installed hotfix from Get-HotFix'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('updates','hotfix','patch','kb')
         }
@@ -141,6 +152,7 @@
             Description   = 'Local user accounts: name, enabled state, and last logon time'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('users','accounts')
         }
@@ -153,6 +165,7 @@
             Description   = 'Ping/DNS reachability tests to Google DNS, Cloudflare DNS, and microsoft.com'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('network','ping','connectivity','dns')
         }
@@ -165,6 +178,7 @@
             Description   = 'Disk and memory health; warns if any volume is below 10% free or RAM exceeds 90%'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('health','check','overview')
         }
@@ -177,6 +191,7 @@
             Description   = 'Defender and firewall posture; reports Unable to check when access is restricted'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('security','defender','firewall')
         }
@@ -189,6 +204,7 @@
             Description   = 'Signed driver inventory sorted by install date; shows first 15 of total'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('drivers','devices','pnp')
         }
@@ -201,6 +217,7 @@
             Description   = 'Auto-start entries from HKLM and HKCU Run registry keys'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('startup','autorun','boot')
         }
@@ -213,6 +230,7 @@
             Description   = 'Active (non-Disabled) scheduled tasks with name and current state'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('tasks','scheduler','scheduled')
         }
@@ -225,6 +243,7 @@
             Description   = 'Volume health report via Get-Volume (DriveLetter, FileSystem, HealthStatus); flags Unhealthy volumes'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('filesystem','disk','volume','health','chkdsk')
         }
@@ -237,6 +256,7 @@
             Description   = 'Enabled Windows optional features via Get-WindowsOptionalFeature -Online (requires admin)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('features','windows-features','optional','dism')
         }
@@ -249,6 +269,7 @@
             Description   = 'Pending-reboot indicators from WU, CBS, PendingFileRename, computer rename, and SCCM'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('reboot','pending','restart')
         }
@@ -261,6 +282,7 @@
             Description   = 'Upgrades all winget-managed apps (can close or replace running applications)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('winget','upgrade','apps','updates')
         }
@@ -273,6 +295,7 @@
             Description   = 'Exports a hardware summary file for ticket attachments'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('hardware','summary','export','ticket')
         }
@@ -285,6 +308,7 @@
             Description   = 'Entra/Azure AD + domain join state from dsregcmd (AzureAdJoined, DomainJoined, DeviceId)'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('azuread','entra','join','dsregcmd')
         }
@@ -297,6 +321,7 @@
             Description   = 'MDM enrollment status from HKLM Enrollments (UPN, provider); notes if access is restricted'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('intune','mdm','enrollment','management')
         }
@@ -309,6 +334,7 @@
             Description   = 'Windows Hello / Passport-for-Work policy and biometric device status (covers MFA-readiness check)'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('hello','mfa','biometric','passport')
         }
@@ -321,6 +347,7 @@
             Description   = 'TCP reachability (3s timeout per host) to login.microsoftonline.com, outlook, onedrive, teams'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('m365','connectivity','network','endpoints')
         }
@@ -333,6 +360,7 @@
             Description   = 'Runs gpupdate /force (user policy always; machine policy needs admin + domain)'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('gpupdate','grouppolicy','gpo','domain')
         }
@@ -345,6 +373,7 @@
             Description   = 'Office Click-to-Run update, silent forced update, full online repair, or clear cached Office credentials'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('office','m365','repair','clicktorun')
         }
@@ -357,6 +386,7 @@
             Description   = 'Restarts OneDrive, or resets it (/reset wipes the local sync database - full re-sync)'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('onedrive','sync','reset','restart')
         }
@@ -369,6 +399,7 @@
             Description   = 'Clears classic + New Teams cache after closing Teams (drops active calls)'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('teams','cache','reset','newteams')
         }
@@ -381,6 +412,7 @@
             Description   = 'Inventories installed drivers; flags duplicates, unknown publishers, and stale (3yr+) drivers'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('driver','integrity','scan','inventory')
         }
@@ -393,6 +425,7 @@
             Description   = 'Parses minidumps for bug-check codes and likely causes; optional report export'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('bsod','crashdump','minidump','bugcheck')
         }
@@ -405,6 +438,7 @@
             Description   = 'Reports license/activation status; attempts online activation (slmgr /ato) if unlicensed'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('activation','license','slmgr','kms')
         }
@@ -417,6 +451,7 @@
             Description   = 'DISM CheckHealth/ScanHealth then optional RestoreHealth (repairs the component store; may contact Windows Update)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('dism','image','restorehealth','corruption')
         }
@@ -429,6 +464,7 @@
             Description   = 'sfc /scannow - scans and repairs protected system files from the local cache'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('sfc','scannow','systemfile','corruption')
         }
@@ -441,6 +477,7 @@
             Description   = 'chkdsk scan, or /F /R which schedules a boot-time check on the system drive'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('chkdsk','disk','filesystem','badsector')
         }
@@ -453,6 +490,7 @@
             Description   = 'Tiered cleanup: temp/WU cache/CBS/WER (Conservative); plus Windows.old (Full tier, typed confirm)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('cleanup','disk','space','windowsold')
         }
@@ -465,6 +503,7 @@
             Description   = 'Removes the C:\Windows.old folder (rmdir + DISM component cleanup); ends OS rollback - irreversible; typed confirm'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('windowsold','rollback','dism','cleanup')
         }
@@ -477,6 +516,7 @@
             Description   = 'Force-removes all Adobe apps, services, tasks, files, and registry (clears Adobe user data; typed confirm)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('adobe','creativecloud','removal','uninstall')
         }
@@ -489,6 +529,7 @@
             Description   = 'Installs or updates PowerShell 7 via winget or GitHub MSI (also enables PS Remoting)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('powershell7','pwsh','install','winget')
         }
@@ -501,6 +542,7 @@
             Description   = 'Break-glass: removes version-lock GPO keys and stages a Win11 feature upgrade (can reboot); typed confirm'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('win11','featureupdate','unlock','upgrade')
         }
@@ -513,6 +555,7 @@
             Description   = 'Launches the vendor updater (Dell Command Update / Lenovo System Update / HP Support Assistant) to scan for driver and firmware updates'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('driver','firmware','oem','vendor')
         }
@@ -525,6 +568,7 @@
             Description   = 'Resets Windows Update: stops services, renames SoftwareDistribution and Catroot2, re-registers DLLs'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('windowsupdate','wuauserv','softwaredistribution','reset')
         }
@@ -537,6 +581,7 @@
             Description   = 'Resets WinHTTP/WinINET proxy, clears PAC, flushes DNS, resets Winsock (reboot to finish)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('proxy','winhttp','winsock','internet')
         }
@@ -549,6 +594,7 @@
             Description   = 'Disables and re-enables the display adapter (brief black screen) to clear display glitches'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('display','gpu','adapter','pnp')
         }
@@ -561,6 +607,7 @@
             Description   = 'One-click DISM RestoreHealth + SFC + temp cleanup, run in sequence'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('suite','dism','sfc','cleanup','repair')
         }
@@ -573,6 +620,7 @@
             Description   = 'Battery design vs full-charge capacity, wear %, and a powercfg battery report'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('battery','health','wear','powercfg')
         }
@@ -585,6 +633,7 @@
             Description   = 'CPU temperature, load, and throttling-risk snapshot from ACPI thermal zone'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('thermal','temperature','fan','cpu')
         }
@@ -597,6 +646,7 @@
             Description   = 'Passive scan of nearby Wi-Fi networks (signal, channel, congestion)'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('wifi','scan','channel','environment')
         }
@@ -609,6 +659,7 @@
             Description   = 'Quick read-only pre-flight: disk space, battery wear, BitLocker, Wi-Fi adapter, VPN service presence'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('travel','readiness','preflight','laptop')
         }
@@ -621,6 +672,7 @@
             Description   = 'Wi-Fi adapter/SSID/signal report; optional adapter restart or forget-network actions'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('wifi','wireless','adapter','signal')
         }
@@ -633,6 +685,7 @@
             Description   = 'Windows VPN profile status + reachability (timeout-bounded); optional reconnect/disconnect'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('vpn','rasdial','connection','reachability')
         }
@@ -645,6 +698,7 @@
             Description   = 'Lists saved Wi-Fi profiles; delete (typed confirm), show saved password (warned), or stack reset'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('wifi','profile','cleanup','credential')
         }
@@ -657,6 +711,7 @@
             Description   = 'Flush DNS + winsock + TCP/IP reset + cycle all active adapters (typed RESET; reboot to finish)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('network','winsock','tcpip','reset')
         }
@@ -669,6 +724,7 @@
             Description   = 'Lists camera and sound devices; opens test apps; optional close-conflicting-apps (confirmed)'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('webcam','camera','audio','microphone')
         }
@@ -681,6 +737,7 @@
             Description   = 'Bluetooth adapter and paired device list; optional bthserv restart (drops BT briefly)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('bluetooth','bthserv','pairing','wireless')
         }
@@ -693,6 +750,7 @@
             Description   = 'Connected monitors; optional display topology switch (extend/clone/external/internal)'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('docking','display','monitor','displayswitch')
         }
@@ -705,6 +763,7 @@
             Description   = 'Active power plan and battery; optional plan switch or USB-selective-suspend change'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('power','powercfg','plan','battery')
         }
@@ -717,6 +776,7 @@
             Description   = 'Reports sleep states and wake blockers; optionally applies standard sleep timers or clears wake blockers (confirmed)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('sleep','hibernate','lid','powercfg')
         }
@@ -729,6 +789,7 @@
             Description   = 'Re-enables errored HID touchpad/keyboard devices; optionally clears Filter/Sticky Keys'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('touchpad','keyboard','hid','input')
         }
@@ -741,6 +802,7 @@
             Description   = 'Checks OEM hotkey services (Lenovo/Dell/HP/Synaptics/ELAN); optionally starts/enables stopped ones'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('hotkey','fnkey','oem','service')
         }
@@ -753,6 +815,7 @@
             Description   = 'BitLocker encryption/protection status; AAD/Intune or hardened file key backup; suspend/resume'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('bitlocker','encryption','recovery','key')
         }
@@ -765,6 +828,7 @@
             Description   = 'Physical disk health, wear, temperature; optional Optimize-Volume (TRIM) or online scan'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('storage','ssd','nvme','disk')
         }
@@ -777,6 +841,7 @@
             Description   = 'Back up or restore Chrome/Edge/Firefox/Brave bookmarks, passwords, and preferences; backup is ACL-locked'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('browser','backup','restore','bookmarks')
         }
@@ -789,6 +854,7 @@
             Description   = 'Clear cache, cookies, history, sessions, and site permissions across all profiles; preserves passwords, autofill, and Firefox bookmarks'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('browser','cache','cookies','privacy')
         }
@@ -801,6 +867,7 @@
             Description   = 'Restart the Windows Search service, rebuild the search index, or open Indexing Options'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('search','wsearch','index','cortana')
         }
@@ -813,6 +880,7 @@
             Description   = 'Restart Explorer, reset the Start Menu layout, or re-register the Start Menu app for the current user'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('startmenu','taskbar','explorer','shell')
         }
@@ -825,6 +893,7 @@
             Description   = 'Restart Explorer, clear thumbnail/Recent/jump-list caches, or rebuild the icon cache'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('explorer','shell','thumbnail','iconcache')
         }
@@ -837,6 +906,7 @@
             Description   = 'Report current file-type associations and open Default Apps settings (Windows protects per-user defaults; per-type changes are made in Settings)'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('defaultapps','fileassociation','fta','settings')
         }
@@ -849,6 +919,7 @@
             Description   = 'Fix the missing New Teams Meeting button in Outlook: re-register the add-in COM DLL, set LoadBehavior, clear DisabledItems and add-in cache'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('teams','outlook','addin','meeting')
         }
@@ -861,6 +932,7 @@
             Description   = '11-check diagnostic for New Teams auth/WAM/network issues; optional deep repair (clears credentials/WAM/MSIX cache, re-registers Teams) - sign-out required'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('teams','wam','msal','auth','diagnostic')
         }
@@ -873,6 +945,7 @@
             Description   = 'Fix camera/mic: set Windows privacy access to Allow (FixPermissions), reset the media stack (ResetMediaStack - close hogging apps, clear cache, cycle the device), or remove and reinstall the camera driver (ReinstallDriver - reboot required)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('teams','camera','microphone','media','webcam','driver')
         }
@@ -885,6 +958,7 @@
             Description   = 'Report mapped network drives and reconnect disconnected ones, or remap a drive letter to a UNC path'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('network','drive','mapped','unc')
         }
@@ -897,6 +971,7 @@
             Description   = 'List saved Windows credentials and clear network, web, Office 365, or all of them (stops the Office sign-in loop); or open Credential Manager'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('credential','cmdkey','password','office365')
         }
@@ -909,6 +984,7 @@
             Description   = 'Report user-profile cache folder sizes (Teams/OneDrive/Office/Chrome/Edge/Temp/Downloads) and optionally clear the safe caches; never touches OneDrive or Downloads'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('profile','cache','cleanup','roaming')
         }
@@ -921,6 +997,7 @@
             Description   = 'Detect the "signed in with a temporary profile" issue (orphaned .bak keys in HKLM ProfileList) and repair it via reg copy after a registry backup; affected user must be logged off'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('profile','temporary','profilelist','registry')
         }
@@ -933,6 +1010,7 @@
             Description   = 'Audit local user profiles and flag orphaned ones (SID no longer resolves to an account, or the profile folder is missing); on typed confirm, remove the registration and quarantine the folder (rename, not delete) after a ProfileList registry backup. Affected users must be logged off.'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('profile','orphaned','unknown','sid','profilelist','cleanup')
         }
@@ -945,6 +1023,7 @@
             Description   = 'Report printers, spooler status, and stuck jobs; restart the spooler, clear jobs, clear the spool folder (deep reset), remove offline/ghost printers, or full reset'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('printer','spooler','print','queue')
         }
@@ -957,6 +1036,7 @@
             Description   = 'Report CPU/RAM and top processes, then open startup apps, clear TEMP, set visual effects to performance, or set the page file to system-managed (see also tools 4/7/11/16)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('performance','startup','pagefile','optimize')
         }
@@ -969,6 +1049,7 @@
             Description   = 'Report audio devices and services, then restart the audio services, cycle the audio devices, or launch the Windows audio troubleshooter'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('audio','sound','playback','services')
         }
@@ -981,6 +1062,7 @@
             Description   = 'Report Windows Search/WSearch, index size, the Outlook catalog, and the PreventIndexingOutlook policy; then fix the search config (WSearch startup, PreventIndexingOutlook), restart WSearch, or rebuild the index (deletes Windows.edb); see also tool 54'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('outlook','search','wsearch','index')
         }
@@ -993,6 +1075,7 @@
             Description   = 'Report Office/M365 saved credentials and MSAL/WAM token caches, then clear them (stops the sign-in loop); optionally also clear AutoDiscover cache + OutlookSecurityMode for shared-mailbox access; see also tools 60/85'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('outlook','m365','auth','token','wam','credential')
         }
@@ -1005,6 +1088,7 @@
             Description   = 'Test the Outlook AutoDiscover endpoint and report cache/registry state, then flush DNS, clear AutoDiscover cache files and the AutoDiscover registry key, and re-test; see also m365-auth-reset'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('outlook','autodiscover','dns','exchange')
         }
@@ -1017,6 +1101,7 @@
             Description   = 'List Outlook OST cache files and sizes, then close Outlook and rename each OST (keeps a timestamped .bak) so Outlook re-syncs from Exchange on next launch'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('outlook','ost','cache','exchange','resync')
         }
@@ -1029,6 +1114,7 @@
             Description   = 'List Outlook profiles, then (nuclear) back up the Profiles registry key, delete it, and recreate a fresh default profile - all account settings are wiped; requires a typed REBUILD confirmation; see also tool 22'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('outlook','profile','registry','nuclear')
         }
@@ -1041,6 +1127,7 @@
             Description   = 'Report Outlook add-ins, Resiliency disabled/crashing lists, and the OnBase pin state; then re-enable disabled add-ins (LoadBehavior 3), or permanently pin the OnBase/Hyland add-in via policy so Outlook stops disabling it for "slowing down Outlook"'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('outlook','addin','onbase','loadbehavior','resiliency')
         }
@@ -1053,6 +1140,7 @@
             Description   = 'Report domain join, secure channel, DC list, DNS and time, then test/repair the secure channel, reset the machine password, resync time, purge Kerberos tickets, rejoin the domain (typed REJOIN), or show detailed domain info'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('domain','kerberos','securechannel','nltest','ad')
         }
@@ -1065,6 +1153,7 @@
             Description   = 'Report w32tm status and NTP peers, then resync the clock or full-repair the Windows Time service (re-register, configure source, resync); Kerberos fails past 5 min drift'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('time','w32tm','ntp','kerberos','sync')
         }
@@ -1077,6 +1166,7 @@
             Description   = 'Audit the local Administrators group, flag unexpected active accounts and the built-in Administrator, then optionally disable the unexpected LOCAL accounts'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('admin','audit','localgroup','security','accounts')
         }
@@ -1089,6 +1179,7 @@
             Description   = 'Report Windows Defender real-time protection, definition age, last scan, threats and tamper protection, then optionally update signatures; warns if a third-party AV is active'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('defender','antivirus','security','threats','signatures')
         }
@@ -1101,6 +1192,7 @@
             Description   = 'Report Remote Desktop state (fDenyTSConnections, NLA, firewall, TermService), then enable RDP (typed ENABLE - increases exposure) or disable it (re-deny + close firewall)'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('rdp','remotedesktop','firewall','nla','termservice')
         }
@@ -1113,6 +1205,7 @@
             Description   = 'One-click Office fix: close Office apps, clear Office sign-in credentials, and launch a Click-to-Run update; see also office-repair'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('quickfix','office','m365','credentials')
         }
@@ -1125,6 +1218,7 @@
             Description   = 'One-click OneDrive fix: stop OneDrive, reset it (/reset), and restart it; see also onedrive-repair'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('quickfix','onedrive','sync','reset')
         }
@@ -1137,6 +1231,7 @@
             Description   = 'One-click Teams fix: close Teams (classic and new), clear the Teams cache, and restart Teams; see also teams-cache'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('quickfix','teams','cache')
         }
@@ -1149,6 +1244,7 @@
             Description   = 'One-click login fix: clear Office/M365 sign-in credentials and report the device join state; see also credential-manager and m365-auth-reset'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('quickfix','login','credentials','signin')
         }
@@ -1161,6 +1257,7 @@
             Description   = 'One-click Wi-Fi fix: restart the Wi-Fi adapter, release/renew the IP, and flush DNS; see also wifi-diagnostics and network-stack-reset'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('quickfix','wifi','network','dns')
         }
@@ -1173,6 +1270,7 @@
             Description   = 'One-click VPN fix: disconnect active VPNs, flush DNS, and clear the ARP cache (does not delete VPN profiles); see also vpn-health'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('quickfix','vpn','network','dns')
         }
@@ -1185,6 +1283,7 @@
             Description   = 'One-click meeting prep: close meeting apps and browsers to free the camera/mic, restart the audio service, and open the Camera app; see also webcam-audio-test and teams-camera-repair'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('quickfix','audio','camera','meeting')
         }
@@ -1197,6 +1296,7 @@
             Description   = 'One-click docking fix: detect displays and switch to extend mode (use Win+P to change mode); see also docking-displays'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('quickfix','docking','display','monitor')
         }
@@ -1209,6 +1309,7 @@
             Description   = 'One-click browser backup: close browsers and back up bookmarks/logins for installed browsers to a timestamped ZIP; see also browser-backup-restore'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('quickfix','browser','backup','bookmarks')
         }
@@ -1221,6 +1322,7 @@
             Description   = 'Detect dock type (Dell D6000 DisplayLink or WD19 Thunderbolt), identify camera failure mode (consent store wiped, DisplayLink virtual camera priority, or IR camera conflict), apply targeted fix, and harden against recurrence (USB suspend off, power mgmt pinned). Logs fix history to %PROGRAMDATA%\NMMTools\camera-fix-history.json.'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('teams','camera','displaylink','docking','ir','d6000','wd19','usb')
         }
@@ -1233,6 +1335,7 @@
             Description   = 'Read-only meeting quality check: detect active NIC (flags D6000 DisplayLink USB NIC), measure latency/jitter/packet-loss to M365 endpoints, check VPN tunnel status, QoS/DSCP marking, hardware video encoder, CPU/RAM, and sample Teams logs for recent quality events. Produces a scored verdict.'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('teams','quality','network','latency','jitter','qos','vpn','displaylink','diagnostic')
         }
@@ -1245,6 +1348,7 @@
             Description   = 'Fix Outlook search showing results only from the current mailbox. Sets SearchDefaultScope=1 (All Mailboxes), checks each .ost/.pst data file in the active profile for Windows Search coverage, raises the per-file size limit for oversized archives, and triggers a targeted scope re-index. See also outlook-search-repair for full index rebuild.'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('outlook','search','mailbox','ost','pst','scope','index')
         }
@@ -1257,6 +1361,7 @@
             Description   = 'Permanently prevent Outlook from auto-disabling the Hyland/OnBase add-in. Detects Resiliency DisabledItems/CrashedAddinList state, re-enables LoadBehavior=3, adds to DoNotDisableAddinList, raises the add-in startup timeout to 5s, optionally adds HKLM registration (survives profile resets), and creates a weekly self-heal scheduled task (NMMTools-OnBaseAddinCheck). See also outlook-addin-repair.'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('onbase','hyland','outlook','addin','resiliency','loadbehavior','permanentfix')
         }
@@ -1269,6 +1374,7 @@
             Description   = 'Reports machine certificates (LocalMachine\My) expiring within 60 days or already expired, with subject, thumbprint, NotAfter, and days remaining'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('certificate','expiry','ssl','tls','security','localmachine')
         }
@@ -1281,6 +1387,7 @@
             Description   = 'Checks WMI repository health and repairs it if corrupted'
             RequiresAdmin = $true
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('wmi', 'repository', 'repair', 'cim')
         }
@@ -1293,6 +1400,7 @@
             Description   = 'Summarizes recurring failure sources from Reliability Monitor within a lookback window'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('reliability', 'crash', 'history', 'stability')
         }
@@ -1305,6 +1413,7 @@
             Description   = 'Runs gpresult /r and reports applied GPOs, group membership, and last refresh time'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('gpresult', 'grouppolicy', 'rsop', 'policy')
         }
@@ -1317,6 +1426,7 @@
             Description   = 'Scans for devices reporting a Device Manager error code and decodes the common ones'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('device', 'driver', 'pnp', 'configmanager')
         }
@@ -1329,6 +1439,7 @@
             Description   = 'Lists Windows Error Reporting application-crash dump files within a lookback window'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('crash', 'dump', 'wer', 'application')
         }
@@ -1341,6 +1452,7 @@
             Description   = 'Runs a set of diagnostic checks and zips raw output plus a health summary and ticket-ready text to the Desktop'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('bundle', 'diagnostic', 'ticket', 'export', 'zip')
         }
@@ -1353,6 +1465,7 @@
             Description   = 'Checks GlobalProtect VPN connection state, service health, and recent log errors'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('globalprotect', 'vpn', 'paloalto', 'business')
         }
@@ -1365,6 +1478,7 @@
             Description   = 'Checks Nitro PDF Pro install, license/activation state, and default PDF handler'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('nitro', 'pdf', 'license', 'business')
         }
@@ -1377,6 +1491,7 @@
             Description   = 'Checks RingCentral desktop app install/run state, audio device, and recent log errors'
             RequiresAdmin = $false
             SilentCapable = $true
+            PdqDeployable = $false
             Risk          = 'ReadOnly'
             Tags          = @('ringcentral', 'softphone', 'audio', 'business')
         }

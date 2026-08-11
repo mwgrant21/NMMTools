@@ -11,7 +11,7 @@ Describe 'Tool registry structure' {
 
     It 'every entry has all required keys' {
         $required = 'Id','LegacyId','Name','Category','Function','Description',
-                    'RequiresAdmin','SilentCapable','Risk','Tags'
+                    'RequiresAdmin','SilentCapable','PdqDeployable','Risk','Tags'
         foreach ($t in $script:Tools) {
             foreach ($k in $required) {
                 $t.ContainsKey($k) | Should -BeTrue -Because "entry '$($t.Id)' must define $k"
@@ -61,6 +61,42 @@ Describe 'Tool registry structure' {
         foreach ($t in $script:Tools) {
             $t.Tags -is [array] | Should -BeTrue -Because "entry '$($t.Id)' Tags must be an array"
         }
+    }
+
+    It 'declares PdqDeployable as a boolean on every tool' {
+        $offenders = @()
+        foreach ($tool in @($script:Registry.Tools)) {
+            if (-not $tool.ContainsKey('PdqDeployable')) {
+                $offenders += ('{0} (missing)' -f $tool.Id)
+            } elseif ($tool.PdqDeployable -isnot [bool]) {
+                $offenders += ('{0} (not a bool)' -f $tool.Id)
+            }
+        }
+        $offenders -join '; ' | Should -BeNullOrEmpty -Because 'every tool must make an explicit decision about PDQ deployment'
+    }
+
+    It 'has at least one PdqDeployable tool and system-info is one of them' {
+        # Intentionally does not assert an exact count - see the headless
+        # invariant test below for why pinning the number would be wrong.
+        $flagged = @(@($script:Registry.Tools) | Where-Object { $_.PdqDeployable })
+        $flagged.Count | Should -BeGreaterThan 0
+        $flagged.Id | Should -Contain 'system-info'
+    }
+
+    It 'never flags a tool for PDQ that cannot run headless' {
+        # The durable invariant. Deliberately NOT asserting an exact count of
+        # flagged tools: the field exists so more tools get opted in later as a
+        # data change, and pinning the count would turn that intended change
+        # into a test failure. What must never vary is that anything shipped as
+        # a standalone PDQ script can run non-interactively - PDQ runs it as
+        # SYSTEM with no host to prompt.
+        $offenders = @()
+        foreach ($tool in @($script:Registry.Tools)) {
+            if ($tool.PdqDeployable -and -not $tool.SilentCapable) {
+                $offenders += $tool.Id
+            }
+        }
+        $offenders -join '; ' | Should -BeNullOrEmpty -Because 'a PdqDeployable tool must be SilentCapable'
     }
 }
 
