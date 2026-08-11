@@ -16,6 +16,24 @@ Describe 'Built artifact' {
         $parseErrors.Count | Should -Be 0
     }
 
+    It 'bakes build provenance into the artifact as runtime variables' {
+        $content = Get-Content $script:Artifact -Raw
+        $content | Should -Match "ToolkitVersion\s*=\s*'\d+\.\d+\.\d+'"
+        $content | Should -Match "ToolkitCommit\s*=\s*'([0-9a-f]{7,}(-dirty)?|unknown)'"
+        $content | Should -Match "ToolkitBuildDate\s*=\s*'\d{4}-\d{2}-\d{2} \d{2}:\d{2}'"
+    }
+
+    It 'keeps the param block ahead of the provenance block' {
+        # The param block must remain the first statement in the artifact or the
+        # whole file fails to run. Injecting the provenance block above it would
+        # parse fine and break every invocation.
+        $content = Get-Content $script:Artifact -Raw
+        $paramIndex      = $content.IndexOf('param(')
+        $provenanceIndex = $content.IndexOf('ToolkitVersion')
+        $paramIndex      | Should -BeGreaterThan -1
+        $provenanceIndex | Should -BeGreaterThan $paramIndex
+    }
+
     It 'contains the core functions and pilot tools' {
         $content = Get-Content $script:Artifact -Raw
         foreach ($fn in 'Write-ToolOutput','Read-ToolChoice','New-ToolRun','Complete-ToolRun',
