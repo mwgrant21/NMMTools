@@ -2,3 +2,5 @@ dist/
 *.log
 .claude/agent-memory/
 testResults.xml
+.claude/worktrees/
+.superpowers/
