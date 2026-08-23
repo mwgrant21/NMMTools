@@ -73,14 +73,22 @@
                 if ($confirm -ne 'Yes') {
                     Complete-ToolRun $run -Status Skipped -Summary 'SetPerformanceVisualEffects cancelled'
                 } else {
-                    $vfx = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects'
-                    try {
-                        if (-not (Test-Path -LiteralPath $vfx)) { New-Item -LiteralPath $vfx -Force -ErrorAction Stop | Out-Null }
-                        Set-ItemProperty -LiteralPath $vfx -Name 'VisualFXSetting' -Value 2 -Type DWord -ErrorAction Stop
-                        Write-ToolOutput 'Visual effects set to best performance; sign out/in or restart Explorer to apply fully.' -Level Info
-                        Complete-ToolRun $run -Status Success -Summary 'Visual effects set to best performance (current user)'
-                    } catch {
-                        Complete-ToolRun $run -Status Warning -Summary ('Could not set visual effects: {0}' -f $_.Exception.Message)
+                    # HKCU: under SYSTEM/PDQ resolves to the SYSTEM profile's hive, not any
+                    # technician's - resolve the effective user's hive so this doesn't
+                    # silently no-op while still reporting Success.
+                    $hive = Resolve-NmmUserRegistryHive
+                    if (-not $hive.Root) {
+                        Complete-ToolRun $run -Status Warning -Summary ('Could not set visual effects: {0}' -f $hive.Reason)
+                    } else {
+                        $vfx = '{0}\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -f $hive.Root
+                        try {
+                            if (-not (Test-Path -LiteralPath $vfx)) { New-Item -LiteralPath $vfx -Force -ErrorAction Stop | Out-Null }
+                            Set-ItemProperty -LiteralPath $vfx -Name 'VisualFXSetting' -Value 2 -Type DWord -ErrorAction Stop
+                            Write-ToolOutput 'Visual effects set to best performance; sign out/in or restart Explorer to apply fully.' -Level Info
+                            Complete-ToolRun $run -Status Success -Summary 'Visual effects set to best performance (current user)'
+                        } catch {
+                            Complete-ToolRun $run -Status Warning -Summary ('Could not set visual effects: {0}' -f $_.Exception.Message)
+                        }
                     }
                 }
             }

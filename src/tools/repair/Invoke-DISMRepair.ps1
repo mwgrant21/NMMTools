@@ -75,6 +75,11 @@ function Invoke-DISMRepair {
 
         if ($repairExit -eq 0) {
             Complete-ToolRun $run -Status Success -Summary 'DISM RestoreHealth completed successfully (exit 0)'
+        } elseif ($repairExit -eq 3010) {
+            # ERROR_SUCCESS_REBOOT_REQUIRED - DISM's own legitimate "succeeded, needs a
+            # reboot to finish" code, not a failure. Reporting it as Failed would mislabel a
+            # successful repair.
+            Complete-ToolRun $run -Status Warning -Summary 'DISM RestoreHealth completed successfully but requires a reboot to finish (exit 3010)'
         } else {
             Complete-ToolRun $run -Status Failed `
                 -Summary ('DISM RestoreHealth exited {0}; component store repair may be incomplete' -f $repairExit)

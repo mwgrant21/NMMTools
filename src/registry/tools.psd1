@@ -19,7 +19,7 @@
             Name          = 'Temp Files Cleanup'
             Category      = 'Diagnostics'
             Function      = 'Start-TempFilesCleanup'
-            Description   = 'Clears user and system temp folders and reports space reclaimed'
+            Description   = 'Clears the current session temp folder ($env:TEMP) and system temp (Windows\Temp); reports space reclaimed. Under SYSTEM/PDQ, $env:TEMP is the SYSTEM profile, not any logged-on user'
             RequiresAdmin = $true
             SilentCapable = $true
             PdqDeployable = $false
@@ -582,7 +582,7 @@
             RequiresAdmin = $true
             SilentCapable = $true
             PdqDeployable = $false
-            Risk          = 'Modifies'
+            Risk          = 'Disruptive'
             Tags          = @('proxy','winhttp','winsock','internet')
         }
         @{
@@ -673,7 +673,7 @@
             RequiresAdmin = $true
             SilentCapable = $true
             PdqDeployable = $false
-            Risk          = 'Modifies'
+            Risk          = 'Disruptive'
             Tags          = @('wifi','wireless','adapter','signal')
         }
         @{
@@ -816,7 +816,7 @@
             RequiresAdmin = $true
             SilentCapable = $true
             PdqDeployable = $false
-            Risk          = 'Modifies'
+            Risk          = 'Disruptive'
             Tags          = @('bitlocker','encryption','recovery','key')
         }
         @{
@@ -972,7 +972,7 @@
             RequiresAdmin = $false
             SilentCapable = $true
             PdqDeployable = $false
-            Risk          = 'Modifies'
+            Risk          = 'Disruptive'
             Tags          = @('credential','cmdkey','password','office365')
         }
         @{
@@ -1167,7 +1167,7 @@
             RequiresAdmin = $true
             SilentCapable = $true
             PdqDeployable = $false
-            Risk          = 'Modifies'
+            Risk          = 'Disruptive'
             Tags          = @('admin','audit','localgroup','security','accounts')
         }
         @{
@@ -1204,7 +1204,7 @@
             Function      = 'Invoke-OfficeQuickFix'
             Description   = 'One-click Office fix: close Office apps, clear Office sign-in credentials, and launch a Click-to-Run update; see also office-repair'
             RequiresAdmin = $false
-            SilentCapable = $true
+            SilentCapable = $false
             PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('quickfix','office','m365','credentials')
@@ -1217,7 +1217,7 @@
             Function      = 'Invoke-OneDriveQuickFix'
             Description   = 'One-click OneDrive fix: stop OneDrive, reset it (/reset), and restart it; see also onedrive-repair'
             RequiresAdmin = $false
-            SilentCapable = $true
+            SilentCapable = $false
             PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('quickfix','onedrive','sync','reset')
@@ -1230,7 +1230,7 @@
             Function      = 'Invoke-TeamsQuickFix'
             Description   = 'One-click Teams fix: close Teams (classic and new), clear the Teams cache, and restart Teams; see also teams-cache'
             RequiresAdmin = $false
-            SilentCapable = $true
+            SilentCapable = $false
             PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('quickfix','teams','cache')
@@ -1243,7 +1243,7 @@
             Function      = 'Invoke-LoginQuickFix'
             Description   = 'One-click login fix: clear Office/M365 sign-in credentials and report the device join state; see also credential-manager and m365-auth-reset'
             RequiresAdmin = $false
-            SilentCapable = $true
+            SilentCapable = $false
             PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('quickfix','login','credentials','signin')
@@ -1256,7 +1256,7 @@
             Function      = 'Invoke-WiFiQuickFix'
             Description   = 'One-click Wi-Fi fix: restart the Wi-Fi adapter, release/renew the IP, and flush DNS; see also wifi-diagnostics and network-stack-reset'
             RequiresAdmin = $true
-            SilentCapable = $true
+            SilentCapable = $false
             PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('quickfix','wifi','network','dns')
@@ -1269,7 +1269,7 @@
             Function      = 'Invoke-VpnQuickFix'
             Description   = 'One-click VPN fix: disconnect active VPNs, flush DNS, and clear the ARP cache (does not delete VPN profiles); see also vpn-health'
             RequiresAdmin = $true
-            SilentCapable = $true
+            SilentCapable = $false
             PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('quickfix','vpn','network','dns')
@@ -1282,7 +1282,7 @@
             Function      = 'Invoke-AvPrepQuickFix'
             Description   = 'One-click meeting prep: close meeting apps and browsers to free the camera/mic, restart the audio service, and open the Camera app; see also webcam-audio-test and teams-camera-repair'
             RequiresAdmin = $true
-            SilentCapable = $true
+            SilentCapable = $false
             PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('quickfix','audio','camera','meeting')
@@ -1295,7 +1295,7 @@
             Function      = 'Invoke-DockingQuickFix'
             Description   = 'One-click docking fix: detect displays and switch to extend mode (use Win+P to change mode); see also docking-displays'
             RequiresAdmin = $false
-            SilentCapable = $true
+            SilentCapable = $false
             PdqDeployable = $false
             Risk          = 'Modifies'
             Tags          = @('quickfix','docking','display','monitor')
@@ -1308,7 +1308,7 @@
             Function      = 'Invoke-BrowserBackupQuickFix'
             Description   = 'One-click browser backup: close browsers and back up bookmarks/logins for installed browsers to a timestamped ZIP; see also browser-backup-restore'
             RequiresAdmin = $false
-            SilentCapable = $true
+            SilentCapable = $false
             PdqDeployable = $false
             Risk          = 'Disruptive'
             Tags          = @('quickfix','browser','backup','bookmarks')
@@ -1346,7 +1346,7 @@
             Category      = 'User'
             Function      = 'Repair-OutlookSearchScope'
             Description   = 'Fix Outlook search showing results only from the current mailbox. Sets SearchDefaultScope=1 (All Mailboxes), checks each .ost/.pst data file in the active profile for Windows Search coverage, raises the per-file size limit for oversized archives, and triggers a targeted scope re-index. See also outlook-search-repair for full index rebuild.'
-            RequiresAdmin = $false
+            RequiresAdmin = $true
             SilentCapable = $true
             PdqDeployable = $false
             Risk          = 'Modifies'

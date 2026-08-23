@@ -52,7 +52,12 @@ function Get-RingCentralStatus {
         param([Parameter(Mandatory)][string]$Line)
         $scrubbed = $Line
         $scrubbed = $scrubbed -replace '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', '[redacted]'
-        $scrubbed = $scrubbed -replace '(?i)(token|bearer|password|auth)[=:]\S+', '$1=[redacted]'
+        # Broadened from '(token|bearer|password|auth)[=:]\S+', which missed the common JSON
+        # form ("token": "value" - a space after the colon defeats [=:]\S+) and a bare
+        # "Authorization: Bearer <token>" header (the keyword isn't immediately followed by
+        # [=:]). Captures the key/prefix (with optional quotes and whitespace) into $1 so only
+        # the secret value itself is replaced.
+        $scrubbed = $scrubbed -replace '(?i)("?(?:access_?token|refresh_?token|id_?token|token|bearer|password|passwd|secret|api[_-]?key|authorization)"?\s*[:=]\s*"?)[^"\s,]+', '$1[redacted]'
         $scrubbed = $scrubbed -replace '\+?\d{7,}', '[redacted]'
         return $scrubbed
     }

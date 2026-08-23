@@ -54,6 +54,22 @@
                 $destDir = Join-Path $userRoot ('BrowserBackup_{0}' -f $stamp)
                 New-Item -Path $destDir -ItemType Directory -Force | Out-Null
 
+                # ACL-lock the destination BEFORE any file (including credential stores like
+                # Chromium Login Data or Firefox key4.db/logins.json, which genuinely travel in
+                # the clear) is copied into it - locking after the fact leaves plaintext-
+                # equivalent credential material under inherited (broader, possibly
+                # network-share) permissions for the whole copy window. Grant by SID rather
+                # than $env:USERNAME so this can't collide with a same-named account.
+                $currentSid = ([Security.Principal.WindowsIdentity]::GetCurrent()).User.Value
+                & icacls "$destDir" /inheritance:r /grant:r ("*$($currentSid):(OI)(CI)F") | Out-Null
+                if ($LASTEXITCODE -ne 0) {
+                    Remove-Item -LiteralPath $destDir -Recurse -Force -ErrorAction SilentlyContinue
+                    Write-ToolOutput 'ACL-lock failed (common on network shares); refusing to back up credential-bearing browser data unprotected.' -Level Warning
+                    Complete-ToolRun $run -Status Warning -Summary 'Backup aborted: could not restrict destination folder permissions before writing'
+                    return
+                }
+                Write-ToolOutput 'Backup destination ACL-restricted to current user.' -Level Success
+
                 $backedUp = 0
                 foreach ($b in $present) {
                     foreach ($prof in @(Get-BrowserProfiles -Browser $b)) {
@@ -76,49 +92,50 @@
                     }
                 }
 
+                # Build the zip inside the already-locked directory, then apply the same SID
+                # grant to the zip itself (a new file, so it doesn't inherit destDir's ACL).
                 $zipPath = '{0}.zip' -f $destDir
                 try {
                     Compress-Archive -Path ('{0}\*' -f $destDir) -DestinationPath $zipPath -Force -ErrorAction Stop
-                    Write-ToolOutput ('ZIP created: {0}' -f $zipPath) -Level Success
+                    & icacls "$zipPath" /inheritance:r /grant:r ("*$($currentSid):F") | Out-Null
+                    if ($LASTEXITCODE -ne 0) {
+                        Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+                        Write-ToolOutput 'ZIP ACL-lock failed; removed the unprotected zip (unzipped backup folder remains ACL-locked).' -Level Warning
+                        $zipPath = $null
+                    } else {
+                        Write-ToolOutput ('ZIP created and ACL-restricted: {0}' -f $zipPath) -Level Success
+                    }
                 } catch {
                     Write-ToolOutput ('ZIP creation failed: {0}' -f $_.Exception.Message) -Level Warning
                     $zipPath = $null
                 }
 
-                # ACL-lock folder + zip to current user (best-effort; warn on failure)
-                $aclOk = $true
-                & icacls "$destDir" /inheritance:r /grant:r ('{0}:(OI)(CI)F' -f $env:USERNAME) | Out-Null
-                if ($LASTEXITCODE -ne 0) { $aclOk = $false }
-                if ($zipPath) {
-                    & icacls "$zipPath" /inheritance:r /grant:r ('{0}:F' -f $env:USERNAME) | Out-Null
-                    if ($LASTEXITCODE -ne 0) { $aclOk = $false }
-                }
-                if ($aclOk) {
-                    Write-ToolOutput 'Backup ACL-restricted to current user.' -Level Success
-                    $aclNote = 'ACL-locked'
-                } else {
-                    Write-ToolOutput 'WARNING: ACL lock failed (common on network shares); backup is NOT restricted.' -Level Warning
-                    $aclNote = 'ACL-lock failed'
-                }
-
                 Complete-ToolRun $run -Status Success `
-                    -Summary ('Backed up {0} file(s) to {1} ({2})' -f $backedUp, $destDir, $aclNote)
+                    -Summary ('Backed up {0} file(s) to {1} (ACL-locked)' -f $backedUp, $destDir)
             }
 
             'Restore' {
                 if ($existing.Count -eq 0) {
                     Write-ToolOutput ('No backups found under {0}.' -f $userRoot) -Level Warning
+                    Complete-ToolRun $run -Status Warning -Summary 'Restore aborted: no backups found'
+                    return
                 }
-                # Read-Host is safe here: only reached in the interactive Restore branch (never under -Silent).
-                $sel = Read-Host 'Backup number (from the list above) or full path to a folder/.zip'
+                # A bare Read-Host here throws in the GUI's hostless tool runspace (caught by
+                # the outer catch before any state change - fails closed, but the feature
+                # silently can't be used from the default UI mode). Read-ToolChoice only
+                # supports enumerated choices, so offer the same numbered list already printed
+                # above (capped at 10, matching the displayed list) instead of an arbitrary
+                # typed number or path.
+                $shownCount = [Math]::Min(10, $existing.Count)
+                $indexChoices = @(0..($shownCount - 1) | ForEach-Object { "$_" })
+                $sel = Read-ToolChoice -Prompt 'Backup number to restore (from the list above)' `
+                    -Choices ($indexChoices + @('Cancel')) -Default 'Cancel' -Silent:$Silent
                 $backupPath = $null
-                if ($sel -match '^\d+$' -and [int]$sel -lt $existing.Count) {
+                if ($sel -ne 'Cancel' -and $sel -match '^\d+$' -and [int]$sel -lt $existing.Count) {
                     $backupPath = $existing[[int]$sel].FullName
-                } elseif ($sel -and (Test-Path -LiteralPath $sel)) {
-                    $backupPath = $sel
                 }
                 if (-not $backupPath) {
-                    Complete-ToolRun $run -Status Warning -Summary 'Restore aborted: no valid backup selected'
+                    Complete-ToolRun $run -Status Skipped -Summary 'Restore cancelled (no backup selected)'
                     return
                 }
 

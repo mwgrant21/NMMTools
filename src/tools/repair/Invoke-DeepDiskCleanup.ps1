@@ -119,6 +119,7 @@ function Invoke-DeepDiskCleanup {
             $totalFreedBytes += & $clearFolderContents 'Delivery Optimization' `
                 'C:\Windows\SoftwareDistribution\DeliveryOptimization' $false
 
+            $winOldStillPresent = $false
             if (Test-Path 'C:\Windows.old') {
                 Write-ToolOutput 'Removing Windows.old (may take several minutes)...' -Level Info
                 $winOldBytes = & $getFolderBytes 'C:\Windows.old'
@@ -127,12 +128,17 @@ function Invoke-DeepDiskCleanup {
                     Write-ToolOutput ('  Windows.old : freed {0:N1} MB (rmdir)' -f ($winOldBytes / 1MB)) -Level Info
                     $totalFreedBytes += $winOldBytes
                 } else {
-                    Write-ToolOutput 'rmdir incomplete - trying DISM /SPSuperseded...' -Level Warning
-                    & dism.exe /Online /Cleanup-Image /SPSuperseded /Quiet 2>$null
-                    $winOldRemaining = & $getFolderBytes 'C:\Windows.old'
-                    $winOldFreed = [math]::Max([int64]0, $winOldBytes - $winOldRemaining)
-                    $totalFreedBytes += $winOldFreed
-                    Write-ToolOutput ('  Windows.old (DISM) : freed {0:N1} MB' -f ($winOldFreed / 1MB)) -Level Info
+                    # Neither /SPSuperseded (the original code here) nor /StartComponentCleanup
+                    # (what the sibling Remove-WindowsOld.ps1 runs) actually removes
+                    # C:\Windows.old - both are WinSxS component-store operations. Match
+                    # Remove-WindowsOld.ps1's honest behavior: run component cleanup because
+                    # it's a legitimate space-reclaim step in its own right, but do not credit
+                    # it with freeing Windows.old bytes, and report incomplete removal as such
+                    # rather than folding it into the tier's overall "freed X MB" Success claim.
+                    Write-ToolOutput 'rmdir incomplete (folder likely locked) - running DISM /StartComponentCleanup for component-store space only...' -Level Warning
+                    & dism.exe /Online /Cleanup-Image /StartComponentCleanup /Quiet 2>$null
+                    $winOldStillPresent = $true
+                    Write-ToolOutput '  Windows.old : could not be fully removed - a reboot + retry or Disk Cleanup ''Previous Windows installation(s)'' may be needed' -Level Warning
                 }
             } else {
                 Write-ToolOutput '  Windows.old : not present, skipped' -Level Detail
@@ -146,8 +152,13 @@ function Invoke-DeepDiskCleanup {
             if ($measuredMB -gt $freedMB) { $freedMB = $measuredMB }
         }
 
-        Complete-ToolRun $run -Status Success `
-            -Summary ("Freed {0:N1} MB ({1} tier)" -f $freedMB, $tier)
+        if ($winOldStillPresent) {
+            Complete-ToolRun $run -Status Warning `
+                -Summary ("Freed {0:N1} MB ({1} tier); Windows.old could not be fully removed - a reboot + retry or Disk Cleanup 'Previous Windows installation(s)' may be needed" -f $freedMB, $tier)
+        } else {
+            Complete-ToolRun $run -Status Success `
+                -Summary ("Freed {0:N1} MB ({1} tier)" -f $freedMB, $tier)
+        }
     }
     catch {
         Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message

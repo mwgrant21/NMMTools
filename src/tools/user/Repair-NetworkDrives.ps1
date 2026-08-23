@@ -67,9 +67,8 @@
             }
 
             'RemapDrive' {
-                # Read-Host is safe here: only reached in the interactive RemapDrive branch (never under -Silent).
-                $letter = (Read-Host 'Drive letter to (re)map (e.g. Z)').Trim().TrimEnd(':')
-                $unc = (Read-Host 'UNC path (e.g. \\server\share)').Trim()
+                $letter = (Read-ToolText -Prompt 'Drive letter to (re)map (e.g. Z)' -Silent:$Silent).Trim().TrimEnd(':')
+                $unc = (Read-ToolText -Prompt 'UNC path (e.g. \\server\share)' -Silent:$Silent).Trim()
                 if ([string]::IsNullOrWhiteSpace($letter) -or ($unc -notlike '\\*')) {
                     Complete-ToolRun $run -Status Warning -Summary 'RemapDrive aborted: invalid drive letter or UNC path'
                 } else {

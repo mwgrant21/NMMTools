@@ -27,6 +27,19 @@
             return
         }
 
+        # ACL-lock the destination BEFORE any file (including credential stores like Chromium
+        # Login Data or Firefox key4.db/logins.json, which genuinely travel in the clear) is
+        # copied into it - this backup set is identical to Invoke-BrowserBackupRestore.ps1's
+        # Backup action, which applies this same lock; this quick-fix twin had drifted from
+        # that sibling and shipped with no ACL protection at all.
+        $currentSid = ([Security.Principal.WindowsIdentity]::GetCurrent()).User.Value
+        & icacls "$destDir" /inheritance:r /grant:r ("*$($currentSid):(OI)(CI)F") | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Remove-Item -LiteralPath $destDir -Recurse -Force -ErrorAction SilentlyContinue
+            Complete-ToolRun $run -Status Warning -Summary 'Backup aborted: could not restrict destination folder permissions before writing'
+            return
+        }
+
         $files = 0
         $browsers = 0
         foreach ($b in $catalog) {
@@ -48,6 +61,12 @@
 
         $zip = ('{0}.zip' -f $destDir)
         Compress-Archive -Path (Join-Path $destDir '*') -DestinationPath $zip -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $zip) {
+            & icacls "$zip" /inheritance:r /grant:r ("*$($currentSid):F") | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
+            }
+        }
 
         if (Test-Path -LiteralPath $zip) {
             Complete-ToolRun $run -Status Success -Summary ('{0} file(s) from {1} browser(s) backed up to {2}' -f $files, $browsers, $zip)

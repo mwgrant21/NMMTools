@@ -219,7 +219,14 @@
                     $targets = @(($credLines -split "`n") | Where-Object { $_ -match 'Target:' -and $_ -match 'MicrosoftOffice|microsoftteams|\bTeams\b|aadg\.windows\.net|login\.microsoft' })
                     foreach ($line in $targets) {
                         $t = ($line -replace '.*Target:\s*', '').Trim()
-                        if ($t) { cmdkey /delete:$t 2>&1 | Out-Null; $removed++ }
+                        if ($t) {
+                            # Quoted and $LASTEXITCODE-gated to match Clear-SavedCredentials.ps1's
+                            # reference pattern - an unquoted target with a space (some legacy
+                            # TERMSRV/ or generic targets) mis-parses in cmdkey and silently fails
+                            # to delete, but $removed was previously incremented unconditionally.
+                            cmdkey "/delete:$t" *>$null
+                            if ($LASTEXITCODE -eq 0) { $removed++ }
+                        }
                     }
                     Write-ToolOutput ('Cleared {0} credential entr(ies).' -f $removed) -Level Detail
                     foreach ($wp in @((Join-Path $msixPath 'Settings'), (Join-Path $msixPath 'AC\TokenBroker'))) {
@@ -244,16 +251,24 @@
                     } else {
                         Write-ToolOutput 'AppxManifest not found; Teams must be reinstalled.' -Level Warning
                     }
+                    $tokenBrokerOk = $false
                     try {
                         Restart-Service -Name 'TokenBroker' -Force -ErrorAction Stop
                         Write-ToolOutput 'TokenBroker restarted.' -Level Detail
+                        $tokenBrokerOk = $true
                     } catch {
                         Write-ToolOutput 'Could not restart TokenBroker (needs elevation; reboot recommended).' -Level Warning
                     }
                     Start-Process 'ms-teams:' -ErrorAction SilentlyContinue
                     Start-Sleep -Seconds 2
-                    if ($appxOk) {
-                        Complete-ToolRun $run -Status Success -Summary ('Deep repair applied ({0} creds cleared; WAM/MSIX cache cleared; AppX re-registered)' -f $removed)
+                    # Final status previously depended only on $appxOk - a run that cleared
+                    # all WAM/MSAL caches and credentials but never got TokenBroker to
+                    # reinitialize (so the sign-in loop this tool exists to fix may not
+                    # actually be resolved without a reboot) could still report Success.
+                    if ($appxOk -and $tokenBrokerOk) {
+                        Complete-ToolRun $run -Status Success -Summary ('Deep repair applied ({0} creds cleared; WAM/MSIX cache cleared; AppX re-registered; TokenBroker restarted)' -f $removed)
+                    } elseif ($appxOk) {
+                        Complete-ToolRun $run -Status Warning -Summary ('Deep repair applied ({0} creds cleared; WAM/MSIX cache cleared; AppX re-registered) but TokenBroker did not restart - reboot recommended' -f $removed)
                     } else {
                         Complete-ToolRun $run -Status Warning -Summary ('Deep repair applied ({0} creds cleared; WAM/MSIX cache cleared) but AppX re-register did not succeed - may need Teams reinstall' -f $removed)
                     }

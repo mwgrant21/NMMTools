@@ -6,12 +6,28 @@ function Repair-OnBaseAddinPermanent {
     try {
         $run = New-ToolRun -Id 'onbase-addin-fix'
 
+        # HKCU: under SYSTEM/PDQ resolves to the SYSTEM profile's hive, not any technician's -
+        # resolve the effective user's hive so the HKCU-side fixes below don't silently no-op
+        # while still reporting Success. HKLM-side work is unaffected and always proceeds; the
+        # self-heal scheduled task built further down runs interactively as the logged-on user
+        # (LogonType Interactive), so its own embedded HKCU: references resolve correctly on
+        # their own and are not part of this fix.
+        $userHive = Resolve-NmmUserRegistryHive
         $addinRoots = @(
-            'HKCU:\Software\Microsoft\Office\16.0\Outlook\Addins',
             'HKLM:\Software\Microsoft\Office\16.0\Outlook\Addins',
             'HKLM:\Software\WOW6432Node\Microsoft\Office\16.0\Outlook\Addins'
         )
-        $resilRoot     = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Resiliency'
+        if ($userHive.Root) {
+            $addinRoots = @(('{0}\Software\Microsoft\Office\16.0\Outlook\Addins' -f $userHive.Root)) + $addinRoots
+        } else {
+            Write-ToolOutput ('Skipping HKCU add-in scan: {0}' -f $userHive.Reason) -Level Warning
+        }
+        # Falls back to a path that can never resolve to a real key rather than $null - the
+        # many Test-Path/Join-Path calls below expect a valid string and Test-Path already
+        # returns $false (not an error) for a path segment that doesn't exist, so this lets
+        # every downstream "if (Test-Path $xKey)" guard degrade to "not present" without
+        # needing to null-check each call site individually.
+        $resilRoot     = if ($userHive.Root) { '{0}\Software\Microsoft\Office\16.0\Outlook\Resiliency' -f $userHive.Root } else { 'Registry::HKEY_USERS\NO-USER-RESOLVED\Software\Microsoft\Office\16.0\Outlook\Resiliency' }
         $disabledKey   = Join-Path $resilRoot 'DisabledItems'
         $crashKey      = Join-Path $resilRoot 'CrashedAddinList'
         $doNotDisKey   = Join-Path $resilRoot 'DoNotDisableAddinList'
@@ -160,7 +176,13 @@ function Repair-OnBaseAddinPermanent {
             }
         }
 
-        if ($action -eq 'Harden') {
+        if ($action -eq 'Harden' -and -not $userHive.Root) {
+            # $resilRoot falls back to a path under a fabricated SID when the hive can't be
+            # resolved, safe for the Test-Path/Get-ItemProperty reads elsewhere in this
+            # function - but New-Item below would actually CREATE that bogus key under
+            # HKEY_USERS if allowed to proceed, littering the registry. Skip outright instead.
+            Write-ToolOutput ('Harden (DoNotDisableAddinList) skipped: {0}' -f $userHive.Reason) -Level Warning
+        } elseif ($action -eq 'Harden') {
             # Add to DoNotDisableAddinList
             if (-not (Test-Path -LiteralPath $doNotDisKey)) {
                 New-Item -LiteralPath $doNotDisKey -Force -ErrorAction SilentlyContinue | Out-Null
@@ -223,8 +245,21 @@ function Repair-OnBaseAddinPermanent {
                 }
             }
 
-            # Self-heal scheduled task
-            $progIds = ($onbaseAddins | ForEach-Object { "'{0}'" -f $_.ProgId }) -join ','
+            # Self-heal scheduled task - wrapped in its own try/catch (below) so a failure
+            # here (e.g. WMI broken when resolving the logged-on user) reports a Warning
+            # instead of throwing to the outer catch and discarding credit for the LoadBehavior
+            # fixes, DisabledItems/CrashedAddinList clears, and HKLM registration already
+            # applied earlier in this same run.
+            try {
+            # ProgId comes from a registry subkey name (attacker-writable under HKCU) and is
+            # embedded as a literal inside a generated script below - validate before it ever
+            # reaches a string, or a crafted key name (e.g. "OnBase'; <payload>; '") breaks out
+            # of the quoting and injects code into a weekly elevated scheduled task.
+            $safeOnbaseAddins = @($onbaseAddins | Where-Object { $_.ProgId -match '^[A-Za-z0-9._-]+$' })
+            foreach ($unsafe in @($onbaseAddins | Where-Object { $_.ProgId -notmatch '^[A-Za-z0-9._-]+$' })) {
+                Write-ToolOutput ("Skipping self-heal registration for '{0}' - ProgId contains characters not safe to embed in the scheduled task" -f $unsafe.ProgId) -Level Warning
+            }
+            $progIds = ($safeOnbaseAddins | ForEach-Object { "'{0}'" -f $_.ProgId }) -join ','
             $healScript = @"
 `$resil = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Resiliency'
 `$log   = (Join-Path `$env:ProgramData 'NMMTools\onbase-addin-heal.log')
@@ -276,6 +311,9 @@ foreach (`$progId in `$addins) {
                 $changes.Add('Self-heal task created (weekly Monday 8AM)')
             } else {
                 Write-ToolOutput 'Could not create self-heal task (check task scheduler permissions)' -Level Warning
+            }
+            } catch {
+                Write-ToolOutput ('Self-heal task setup failed: {0}' -f $_.Exception.Message) -Level Warning
             }
         }
 

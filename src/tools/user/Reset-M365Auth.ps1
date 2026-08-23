@@ -58,7 +58,9 @@
 
         $cleared = 0
         foreach ($t in @(Get-OfficeCredTarget)) {
-            cmdkey /delete:$t 2>$null | Out-Null
+            # Quoted to match Clear-SavedCredentials.ps1's reference pattern - an unquoted
+            # target with a space silently fails to delete in cmdkey.
+            cmdkey "/delete:$t" 2>$null | Out-Null
             if ($LASTEXITCODE -eq 0) { $cleared++ }
         }
 

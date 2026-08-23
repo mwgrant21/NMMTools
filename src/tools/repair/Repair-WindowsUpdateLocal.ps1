@@ -17,9 +17,10 @@ function Repair-WindowsUpdateLocal {
             return
         }
 
-        # Stop Windows Update services
+        # Stop Windows Update services - cryptSvc last, matching the Codex-validated WU cache
+        # flush order used elsewhere in this codebase (Invoke-Win11FeatureUpdateUnlock.ps1).
         Write-ToolOutput 'Stopping Windows Update services...' -Level Info
-        foreach ($svc in @('wuauserv', 'cryptSvc', 'bits', 'msiserver')) {
+        foreach ($svc in @('wuauserv', 'bits', 'msiserver', 'cryptSvc')) {
             Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue
         }
         Write-ToolOutput 'Services stopped.' -Level Info
@@ -81,9 +82,9 @@ function Repair-WindowsUpdateLocal {
         }
         Write-ToolOutput 'Windows Update DLLs re-registered.' -Level Info
 
-        # Restart services
+        # Restart services - cryptSvc first, matching the Codex-validated WU cache flush order.
         Write-ToolOutput 'Restarting Windows Update services...' -Level Info
-        foreach ($svc in @('bits', 'cryptSvc', 'msiserver', 'wuauserv')) {
+        foreach ($svc in @('cryptSvc', 'bits', 'msiserver', 'wuauserv')) {
             Start-Service -Name $svc -ErrorAction SilentlyContinue
         }
         Write-ToolOutput 'Services restarted.' -Level Info
@@ -91,9 +92,18 @@ function Repair-WindowsUpdateLocal {
         $resetParts = @()
         if ($sdRenamed)  { $resetParts += 'SoftwareDistribution' }
         if ($catRenamed) { $resetParts += 'Catroot2' }
-        $resetItems = $resetParts -join ', '
-        Complete-ToolRun $run -Status Success `
-            -Summary ('Windows Update reset: services cycled, DLLs re-registered, folders renamed ({0})' -f $resetItems)
+        if ($resetParts.Count -eq 0) {
+            # Neither folder renamed - the tool's entire purpose (forcing a fresh
+            # SoftwareDistribution/Catroot2) didn't happen, most likely because WU services
+            # were still holding handles on them. Services cycled and DLLs re-registered, but
+            # reporting Success here would hide that the actual reset never took effect.
+            Complete-ToolRun $run -Status Warning `
+                -Summary 'Windows Update reset incomplete: services cycled and DLLs re-registered, but SoftwareDistribution and Catroot2 could not be renamed (likely still locked)'
+        } else {
+            $resetItems = $resetParts -join ', '
+            Complete-ToolRun $run -Status Success `
+                -Summary ('Windows Update reset: services cycled, DLLs re-registered, folders renamed ({0})' -f $resetItems)
+        }
     }
     catch {
         Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message

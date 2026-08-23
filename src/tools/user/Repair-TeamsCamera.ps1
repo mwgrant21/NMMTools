@@ -6,8 +6,16 @@
     try {
         $run = New-ToolRun -Id 'teams-camera-repair'
 
-        $camStore = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam'
-        $micStore = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone'
+        # HKCU: and $env:APPDATA/$env:LOCALAPPDATA under SYSTEM/PDQ resolve to the SYSTEM
+        # profile, not any technician's - resolve the effective user's hive/profile so these
+        # fixes don't silently no-op while still reporting Success. Fall back to paths that
+        # can never resolve to anything real rather than throwing; the Test-Path checks below
+        # already treat "not present" as the normal/expected case.
+        $userHive = Resolve-NmmUserRegistryHive
+        if (-not $userHive.Root) { Write-ToolOutput ('Camera/mic permission check limited: {0}' -f $userHive.Reason) -Level Warning }
+        $camStore = if ($userHive.Root) { '{0}\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam' -f $userHive.Root } else { 'Registry::HKEY_USERS\NO-USER-RESOLVED\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam' }
+        $micStore = if ($userHive.Root) { '{0}\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone' -f $userHive.Root } else { 'Registry::HKEY_USERS\NO-USER-RESOLVED\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone' }
+        $userProfile = Resolve-NmmUserProfileBase
 
         # --- Report ---
         $cams = @(Get-PnpDevice -Class Camera -ErrorAction SilentlyContinue)
@@ -47,6 +55,14 @@
         switch ($action) {
 
             'FixPermissions' {
+                if (-not $userHive.Root) {
+                    # $camStore/$micStore fall back to a path under a fabricated SID when the
+                    # hive can't be resolved, safe for the Test-Path/Get-ItemProperty reads
+                    # elsewhere - but New-Item below would actually CREATE that bogus key
+                    # under HKEY_USERS if allowed to proceed. Skip outright instead.
+                    Complete-ToolRun $run -Status Warning -Summary ('FixPermissions skipped: {0}' -f $userHive.Reason)
+                    return
+                }
                 foreach ($store in @($camStore, $micStore)) {
                     if (-not (Test-Path -LiteralPath $store)) { New-Item -LiteralPath $store -Force -ErrorAction SilentlyContinue | Out-Null }
                     Set-ItemProperty -LiteralPath $store -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
@@ -95,17 +111,22 @@
                 } else {
                     foreach ($p in $hogs) { Get-Process -Name $p -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }
                     Start-Sleep -Seconds 2
-                    $cachePaths = @(
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\Cache'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\blob_storage'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\databases'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\GPUCache'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\IndexedDB'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\Local Storage'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\tmp'),
-                        (Join-Path $env:LOCALAPPDATA 'Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\Cache'),
-                        (Join-Path $env:LOCALAPPDATA 'Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\EBWebView')
-                    )
+                    $cachePaths = @()
+                    if (-not $userProfile.Roaming -or -not $userProfile.Local) {
+                        Write-ToolOutput ('Teams cache clear skipped: {0}' -f $userProfile.Reason) -Level Warning
+                    } else {
+                        $cachePaths = @(
+                            (Join-Path $userProfile.Roaming 'Microsoft\Teams\Cache'),
+                            (Join-Path $userProfile.Roaming 'Microsoft\Teams\blob_storage'),
+                            (Join-Path $userProfile.Roaming 'Microsoft\Teams\databases'),
+                            (Join-Path $userProfile.Roaming 'Microsoft\Teams\GPUCache'),
+                            (Join-Path $userProfile.Roaming 'Microsoft\Teams\IndexedDB'),
+                            (Join-Path $userProfile.Roaming 'Microsoft\Teams\Local Storage'),
+                            (Join-Path $userProfile.Roaming 'Microsoft\Teams\tmp'),
+                            (Join-Path $userProfile.Local 'Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\Cache'),
+                            (Join-Path $userProfile.Local 'Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\EBWebView')
+                        )
+                    }
                     $cleared = 0
                     foreach ($cp in $cachePaths) {
                         if (Test-Path -LiteralPath $cp) {

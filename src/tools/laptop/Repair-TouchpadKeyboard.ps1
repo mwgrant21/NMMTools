@@ -34,9 +34,14 @@ function Repair-TouchpadKeyboard {
         }
 
         # --- FilterKeys / StickyKeys flags (report phase) ---
-        $filterFlags = (Get-ItemProperty -Path 'HKCU:\Control Panel\Accessibility\Keyboard Response' `
+        # HKCU: under SYSTEM/PDQ resolves to the SYSTEM profile's hive, not any technician's.
+        $userHive = Resolve-NmmUserRegistryHive
+        if (-not $userHive.Root) { Write-ToolOutput ('Filter/Sticky Keys check limited: {0}' -f $userHive.Reason) -Level Warning }
+        $keyboardResponsePath = if ($userHive.Root) { '{0}\Control Panel\Accessibility\Keyboard Response' -f $userHive.Root } else { 'Registry::HKEY_USERS\NO-USER-RESOLVED\Control Panel\Accessibility\Keyboard Response' }
+        $stickyKeysPath       = if ($userHive.Root) { '{0}\Control Panel\Accessibility\StickyKeys' -f $userHive.Root } else { 'Registry::HKEY_USERS\NO-USER-RESOLVED\Control Panel\Accessibility\StickyKeys' }
+        $filterFlags = (Get-ItemProperty -Path $keyboardResponsePath `
             -Name 'Flags' -ErrorAction SilentlyContinue).Flags
-        $stickyFlags = (Get-ItemProperty -Path 'HKCU:\Control Panel\Accessibility\StickyKeys' `
+        $stickyFlags = (Get-ItemProperty -Path $stickyKeysPath `
             -Name 'Flags' -ErrorAction SilentlyContinue).Flags
 
         # Flag values 122/510 indicate the feature was triggered/activated
@@ -94,9 +99,9 @@ function Repair-TouchpadKeyboard {
                         -Default 'No' `
                         -Silent:$Silent
                     if ($gate -eq 'Yes') {
-                        Set-ItemProperty -Path 'HKCU:\Control Panel\Accessibility\Keyboard Response' `
+                        Set-ItemProperty -Path $keyboardResponsePath `
                             -Name 'Flags' -Value '126' -ErrorAction SilentlyContinue
-                        Set-ItemProperty -Path 'HKCU:\Control Panel\Accessibility\StickyKeys' `
+                        Set-ItemProperty -Path $stickyKeysPath `
                             -Name 'Flags' -Value '506' -ErrorAction SilentlyContinue
                         Write-ToolOutput 'Filter Keys and Sticky Keys disabled' -Level Success
                         Complete-ToolRun $run -Status Success -Summary 'Filter Keys and Sticky Keys cleared'

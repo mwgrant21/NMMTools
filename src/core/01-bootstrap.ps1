@@ -19,14 +19,25 @@ function Invoke-ElevationCheck {
         if ([string]::IsNullOrWhiteSpace($scriptPath)) {
             throw 'Unable to determine script path for elevation.'
         }
-        # TODO (GUI/cutover phase): forward $PSBoundParameters so interactive flags (-LogPath etc.) survive elevation relaunch
-        $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Mode $script:Mode"
-        Start-Process -FilePath 'PowerShell.exe' -ArgumentList $arguments -Verb RunAs
+        # -Tool/-ListTools/-Silent/-Force are irrelevant here - the CLI/PDQ path they belong to
+        # already exits before this function is ever reached (see src\entry\99-main.ps1). Only
+        # -LogPath needs to survive the relaunch: it's set on the original process before this
+        # runs, but that process exits immediately after spawning the elevated one, so an
+        # unforwarded -LogPath silently produces no log file for the entire (elevated) session.
+        # Built as an argument array, not a concatenated string, so a path containing spaces or
+        # special characters can't be misparsed by Start-Process.
+        $elevatedArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $scriptPath, '-Mode', $script:Mode)
+        if ($LogPath) { $elevatedArgs += @('-LogPath', $LogPath) }
+        Start-Process -FilePath 'PowerShell.exe' -ArgumentList $elevatedArgs -Verb RunAs
     } catch {
         Write-Host 'ERROR: Failed to request administrator privileges.' -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red
         Write-Host 'Run PowerShell as Administrator and re-launch the script.' -ForegroundColor Yellow
         if ([Environment]::UserInteractive) { Read-Host 'Press Enter to exit' | Out-Null }
+        # A bare `exit` below returns 0 regardless of which branch ran - a declined/failed
+        # elevation request must not look like success to anything reading the exit code
+        # (a PDQ package output check, a scheduled task, a launcher script).
+        exit 1
     }
     exit
 }

@@ -97,6 +97,31 @@ Describe 'Read-ToolChoice -ExactMatch' {
     }
 }
 
+Describe 'Read-ToolText' {
+    It 'returns the default without prompting in silent mode' {
+        Read-ToolText -Prompt 'Drive letter' -Default 'Z' -Silent | Should -Be 'Z'
+    }
+
+    It 'returns an empty string in silent mode with no default given' {
+        Read-ToolText -Prompt 'Drive letter' -Silent | Should -Be ''
+    }
+
+    It 'returns the default when the user just presses Enter' {
+        Mock Read-Host { '' }
+        Read-ToolText -Prompt 'UNC path' -Default 'FALLBACK' | Should -Be 'FALLBACK'
+    }
+
+    It 'returns the trimmed typed value' {
+        Mock Read-Host { '  \\server\share  ' }
+        Read-ToolText -Prompt 'UNC path' | Should -Be '\\server\share'
+    }
+
+    It 'falls back to the default when Read-Host throws (non-interactive host)' {
+        Mock Read-Host { throw 'noninteractive' }
+        Read-ToolText -Prompt 'Drive letter' -Default 'Z' | Should -Be 'Z'
+    }
+}
+
 Describe 'Start-ToolOutputCapture / Stop-ToolOutputCapture' {
     AfterEach { Set-OutputSink -Sink Console }
 

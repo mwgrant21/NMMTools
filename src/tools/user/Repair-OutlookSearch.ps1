@@ -19,7 +19,12 @@
     try {
         $run = New-ToolRun -Id 'outlook-search-repair'
         $edb = "$env:ProgramData\Microsoft\Search\Data\Applications\Windows\Windows.edb"
-        $catalogKey = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Search'
+        # HKCU: under SYSTEM/PDQ resolves to the SYSTEM profile's hive, not any technician's.
+        # Falls back to a path that can never resolve to a real key rather than throwing - the
+        # Test-Path checks below already treat "not present" as the normal/expected case.
+        $userHive = Resolve-NmmUserRegistryHive
+        if (-not $userHive.Root) { Write-ToolOutput ('Outlook search catalog check limited: {0}' -f $userHive.Reason) -Level Warning }
+        $catalogKey = if ($userHive.Root) { '{0}\Software\Microsoft\Office\16.0\Outlook\Search' -f $userHive.Root } else { 'Registry::HKEY_USERS\NO-USER-RESOLVED\Software\Microsoft\Office\16.0\Outlook\Search' }
         $searchPolicyKey = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'
         $searchSetupKey  = 'HKLM:\SOFTWARE\Microsoft\Windows Search'
 

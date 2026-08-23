@@ -11,15 +11,27 @@ $script:CapturePrevLog  = $null
 
 function Set-OutputSink {
     param(
-        [Parameter(Mandatory)][ValidateSet('Console','Silent','GUI','Pdq')][string]$Sink,
+        [Parameter(Mandatory)][ValidateSet('Console','Silent','GUI','Pdq','Capture')][string]$Sink,
         [string]$LogDirectory
     )
     if ($LogDirectory) {
+        $dirReady = $true
         if (-not (Test-Path $LogDirectory -PathType Container)) {
-            New-Item -ItemType Directory -Force $LogDirectory | Out-Null
+            try {
+                New-Item -ItemType Directory -Force $LogDirectory -ErrorAction Stop | Out-Null
+            } catch {
+                # Logging must never take down a tool run - degrade to no log file rather than
+                # let an invalid/inaccessible -LogPath raise an unguarded native error outside
+                # the sink abstraction the rest of this file exists to enforce.
+                $dirReady = $false
+            }
         }
-        $name = 'NMMTools-{0}-{1:yyyyMMdd-HHmmss}.log' -f $env:COMPUTERNAME, (Get-Date)
-        $script:LogFilePath = Join-Path $LogDirectory $name
+        if ($dirReady) {
+            $name = 'NMMTools-{0}-{1:yyyyMMdd-HHmmss}.log' -f $env:COMPUTERNAME, (Get-Date)
+            $script:LogFilePath = Join-Path $LogDirectory $name
+        } else {
+            $script:LogFilePath = $null
+        }
     } else {
         $script:LogFilePath = $null
     }
@@ -127,6 +139,7 @@ function Read-ToolChoice {
         $sync = $script:GuiSync
         $sync.PromptResponse = $null
         $sync.PromptRequest  = [PSCustomObject]@{
+            Kind    = 'Choice'
             Prompt  = $Prompt
             Choices = $Choices
             Default = $Default
@@ -163,4 +176,49 @@ function Read-ToolChoice {
             Write-ToolOutput "Invalid choice. Enter one of: $choiceText" -Level Warning
         }
     }
+}
+
+function Read-ToolText {
+    # Free-text counterpart to Read-ToolChoice, for prompts with no natural enumerated
+    # choice set (a drive letter, a UNC path, a folder, a backup number). -Default has no
+    # required-membership check the way Read-ToolChoice's does - it's simply what's returned
+    # when the user submits nothing (Silent, non-interactive host, blank Enter, or the GUI's
+    # Cancel button), so an empty string default doubles as "no input given, caller should
+    # treat this as declined" for tools with no sensible non-empty default.
+    param(
+        [Parameter(Mandatory)][string]$Prompt,
+        [string]$Default = '',
+        [switch]$Silent
+    )
+    if ($Silent -or $script:OutputSink -eq 'Silent') {
+        Write-ToolOutput "$Prompt -> '$Default' (auto-selected, silent mode)" -Level Detail
+        return $Default
+    }
+    if ($script:OutputSink -eq 'GUI') {
+        # Same DATA-not-scriptblock affinity rule as Read-ToolChoice: publish a pending-prompt
+        # record and block on the semaphore; the UI drain timer sees Kind='Text' and renders
+        # a text box (Show-GuiTextPrompt) instead of choice buttons.
+        $sync = $script:GuiSync
+        $sync.PromptResponse = $null
+        $sync.PromptRequest  = [PSCustomObject]@{
+            Kind    = 'Text'
+            Prompt  = $Prompt
+            Default = $Default
+        }
+        [void]$sync.PromptSemaphore.Wait()
+        $response = $sync.PromptResponse
+        $sync.PromptResponse = $null
+        return $response
+    }
+    $hint = if ([string]::IsNullOrWhiteSpace($Default)) { '(Enter to skip)' } else { "(default: $Default)" }
+    try {
+        $answer = Read-Host "$Prompt $hint"
+    } catch {
+        # Non-interactive host (PDQ, scheduled task): Read-Host throws.
+        # Fall back to the declared default instead of crashing the tool.
+        Write-ToolOutput "$Prompt -> '$Default' (auto-selected, non-interactive host)" -Level Detail
+        return $Default
+    }
+    if ([string]::IsNullOrWhiteSpace($answer)) { return $Default }
+    return $answer.Trim()
 }

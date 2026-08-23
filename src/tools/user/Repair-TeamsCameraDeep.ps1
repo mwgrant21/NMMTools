@@ -6,7 +6,14 @@ function Repair-TeamsCameraDeep {
     try {
         $run = New-ToolRun -Id 'teams-camera-deep'
 
-        $camStore    = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam'
+        # HKCU: and $env:APPDATA under SYSTEM/PDQ resolve to the SYSTEM profile, not any
+        # technician's - resolve the effective user's hive/profile so these fixes don't
+        # silently no-op while still reporting Success.
+        $userHive = Resolve-NmmUserRegistryHive
+        if (-not $userHive.Root) { Write-ToolOutput ('Camera consent-store check limited: {0}' -f $userHive.Reason) -Level Warning }
+        $camStore = if ($userHive.Root) { '{0}\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam' -f $userHive.Root } else { 'Registry::HKEY_USERS\NO-USER-RESOLVED\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam' }
+        $userProfile = Resolve-NmmUserProfileBase
+        $teamsPrefs = if ($userProfile.Roaming) { Join-Path $userProfile.Roaming 'Microsoft\Teams\desktop-config.json' } else { 'C:\NO-USER-RESOLVED\Microsoft\Teams\desktop-config.json' }
         $historyPath = Join-Path $env:ProgramData 'NMMTools\camera-fix-history.json'
 
         # --- Detect dock type ---
@@ -122,7 +129,12 @@ function Repair-TeamsCameraDeep {
         $hardenApplied = New-Object System.Collections.Generic.List[string]
 
         # Consent store fix (always applied when missing)
-        if ($failureMode -eq 'ConsentMissing') {
+        if ($failureMode -eq 'ConsentMissing' -and -not $userHive.Root) {
+            # $camStore falls back to a path under a fabricated SID when the hive can't be
+            # resolved - New-Item below would actually CREATE that bogus key under
+            # HKEY_USERS if allowed to proceed. Skip outright instead.
+            Write-ToolOutput ('Consent store fix skipped: {0}' -f $userHive.Reason) -Level Warning
+        } elseif ($failureMode -eq 'ConsentMissing') {
             if (-not (Test-Path -LiteralPath $camStore)) {
                 New-Item -LiteralPath $camStore -Force -ErrorAction SilentlyContinue | Out-Null
             }
@@ -140,7 +152,6 @@ function Repair-TeamsCameraDeep {
             Disable-PnpDevice -InstanceId $displayLinkCam.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
             $fixApplied.Add(('DisplayLink virtual camera disabled: {0}' -f $displayLinkCam.FriendlyName))
             # Clear Teams camera preference (new Teams)
-            $teamsPrefs = Join-Path $env:APPDATA 'Microsoft\Teams\desktop-config.json'
             if (Test-Path -LiteralPath $teamsPrefs) {
                 try {
                     $cfg = Get-Content $teamsPrefs -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -156,7 +167,6 @@ function Repair-TeamsCameraDeep {
 
         # IR camera conflict fix
         if ($failureMode -eq 'IRCameraConflict' -and $irCam -and $physicalCam) {
-            $teamsPrefs = Join-Path $env:APPDATA 'Microsoft\Teams\desktop-config.json'
             if (Test-Path -LiteralPath $teamsPrefs) {
                 try {
                     $cfg = Get-Content $teamsPrefs -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -181,11 +191,15 @@ function Repair-TeamsCameraDeep {
                     $hardenApplied.Add('USB selective suspend disabled for physical camera')
                 }
             }
-            if (-not (Test-Path -LiteralPath $camStore)) {
-                New-Item -LiteralPath $camStore -Force -ErrorAction SilentlyContinue | Out-Null
+            if (-not $userHive.Root) {
+                Write-ToolOutput ('Consent store pin skipped: {0}' -f $userHive.Reason) -Level Warning
+            } else {
+                if (-not (Test-Path -LiteralPath $camStore)) {
+                    New-Item -LiteralPath $camStore -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                Set-ItemProperty -LiteralPath $camStore -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
+                $hardenApplied.Add('Consent store pinned Allow')
             }
-            Set-ItemProperty -LiteralPath $camStore -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
-            $hardenApplied.Add('Consent store pinned Allow')
         }
 
         # Write history

@@ -90,35 +90,59 @@ function Remove-AdobeCC {
 
         # Step 4: Download and run Adobe Creative Cloud Cleaner Tool (try/catch guarded)
         Write-ToolOutput 'Step 4: Downloading Adobe Creative Cloud Cleaner Tool...' -Level Info
-        $cleanerUrl  = 'https://swupdl.adobe.com/updates/oobe/CreativeCloudDesktop/windows/AdobeCreativeCloudCleanerTool.exe'
-        $cleanerBase = if ($env:TEMP) { $env:TEMP } else { 'C:\Windows\Temp' }
-        $cleanerPath = Join-Path $cleanerBase 'AdobeCreativeCloudCleanerTool.exe'
+        $cleanerUrl = 'https://swupdl.adobe.com/updates/oobe/CreativeCloudDesktop/windows/AdobeCreativeCloudCleanerTool.exe'
+        # Stage under a freshly created, randomly-named, admin-only-ACL'd directory rather
+        # than a fixed filename in $env:TEMP (= C:\Windows\Temp under SYSTEM/PDQ,
+        # world-writable) - a predictable path lets a standard user pre-create the file and
+        # keep DACL control of it even after the download overwrites its contents, opening a
+        # swap window before the elevated run. This download is the highest-risk of the
+        # three in this codebase that download-then-execute-elevated: it comes from a
+        # third-party CDN rather than a Microsoft/GitHub-signed endpoint.
+        $stageDir = Join-Path $env:ProgramData ('NMMTools\stage\{0}' -f ([guid]::NewGuid().ToString('N')))
         try {
+            New-Item -Path $stageDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            & icacls "$stageDir" /inheritance:r /grant:r 'SYSTEM:(OI)(CI)F' /grant:r 'BUILTIN\Administrators:(OI)(CI)F' | Out-Null
+            $cleanerPath = Join-Path $stageDir 'AdobeCreativeCloudCleanerTool.exe'
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             $wc = New-Object System.Net.WebClient
             $wc.DownloadFile($cleanerUrl, $cleanerPath)
             Write-ToolOutput '  Download complete.' -Level Info
+
+            $sig = Get-AuthenticodeSignature -FilePath $cleanerPath
+            if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'O=Adobe') {
+                throw ('Downloaded cleaner tool failed signature verification (status: {0}, signer: {1}).' -f $sig.Status, $sig.SignerCertificate.Subject)
+            }
+            Write-ToolOutput '  Authenticode signature verified (Adobe).' -Level Detail
+
             $cp = Start-Process $cleanerPath `
                 -ArgumentList '--cleanupXML="" --removeAll=1 --eulaAccepted=1' `
                 -Wait -PassThru -ErrorAction SilentlyContinue
             Write-ToolOutput ("  Cleaner tool exit code: {0}" -f $cp.ExitCode) -Level Detail
-            & $removeScopedPath $cleanerPath
             Start-Sleep -Seconds 5
         } catch {
             Write-ToolOutput ("  Cleaner tool unavailable ({0}) - continuing with manual cleanup." -f $_.Exception.Message) -Level Warning
+        } finally {
+            Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue
         }
 
         # Step 5: Remove residual Adobe file paths (ALL via removeScopedPath)
         Write-ToolOutput 'Step 5: Removing residual Adobe files...' -Level Info
+        # $env:LOCALAPPDATA/$env:APPDATA under SYSTEM/PDQ resolve to the SYSTEM profile, not
+        # any technician's - resolve the effective user's profile so this claimed
+        # "currently logged-on user profile" cleanup doesn't silently miss the real data
+        # while the tool still reports Success. Machine-wide paths (ProgramFiles/ProgramData/
+        # CommonProgramFiles) are unaffected either way.
+        $userProfile = Resolve-NmmUserProfileBase
+        if (-not $userProfile.Local) { Write-ToolOutput ('Per-user Adobe data cleanup limited: {0}' -f $userProfile.Reason) -Level Warning }
         $adobePaths = @(
             "$env:ProgramFiles\Adobe",
             "${env:ProgramFiles(x86)}\Adobe",
             "$env:ProgramData\Adobe",
-            "$env:LOCALAPPDATA\Adobe",
-            "$env:APPDATA\Adobe",
             "$env:CommonProgramFiles\Adobe",
             "${env:CommonProgramFiles(x86)}\Adobe"
         )
+        if ($userProfile.Local)   { $adobePaths += (Join-Path $userProfile.Local 'Adobe') }
+        if ($userProfile.Roaming) { $adobePaths += (Join-Path $userProfile.Roaming 'Adobe') }
         foreach ($aPath in $adobePaths) {
             & $removeScopedPath $aPath
             if (-not [string]::IsNullOrWhiteSpace($aPath) -and $aPath.Length -ge 8 -and (Test-Path $aPath)) {
@@ -129,11 +153,14 @@ function Remove-AdobeCC {
 
         # Step 6: Registry cleanup
         Write-ToolOutput 'Step 6: Removing Adobe registry keys...' -Level Info
+        # HKCU: under SYSTEM/PDQ resolves to the SYSTEM profile's hive, not any technician's.
+        $userHive = Resolve-NmmUserRegistryHive
+        if (-not $userHive.Root) { Write-ToolOutput ('Per-user Adobe registry cleanup skipped: {0}' -f $userHive.Reason) -Level Warning }
         $regKeys = @(
             'HKLM:\SOFTWARE\Adobe',
-            'HKLM:\SOFTWARE\WOW6432Node\Adobe',
-            'HKCU:\SOFTWARE\Adobe'
+            'HKLM:\SOFTWARE\WOW6432Node\Adobe'
         )
+        if ($userHive.Root) { $regKeys += ('{0}\SOFTWARE\Adobe' -f $userHive.Root) }
         foreach ($regKey in $regKeys) {
             if (Test-Path $regKey) {
                 Remove-Item $regKey -Recurse -Force -ErrorAction SilentlyContinue
