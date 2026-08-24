@@ -111,12 +111,28 @@ if ([string]::IsNullOrWhiteSpace($Artifact) -or -not (Test-Path -LiteralPath $Ar
     # identifies one specific build, never a version. The commit string below is
     # the stable thing to compare.
     Add-Line ('  SHA256          : {0}' -f (Get-FileHash -LiteralPath $Artifact -Algorithm SHA256).Hash)
-    $wantCommit = 'eede7c5'
-    $haveCommit = ''
+    # Compare the VERSION, not the commit: pinning a commit means this file has
+    # to be edited every time the toolkit is rebuilt, and the edit itself changes
+    # the commit. The version is what actually answers "does this machine have
+    # the fix?" and is stable across rebuilds. [System.Version] so 9.3.10 does
+    # not compare as older than 9.3.9.
+    $minVersion = [System.Version]'9.3.1'
+    $haveVersion = $null
+    $haveCommit  = ''
     $banner = (Get-Content -LiteralPath $Artifact -TotalCount 2)[1]
-    if ($banner -match 'v\d+\.\d+\.\d+\s+\(([0-9a-f]{7,40})\)') { $haveCommit = $matches[1] }
-    Add-Line ('  commit          : {0}   (expected {1}{2})' -f $haveCommit, $wantCommit,
-        $(if ($haveCommit -and $haveCommit -ne $wantCommit) { ' - MISMATCH, this is a different build' } else { '' }))
+    if ($banner -match 'v(\d+\.\d+\.\d+)\s+\(([0-9a-f]{7,40})\)') {
+        $haveVersion = [System.Version]$matches[1]
+        $haveCommit  = $matches[2]
+    }
+    Add-Line ('  commit          : {0}' -f $haveCommit)
+    if ($null -eq $haveVersion) {
+        Add-Line '  version         : UNREADABLE - the banner is not in the expected format'
+    } elseif ($haveVersion -lt $minVersion) {
+        Add-Line ('  version         : {0}   *** OLDER THAN {1} - predates the MTA GUI fix' -f $haveVersion, $minVersion)
+        Add-Line '                    On an MTA host this build alone explains the failure. Update first.'
+    } else {
+        Add-Line ('  version         : {0}   (>= {1}, includes the MTA GUI fix)' -f $haveVersion, $minVersion)
+    }
     Add-Line ('  UTF-8 BOM       : {0}   (expected False)' -f ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF))
     foreach ($h in (Get-Content -LiteralPath $Artifact -TotalCount 3)) { Add-Line ('  header          : {0}' -f $h) }
 
