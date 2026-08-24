@@ -1643,16 +1643,65 @@ function Start-GuiMenuSTA {
 
 # ---- Public entry point (STA wrapper) -----------------------------------
 function Start-GuiMenu {
+    # WPF needs an STA thread. powershell.exe is STA by default, so the common
+    # path is the direct call at the bottom.
+    #
+    # The MTA path used to hand the UI to a raw thread:
+    #     [System.Threading.Thread]::new([System.Threading.ThreadStart]{ Start-GuiMenuSTA })
+    # That never worked. A PowerShell scriptblock converted to a .NET delegate
+    # needs a Runspace on the thread that invokes it, and a freshly constructed
+    # Threading.Thread has none - so Start-GuiMenuSTA could not even be resolved.
+    # The thread died with no window, no error and no log line, which reads as
+    # "the toolkit just didn't start". Reproduced under `powershell.exe -mta`.
+    #
+    # It cannot be repaired in place either: any code that would attach a
+    # runspace to that thread is itself PowerShell, and needs a runspace to run.
+    # Marshalling every $script: variable the GUI depends on into a fresh STA
+    # runspace would work but is a large amount of state to keep in sync. So
+    # relaunch the script in an STA host instead - the same shape as
+    # Invoke-ElevationCheck, which already relaunches for the same class of
+    # reason - and fall back to the console menu if that is not possible.
     $apartmentState = [System.Threading.Thread]::CurrentThread.GetApartmentState()
-    if ($apartmentState -ne [System.Threading.ApartmentState]::STA) {
-        $uiThread = [System.Threading.Thread]::new(
-            [System.Threading.ThreadStart]{ Start-GuiMenuSTA })
-        $uiThread.SetApartmentState([System.Threading.ApartmentState]::STA)
-        $uiThread.Name         = 'NMMTools-WPF'
-        $uiThread.IsBackground = $false
-        $uiThread.Start()
-        $uiThread.Join()
-    } else {
+    if ($apartmentState -eq [System.Threading.ApartmentState]::STA) {
         Start-GuiMenuSTA
+        return
+    }
+
+    # Relaunch guard. Set before Start-Process so the child inherits it. If the
+    # child is somehow still MTA we degrade instead of spawning forever.
+    if ($env:NMMTOOLS_STA_RELAUNCH -eq '1') {
+        Write-Host 'GUI unavailable: relaunched into an STA host but this process is still MTA.' -ForegroundColor Red
+        Write-Host 'Falling back to the console menu. Start PowerShell with -STA to use the GUI.' -ForegroundColor Yellow
+        Start-ConsoleMenu
+        return
+    }
+
+    $scriptPath = $PSCommandPath
+    if ([string]::IsNullOrWhiteSpace($scriptPath)) {
+        Write-Host 'GUI unavailable: this host is MTA and the script path could not be determined to relaunch.' -ForegroundColor Red
+        Write-Host 'Falling back to the console menu. Start PowerShell with -STA to use the GUI.' -ForegroundColor Yellow
+        Start-ConsoleMenu
+        return
+    }
+
+    Write-Host 'This PowerShell host is MTA; WPF requires STA. Relaunching...' -ForegroundColor Yellow
+
+    # -LogPath must be forwarded or the relaunched session logs nowhere: it is
+    # set on this process, which exits right after handing over.
+    $staArgs = @('-STA', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $scriptPath, '-Mode', 'GUI')
+    if ($LogPath) { $staArgs += @('-LogPath', $LogPath) }
+
+    $env:NMMTOOLS_STA_RELAUNCH = '1'
+    try {
+        $proc = Start-Process -FilePath 'PowerShell.exe' -ArgumentList $staArgs -PassThru -Wait -ErrorAction Stop
+        if ($proc -and $proc.ExitCode -ne 0) {
+            Write-Host ('The STA session exited with code {0}.' -f $proc.ExitCode) -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host ('Could not relaunch in an STA host: {0}' -f $_.Exception.Message) -ForegroundColor Red
+        Write-Host 'Falling back to the console menu.' -ForegroundColor Yellow
+        Start-ConsoleMenu
+    } finally {
+        Remove-Item Env:\NMMTOOLS_STA_RELAUNCH -ErrorAction SilentlyContinue
     }
 }
