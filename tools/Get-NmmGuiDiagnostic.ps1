@@ -8,8 +8,9 @@
     Read-only. Does NOT launch the toolkit and changes nothing. Answers four
     questions, in the order they would explain the failure:
 
-      1. WHICH BUILD is on this machine (size, SHA256, header banner)? A hash
-         mismatch against the ship report means the rest is moot.
+      1. WHICH BUILD is on this machine (size, commit, header banner)? A commit
+         mismatch against the ship report means the rest is moot. The SHA256 is
+         reported but not asserted - it changes on every build.
       2. WHAT HOST is running it - apartment state above all. Start-GuiMenu
          takes a different code path when the host is MTA, and on that path the
          GUI thread has no runspace, so toolkit functions cannot resolve.
@@ -77,10 +78,11 @@ Add-Line ('  64-bit process  : {0}' -f [Environment]::Is64BitProcess)
 Add-Line ('  language mode   : {0}' -f $ExecutionContext.SessionState.LanguageMode)
 if ($apartment -ne 'STA') {
     Add-Line ''
-    Add-Line '  *** THIS IS AN MTA HOST. Start-GuiMenu will hand the UI to a raw'
-    Add-Line '  *** [Threading.Thread] whose scriptblock has NO runspace, so toolkit'
-    Add-Line '  *** functions cannot resolve on it. Re-run the toolkit from a host'
-    Add-Line '  *** started with -STA and see whether the errors disappear.'
+    Add-Line '  *** THIS IS AN MTA HOST. Builds BEFORE 9.3.1 handed the UI to a raw'
+    Add-Line '  *** [Threading.Thread] whose scriptblock had NO runspace, so toolkit'
+    Add-Line '  *** functions could not resolve on it and the GUI died silently.'
+    Add-Line '  *** 9.3.1 relaunches into an STA host instead. If this machine is on'
+    Add-Line '  *** an older build, that alone explains the failure - update first.'
 }
 
 # ---- 1. which build ------------------------------------------------------
@@ -103,9 +105,18 @@ if ([string]::IsNullOrWhiteSpace($Artifact) -or -not (Test-Path -LiteralPath $Ar
     $Artifact = (Resolve-Path -LiteralPath $Artifact).Path
     $bytes = [System.IO.File]::ReadAllBytes($Artifact)
     Add-Line ('  path            : {0}' -f $Artifact)
-    Add-Line ('  size            : {0:N0} bytes   (v9.3.0 acfd64d = 819,310)' -f $bytes.Length)
+    Add-Line ('  size            : {0:N0} bytes' -f $bytes.Length)
+    # Report the hash, do not assert it. build.ps1 stamps a minute-resolution
+    # timestamp into the header, so the SHA256 changes on EVERY build and
+    # identifies one specific build, never a version. The commit string below is
+    # the stable thing to compare.
     Add-Line ('  SHA256          : {0}' -f (Get-FileHash -LiteralPath $Artifact -Algorithm SHA256).Hash)
-    Add-Line  '  expected        : 709DA2076ADCBA62CACD8330D7F2E6001B66BDD8CE2E8F41431ECD6648C6A349'
+    $wantCommit = 'eede7c5'
+    $haveCommit = ''
+    $banner = (Get-Content -LiteralPath $Artifact -TotalCount 2)[1]
+    if ($banner -match 'v\d+\.\d+\.\d+\s+\(([0-9a-f]{7,40})\)') { $haveCommit = $matches[1] }
+    Add-Line ('  commit          : {0}   (expected {1}{2})' -f $haveCommit, $wantCommit,
+        $(if ($haveCommit -and $haveCommit -ne $wantCommit) { ' - MISMATCH, this is a different build' } else { '' }))
     Add-Line ('  UTF-8 BOM       : {0}   (expected False)' -f ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF))
     foreach ($h in (Get-Content -LiteralPath $Artifact -TotalCount 3)) { Add-Line ('  header          : {0}' -f $h) }
 
@@ -133,9 +144,16 @@ if ([string]::IsNullOrWhiteSpace($Artifact) -or -not (Test-Path -LiteralPath $Ar
     }
     $src = Get-Content -LiteralPath $Artifact
     Add-Line ('  total lines     : {0}' -f $src.Count)
-    foreach ($n in @(2681, 2697)) {
-        if ($src.Count -ge $n) { Add-Line ('  line {0,-6}     : {1}' -f $n, $src[$n - 1].Trim()) }
-        else { Add-Line ('  line {0,-6}     : (file has only {1} lines)' -f $n, $src.Count) }
+    # Locate the reported call sites by CONTENT, not by hardcoded line number -
+    # those shift with every build and would make this report quietly wrong.
+    foreach ($needle in @('Add-GuiOutputRecord -Sync', 'Show-GuiPrompt -Sync')) {
+        $found = @(Select-String -LiteralPath $Artifact -Pattern ([regex]::Escape($needle)) |
+                   Where-Object { $_.Line.TrimStart() -notmatch '^#' })
+        if ($found.Count -eq 0) {
+            Add-Line ('  call site       : {0} -- NOT FOUND' -f $needle)
+        } else {
+            foreach ($f in $found) { Add-Line ('  call site       : line {0,-6} {1}' -f $f.LineNumber, $f.Line.Trim()) }
+        }
     }
 }
 
