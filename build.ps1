@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '9.2.0',
+    [string]$Version = '9.3.0',
     [switch]$SkipAnalyzer,
     [switch]$Pdq,
     [string]$OutputRoot
