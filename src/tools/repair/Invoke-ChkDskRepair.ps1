@@ -30,9 +30,14 @@ function Invoke-ChkDskRepair {
             if ($scheduled) {
                 Complete-ToolRun $run -Status Success `
                     -Summary 'ChkDsk /F /R scheduled at next reboot on C: - reboot to run the check'
-            } elseif ($chkExit -eq 0 -or $chkExit -eq 2) {
+            } elseif ($chkExit -eq 0) {
                 Complete-ToolRun $run -Status Success `
-                    -Summary ('ChkDsk /F /R completed: no errors found on C: (exit {0})' -f $chkExit)
+                    -Summary 'ChkDsk /F /R completed: no errors found on C: (exit 0)'
+            } elseif ($chkExit -eq 2) {
+                # Exit 2 means cleanup/recovery occurred, not a clean scan - folding it into
+                # "no errors found" alongside exit 0 was falsely reassuring.
+                Complete-ToolRun $run -Status Success `
+                    -Summary 'ChkDsk /F /R completed: disk cleanup/recovery performed on C: (exit 2)'
             } elseif ($chkExit -eq 1) {
                 Complete-ToolRun $run -Status Success `
                     -Summary 'ChkDsk /F /R: errors found and corrected on C: (exit 1)'
@@ -52,8 +57,12 @@ function Invoke-ChkDskRepair {
                 }
             }
 
-            if ($chkExit -eq 0 -or $chkExit -eq 2) {
-                Complete-ToolRun $run -Status Success -Summary ('ChkDsk scan: no errors found on C: (exit {0})' -f $chkExit)
+            if ($chkExit -eq 0) {
+                Complete-ToolRun $run -Status Success -Summary 'ChkDsk scan: no errors found on C: (exit 0)'
+            } elseif ($chkExit -eq 2) {
+                # Exit 2 means cleanup/recovery occurred, not a clean scan - folding it into
+                # "no errors found" alongside exit 0 was falsely reassuring.
+                Complete-ToolRun $run -Status Warning -Summary 'ChkDsk scan: disk cleanup/recovery occurred on C: (exit 2) - not a clean scan'
             } elseif ($chkExit -eq 1) {
                 Complete-ToolRun $run -Status Warning `
                     -Summary 'ChkDsk scan: errors found on C: (exit 1) - run Fix mode to repair'

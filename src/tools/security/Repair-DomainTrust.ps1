@@ -87,19 +87,36 @@
             }
 
             'RejoinDomain' {
-                $typed = Read-Host 'WARNING: this unjoins then rejoins the domain and needs a restart. Type REJOIN to proceed'
+                # Read-ToolChoice -ExactMatch: a bare Read-Host throws in the GUI's hostless
+                # tool runspace (caught by the outer catch before any state change - fails
+                # closed, but the feature silently can't be used from the default UI mode).
+                # -ExactMatch also makes the comparison case-sensitive so 'rejoin' can't
+                # satisfy an all-caps "type this exactly" gate the way plain -eq would.
+                $typed = Read-ToolChoice -Prompt 'WARNING: this unjoins then rejoins the domain and needs a restart. Type REJOIN to proceed' `
+                    -Choices @('REJOIN', 'Cancel') -Default 'Cancel' -Silent:$Silent -ExactMatch
                 if ($typed -ne 'REJOIN') { Complete-ToolRun $run -Status Skipped -Summary 'RejoinDomain cancelled (confirmation not typed)'; return }
                 $cred = Get-Credential -Message 'Enter domain admin credentials to rejoin the domain'
                 if (-not $cred) { Complete-ToolRun $run -Status Skipped -Summary 'RejoinDomain cancelled (no credentials)'; return }
+                $unjoined = $false
                 try {
                     Remove-Computer -UnjoinDomainCredential $cred -WorkgroupName 'WORKGROUP' -Force -ErrorAction Stop
+                    $unjoined = $true
                     Start-Sleep -Seconds 3
                     Add-Computer -DomainName $cs.Domain -Credential $cred -Force -ErrorAction Stop
                     Write-ToolOutput 'Domain rejoin complete; a restart is required to finish.' -Level Success
                     $restart = Read-ToolChoice -Prompt 'Restart now?' -Choices @('Yes','No') -Default 'No' -Silent:$Silent
                     if ($restart -eq 'Yes') { shutdown /r /t 10 /c 'Restarting after domain rejoin' | Out-Null }
                     Complete-ToolRun $run -Status Success -Summary 'Domain rejoined; restart required'
-                } catch { Complete-ToolRun $run -Status Failed -Summary ('Rejoin failed: {0}' -f $_.Exception.Message) }
+                } catch {
+                    if ($unjoined) {
+                        # Worse-than-before state: the machine left the domain successfully but
+                        # never made it back in. Domain auth/GPO are broken until someone
+                        # manually rejoins it - this must not read like a simple no-op failure.
+                        Complete-ToolRun $run -Status Failed -Summary ('CRITICAL: machine was removed from the domain but rejoin failed and it is now in WORKGROUP - needs immediate manual rejoin. Error: {0}' -f $_.Exception.Message)
+                    } else {
+                        Complete-ToolRun $run -Status Failed -Summary ('Rejoin failed: {0}' -f $_.Exception.Message)
+                    }
+                }
             }
 
             'ShowDetails' {

@@ -239,6 +239,12 @@ function Repair-OnBaseAddinPermanent {
                 Write-ToolOutput ('To make OnBase survive a profile reset, deploy the vendor installer machine-wide (HKLM {0}) via PDQ instead.' -f $hklmBase) -Level Info
             }
 
+            # Wrapped in its own try/catch so a failure here (e.g. WMI broken
+            # when resolving the principal) reports a Warning instead of throwing
+            # to the outer catch and discarding credit for the LoadBehavior fixes,
+            # DisabledItems/CrashedAddinList clears and HKLM work already applied
+            # earlier in this same run.
+            try {
             # Self-heal scheduled task.
             #
             # ProgIds are REGISTRY KEY NAMES read from a hive the standard user
@@ -332,6 +338,9 @@ foreach (`$progId in `$addins) {
                 } else {
                     Write-ToolOutput 'Could not create self-heal task (check task scheduler permissions)' -Level Warning
                 }
+            }
+            } catch {
+                Write-ToolOutput ('Self-heal task setup failed: {0}' -f $_.Exception.Message) -Level Warning
             }
         }
 

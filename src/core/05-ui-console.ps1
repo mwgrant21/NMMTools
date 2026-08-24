@@ -98,7 +98,7 @@ function Show-LandingMenu {
 
     Write-Host ''
     Write-Host ('=' * 66) -ForegroundColor Cyan
-    Write-Host (' NMM System Toolkit v9      {0}\{1}' -f $env:COMPUTERNAME, $env:USERNAME) -ForegroundColor Cyan
+    Write-Host (' NMM System Toolkit v{0}      {1}\{2}' -f $script:ToolkitVersion, $env:COMPUTERNAME, $env:USERNAME) -ForegroundColor Cyan
     Write-Host ('=' * 66) -ForegroundColor Cyan
     if ($script:ToolRuns.Count -gt 0) {
         $recent = @($script:ToolRuns | Select-Object -Last 3 | ForEach-Object { $_.Name })

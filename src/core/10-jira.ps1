@@ -31,10 +31,40 @@ function Test-NmmJiraKey {
     return ($Key -cmatch '^[A-Z][A-Z0-9]+-\d+$')
 }
 
+function Set-NmmJiraFileAcl {
+    # Restricts a Jira config file to Administrators + SYSTEM only, non-inherited. The
+    # shared %PROGRAMDATA% path previously relied on ProgramData's default inherited ACL
+    # (BUILTIN\Users: Read), which made a machine-wide team credential readable by any local
+    # user - this locks the FILE itself, not the parent NMMTools directory (which other
+    # tools also write to, e.g. the OnBase self-heal log and download staging dirs, and must
+    # keep its normal permissions).
+    param([Parameter(Mandatory)][string]$Path)
+    & icacls "$Path" /inheritance:r /grant:r 'SYSTEM:F' /grant:r 'BUILTIN\Administrators:F' | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Test-NmmJiraFileAclSafe {
+    # Refuses to trust a shared config file whose ACL grants access wider than
+    # Administrators/SYSTEM - a config that predates this hardening, or one an attacker
+    # widened after the fact, must not be silently loaded.
+    param([Parameter(Mandatory)][string]$Path)
+    try {
+        $acl = Get-Acl -LiteralPath $Path -ErrorAction Stop
+        foreach ($rule in $acl.Access) {
+            if ($rule.IdentityReference.Value -match '^(BUILTIN\\Users|Everyone|NT AUTHORITY\\Authenticated Users)$') {
+                return $false
+            }
+        }
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 function Protect-NmmJiraToken {
     param(
         [Parameter(Mandatory)][string]$Plain,
-        [string]$Scope = 'CurrentUser'
+        [ValidateSet('CurrentUser', 'LocalMachine')][string]$Scope = 'CurrentUser'
     )
     Add-Type -AssemblyName System.Security -ErrorAction SilentlyContinue
     $bytes     = [System.Text.Encoding]::UTF8.GetBytes($Plain)
@@ -46,7 +76,7 @@ function Protect-NmmJiraToken {
 function Unprotect-NmmJiraToken {
     param(
         [Parameter(Mandatory)][string]$Cipher,
-        [string]$Scope = 'CurrentUser'
+        [ValidateSet('CurrentUser', 'LocalMachine')][string]$Scope = 'CurrentUser'
     )
     Add-Type -AssemblyName System.Security -ErrorAction SilentlyContinue
     $enc       = [Convert]::FromBase64String($Cipher)
@@ -66,15 +96,21 @@ function Save-NmmJiraConfig {
     if ($dir -and -not (Test-Path $dir -PathType Container)) {
         New-Item -ItemType Directory -Force $dir | Out-Null
     }
-    # Save plain text; Import-NmmJiraConfig will encrypt on first load
-    $out = [ordered]@{ BaseUrl = $BaseUrl.TrimEnd('/'); Email = $Email; Token = $Token; TokenProtected = $false }
+    # Encrypt before the first write rather than leaving plaintext on disk until the next
+    # Import call happens to run - a technician who configures Jira and closes the toolkit
+    # previously left a plaintext API token on disk indefinitely.
+    $cipher = Protect-NmmJiraToken -Plain $Token -Scope 'CurrentUser'
+    $out = [ordered]@{ BaseUrl = $BaseUrl.TrimEnd('/'); Email = $Email; Token = $cipher; TokenProtected = $true }
     ($out | ConvertTo-Json) | Set-Content -Path $path -Encoding UTF8 -ErrorAction Stop
 }
 
 function Save-NmmJiraSharedConfig {
-    # Writes the team/shared key to %PROGRAMDATA%\NMMTools\jira.json.
-    # Requires admin rights. Saved as plain text; first Import encrypts with
-    # LocalMachine DPAPI so any user on that machine can read it.
+    # Writes the team/shared key to %PROGRAMDATA%\NMMTools\jira.json. Requires admin rights.
+    # Encrypted with LocalMachine DPAPI (decryptable by any principal on THIS machine, which
+    # is the point - any technician on this machine can use the shared credential) AND the
+    # file itself is ACL-locked to Administrators+SYSTEM, since ProgramData's default
+    # inherited ACL alone would let any local standard user read the file directly, bypassing
+    # the DPAPI protection's intended scope entirely.
     param(
         [Parameter(Mandatory)][string]$BaseUrl,
         [Parameter(Mandatory)][string]$Email,
@@ -85,7 +121,17 @@ function Save-NmmJiraSharedConfig {
     if ($dir -and -not (Test-Path $dir -PathType Container)) {
         New-Item -ItemType Directory -Force $dir | Out-Null
     }
-    $out = [ordered]@{ BaseUrl = $BaseUrl.TrimEnd('/'); Email = $Email; Token = $Token; TokenProtected = $false }
+
+    # Lock the ACL before any content (including the encrypted token) is written - locking
+    # after the fact would leave the file briefly under the wider inherited ACL.
+    New-Item -Path $path -ItemType File -Force -ErrorAction Stop | Out-Null
+    if (-not (Set-NmmJiraFileAcl -Path $path)) {
+        Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+        throw 'Could not restrict jira.json permissions to Administrators/SYSTEM - refusing to save the shared Jira credential unprotected.'
+    }
+
+    $cipher = Protect-NmmJiraToken -Plain $Token -Scope 'LocalMachine'
+    $out = [ordered]@{ BaseUrl = $BaseUrl.TrimEnd('/'); Email = $Email; Token = $cipher; TokenProtected = $true }
     ($out | ConvertTo-Json) | Set-Content -Path $path -Encoding UTF8 -ErrorAction Stop
 }
 
@@ -160,8 +206,15 @@ function Import-NmmJiraConfig {
     if ($null -ne $personal) { return $personal }
 
     if (-not $script:JiraConfigPathOverride) {
-        $machine = Import-NmmJiraConfigFromPath -Path (Get-NmmJiraSharedConfigPath) -Scope 'LocalMachine'
-        if ($null -ne $machine) { return $machine }
+        $sharedPath = Get-NmmJiraSharedConfigPath
+        # Refuse to trust the shared config if its ACL doesn't match what Save-NmmJiraSharedConfig
+        # writes (Administrators/SYSTEM only) - a file that predates this hardening, or one
+        # whose permissions were widened after the fact, must fail closed rather than be
+        # silently read by any local user's process.
+        if ((Test-Path $sharedPath -PathType Leaf) -and (Test-NmmJiraFileAclSafe -Path $sharedPath)) {
+            $machine = Import-NmmJiraConfigFromPath -Path $sharedPath -Scope 'LocalMachine'
+            if ($null -ne $machine) { return $machine }
+        }
 
         # Network share: plaintext, no write-back (other machines must read same file).
         $network = Import-NmmJiraConfigFromPath -Path (Get-NmmJiraNetworkConfigPath) -NoEncrypt
@@ -207,6 +260,12 @@ function Send-NmmJiraComment {
     $cfg = try { Import-NmmJiraConfig } catch { $null }
     if ($null -eq $cfg) {
         return @{ Success = $false; Message = 'Jira is not configured for this user.' }
+    }
+    # The setup dialog validates https:// at entry, but a config file loaded from disk (shared
+    # ProgramData or network-share path) is never re-validated - a hand-edited or stale
+    # http:// BaseUrl here would send the Basic-auth token in the clear.
+    if ($cfg.BaseUrl -notmatch '^https://') {
+        return @{ Success = $false; Message = 'Jira base URL is not https:// - refusing to send credentials. Re-run Jira setup.' }
     }
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12

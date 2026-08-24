@@ -22,7 +22,7 @@ $script:MainWindowXaml = @'
 <Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="NMM Toolkit v9"
+    Title="NMM Toolkit"
     MinWidth="900" MinHeight="580" Width="1200" Height="750"
     Background="#1E1E1E" Foreground="#CCCCCC"
     WindowStartupLocation="CenterScreen">
@@ -126,7 +126,7 @@ $script:MainWindowXaml = @'
           <ColumnDefinition Width="8"/>
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-        <TextBlock Grid.Column="0" Text="NMM Toolkit v9" FontWeight="SemiBold"
+        <TextBlock Grid.Column="0" x:Name="ToolkitVersionLabel" FontWeight="SemiBold"
                    Foreground="#CCCCCC" VerticalAlignment="Center" FontSize="13"/>
         <TextBlock Grid.Column="2" x:Name="MachineUserLabel" Foreground="#858585"
                    VerticalAlignment="Center" FontSize="11"/>
@@ -310,6 +310,7 @@ $script:MainWindowXaml = @'
                            VerticalAlignment="Center" Margin="8,0,0,0"/>
               </StackPanel>
               <WrapPanel x:Name="ChoiceButtonsPanel" Orientation="Horizontal"/>
+              <StackPanel x:Name="TextPromptPanel" Orientation="Horizontal" Visibility="Collapsed"/>
             </DockPanel>
           </Border>
         </Grid>
@@ -506,6 +507,9 @@ function Show-GuiPrompt {
     param($Sync, $Request)
     $Sync.PromptTextBlock.Text    = $Request.Prompt
     $Sync.PromptDefaultLabel.Text = "(default: $($Request.Default))"
+    $Sync.TextPromptPanel.Visibility    = [System.Windows.Visibility]::Collapsed
+    $Sync.TextPromptPanel.Children.Clear()
+    $Sync.ChoiceButtonsPanel.Visibility = [System.Windows.Visibility]::Visible
     $Sync.ChoiceButtonsPanel.Children.Clear()
     foreach ($choice in $Request.Choices) {
         $btn         = [System.Windows.Controls.Button]::new()
@@ -530,6 +534,83 @@ function Show-GuiPrompt {
         [void]$Sync.ChoiceButtonsPanel.Children.Add($btn)
     }
     $Sync.PromptArea.Visibility = [System.Windows.Visibility]::Visible
+}
+
+function Show-GuiTextPrompt {
+    # Free-text counterpart to Show-GuiPrompt, for Read-ToolText. Read-ToolChoice's GUI path
+    # only ever needs enumerated buttons; a few tools (drive letter + UNC path, a backup
+    # folder, an arbitrary path/number) need actual typed input, which previously meant a
+    # bare Read-Host - safe under -Silent, but it throws in this hostless tool Runspace with
+    # no attached console, so those tools silently couldn't be used from the GUI at all.
+    #
+    # Builds fresh TextBox/Button controls on every call and clears them out on the next
+    # (Show-GuiPrompt does the same for its choice buttons) rather than reusing static XAML
+    # controls with Add_Click - reusing the same control across calls would accumulate a new
+    # event handler on every prompt without removing the previous one, so an old prompt's
+    # stale closure could still fire on a later click and double-release the semaphore.
+    param($Sync, $Request)
+    $Sync.PromptTextBlock.Text    = $Request.Prompt
+    $Sync.PromptDefaultLabel.Text = if ([string]::IsNullOrWhiteSpace($Request.Default)) {
+        '(leave blank to skip)'
+    } else {
+        "(default: $($Request.Default))"
+    }
+    $Sync.ChoiceButtonsPanel.Visibility = [System.Windows.Visibility]::Collapsed
+    $Sync.ChoiceButtonsPanel.Children.Clear()
+    $Sync.TextPromptPanel.Visibility = [System.Windows.Visibility]::Visible
+    $Sync.TextPromptPanel.Children.Clear()
+
+    $textBox = [System.Windows.Controls.TextBox]::new()
+    $textBox.Width           = 320
+    $textBox.Margin          = [System.Windows.Thickness]::new(0, 2, 8, 2)
+    $textBox.Padding         = [System.Windows.Thickness]::new(6, 4, 6, 4)
+    $textBox.Background      = ConvertTo-WpfBrush '#2D2D30'
+    $textBox.Foreground      = ConvertTo-WpfBrush '#CCCCCC'
+    $textBox.BorderBrush     = ConvertTo-WpfBrush '#3E3E42'
+    $textBox.BorderThickness = [System.Windows.Thickness]::new(1)
+
+    $submitBtn = [System.Windows.Controls.Button]::new()
+    $submitBtn.Content    = 'Submit'
+    $submitBtn.Margin     = [System.Windows.Thickness]::new(4, 2, 4, 2)
+    $submitBtn.Padding    = [System.Windows.Thickness]::new(10, 4, 10, 4)
+    $submitBtn.Cursor     = [System.Windows.Input.Cursors]::Hand
+    $submitBtn.Background = ConvertTo-WpfBrush '#4FC3F7'
+    $submitBtn.Foreground = ConvertTo-WpfBrush '#0C0C0C'
+
+    $cancelBtn = [System.Windows.Controls.Button]::new()
+    $cancelBtn.Content    = 'Cancel'
+    $cancelBtn.Margin     = [System.Windows.Thickness]::new(4, 2, 4, 2)
+    $cancelBtn.Padding    = [System.Windows.Thickness]::new(10, 4, 10, 4)
+    $cancelBtn.Cursor     = [System.Windows.Input.Cursors]::Hand
+    $cancelBtn.Background = ConvertTo-WpfBrush '#3E3E42'
+    $cancelBtn.Foreground = ConvertTo-WpfBrush '#CCCCCC'
+
+    $capturedSync    = $Sync
+    $capturedDefault = $Request.Default
+    $capturedTextBox = $textBox
+    $submitAction = {
+        $typed = $capturedTextBox.Text
+        $capturedSync.PromptResponse = if ([string]::IsNullOrWhiteSpace($typed)) { $capturedDefault } else { $typed.Trim() }
+        $capturedSync.PromptArea.Visibility = [System.Windows.Visibility]::Collapsed
+        [void]$capturedSync.PromptSemaphore.Release()
+    }.GetNewClosure()
+    $submitBtn.Add_Click($submitAction)
+    $cancelBtn.Add_Click({
+        $capturedSync.PromptResponse = $capturedDefault
+        $capturedSync.PromptArea.Visibility = [System.Windows.Visibility]::Collapsed
+        [void]$capturedSync.PromptSemaphore.Release()
+    }.GetNewClosure())
+    # Enter submits, mirroring the single-Enter-press flow Read-Host gives on the console path.
+    $textBox.Add_KeyDown({
+        param($ctlSender, $keyArgs)
+        if ($keyArgs.Key -eq [System.Windows.Input.Key]::Enter) { & $submitAction }
+    }.GetNewClosure())
+
+    [void]$Sync.TextPromptPanel.Children.Add($textBox)
+    [void]$Sync.TextPromptPanel.Children.Add($submitBtn)
+    [void]$Sync.TextPromptPanel.Children.Add($cancelBtn)
+    $Sync.PromptArea.Visibility = [System.Windows.Visibility]::Visible
+    [void]$textBox.Focus()
 }
 
 # ---- Populate ToolListBox -----------------------------------------------
@@ -814,7 +895,20 @@ function Invoke-GuiToolRun {
     $timer.Add_Tick({
         if ($capturedPs.InvocationStateInfo.State -ne [System.Management.Automation.PSInvocationState]::Running) {
             $timer.Stop()
-            try { $capturedPs.EndInvoke($capturedHandle) } catch { }
+            try {
+                $capturedPs.EndInvoke($capturedHandle)
+            } catch {
+                # A terminating error before the tool's own try/catch could even run (e.g.
+                # while Set-OutputSink or script-scope variables are still being assigned)
+                # previously vanished here entirely - the technician saw a dead-end status
+                # with zero diagnostic text. Enqueue it the same way Write-ToolOutput does so
+                # it renders in the output pane instead of being silently discarded.
+                $capturedSync.OutputQueue.Enqueue([PSCustomObject]@{
+                    Ts      = Get-Date -Format 'HH:mm:ss'
+                    Message = ('Tool runspace crashed before completion: {0}' -f $_.Exception.Message)
+                    Level   = 'Error'
+                })
+            }
             $capturedPs.Dispose()
 
             $lastRun = $capturedSync.ToolRuns |
@@ -846,7 +940,7 @@ function Invoke-DisruptiveConfirmDialog {
     $cancelBtn  = $dlg.FindName('CancelButton')
 
     $confirmBox.Add_TextChanged({
-        $proceedBtn.IsEnabled = ($confirmBox.Text.Trim() -eq 'CONFIRM')
+        $proceedBtn.IsEnabled = ($confirmBox.Text.Trim() -ceq 'CONFIRM')
     })
 
     $dlg.Add_KeyDown({
@@ -969,7 +1063,10 @@ function Show-NmmJiraSetupDialog {
         if ([string]::IsNullOrWhiteSpace($url)) {
             $capturedStatus.Text = 'Base URL is required.'; return
         }
-        if ($url -notmatch '^https?://') {
+        if ($url -notmatch '^https://') {
+            # Was '^https?://', which accepted http:// while this message said otherwise - the
+            # Jira API token is sent as a Basic-auth header (base64, not encryption), so http://
+            # would put it on the wire in the clear.
             $capturedStatus.Text = 'URL must start with https://'; return
         }
         if ([string]::IsNullOrWhiteSpace($email)) {
@@ -1181,6 +1278,7 @@ function Start-GuiMenuSTA {
         PromptTextBlock      = $window.FindName('PromptTextBlock')
         PromptDefaultLabel   = $window.FindName('PromptDefaultLabel')
         ChoiceButtonsPanel   = $window.FindName('ChoiceButtonsPanel')
+        TextPromptPanel      = $window.FindName('TextPromptPanel')
         StatusLabel          = $window.FindName('StatusLabel')
         RunButton            = $window.FindName('RunButton')
         RunProgressBar       = $window.FindName('RunProgressBar')
@@ -1207,6 +1305,7 @@ function Start-GuiMenuSTA {
         ToolDetailCard       = $window.FindName('ToolDetailCard')
         ToolDetailPlaceholder = $window.FindName('ToolDetailPlaceholder')
         MachineUserLabel     = $window.FindName('MachineUserLabel')
+        ToolkitVersionLabel  = $window.FindName('ToolkitVersionLabel')
         AdminBadge           = $window.FindName('AdminBadge')
         AdminBadgeText       = $window.FindName('AdminBadgeText')
         SessionTimerLabel    = $window.FindName('SessionTimerLabel')
@@ -1229,8 +1328,9 @@ function Start-GuiMenuSTA {
     $sync = $script:GuiSync
 
     # Window title and header
-    $window.Title              = ('NMM Toolkit v9 - {0}' -f $env:COMPUTERNAME)
-    $sync.MachineUserLabel.Text = ('{0}\{1}' -f $env:COMPUTERNAME, $env:USERNAME)
+    $window.Title                 = ('NMM Toolkit v{0} - {1}' -f $script:ToolkitVersion, $env:COMPUTERNAME)
+    $sync.ToolkitVersionLabel.Text = ('NMM Toolkit v{0}' -f $script:ToolkitVersion)
+    $sync.MachineUserLabel.Text    = ('{0}\{1}' -f $env:COMPUTERNAME, $env:USERNAME)
 
     if ($script:IsAdmin) {
         $sync.AdminBadge.Background    = ConvertTo-WpfBrush '#1A3A1A'
@@ -1508,7 +1608,11 @@ function Start-GuiMenuSTA {
         $req = $s.PromptRequest
         if ($null -ne $req) {
             $s.PromptRequest = $null
-            Show-GuiPrompt -Sync $s -Request $req
+            if ($req.Kind -eq 'Text') {
+                Show-GuiTextPrompt -Sync $s -Request $req
+            } else {
+                Show-GuiPrompt -Sync $s -Request $req
+            }
         }
     }.GetNewClosure())
     $drainTimer.Start()

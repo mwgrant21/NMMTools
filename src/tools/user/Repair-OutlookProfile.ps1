@@ -63,8 +63,12 @@
             return
         }
 
-        # Nuclear: require typed confirmation (free-text after an interactive choice; never reached under -Silent)
-        $typed = Read-Host 'Type REBUILD to delete and recreate the Outlook profile'
+        # Nuclear: require typed confirmation. Read-ToolChoice -ExactMatch, not a bare
+        # Read-Host: Read-Host throws in the GUI's hostless tool runspace, so the whole
+        # tool fails closed and can never be used from the default UI mode. -ExactMatch
+        # also makes the compare case-sensitive so 'rebuild' can't satisfy an all-caps gate.
+        $typed = Read-ToolChoice -Prompt 'Type REBUILD to delete and recreate the Outlook profile' `
+            -Choices @('REBUILD', 'Cancel') -Default 'Cancel' -Silent:$Silent -ExactMatch
         if ($typed -ne 'REBUILD') {
             Complete-ToolRun $run -Status Skipped -Summary 'RecreateProfile cancelled (confirmation not typed)'
             return

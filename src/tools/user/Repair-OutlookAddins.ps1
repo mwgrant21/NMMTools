@@ -123,7 +123,16 @@ function Repair-OutlookAddins {
             foreach ($a in $addins) {
                 if ($a.Hive -eq 'HKCU' -and $a.LoadBehavior -eq 0) {
                     Set-ItemProperty -LiteralPath $a.PSPath -Name 'LoadBehavior' -Value 3 -ErrorAction SilentlyContinue
-                    $reenabled.Add($a.FriendlyName)
+                    # Verify the write took before crediting it - matches the PinOnBase
+                    # action's own verify-after-write pattern below. A policy-locked or
+                    # otherwise write-protected key would previously fail silently while still
+                    # being counted as re-enabled.
+                    $nowLb = (Get-ItemProperty -LiteralPath $a.PSPath -Name 'LoadBehavior' -ErrorAction SilentlyContinue).LoadBehavior
+                    if ($nowLb -eq 3) {
+                        $reenabled.Add($a.FriendlyName)
+                    } else {
+                        Write-ToolOutput ('LoadBehavior update for {0} did not verify (still {1})' -f $a.FriendlyName, $nowLb) -Level Warning
+                    }
                 }
                 $existing = Get-ItemProperty -LiteralPath $doNotDisable -Name $a.Name -ErrorAction SilentlyContinue
                 if ($null -eq $existing) {

@@ -83,15 +83,23 @@ function Get-BitLockerStatus {
                 if ($confirmFile -ne 'Yes') {
                     Complete-ToolRun $run -Status Skipped -Summary 'BackupToFile cancelled by user'
                 } else {
-                    # Read-Host for free-text path input (safe: only reached after interactive Yes confirm above)
+                    # A bare Read-Host here throws in the GUI's hostless tool runspace (caught
+                    # by the outer catch before any state change - fails closed, but the
+                    # feature silently can't be used from the default UI mode). Read-ToolChoice
+                    # only supports enumerated choices, not free text, so offer a fixed set of
+                    # safe destinations instead of an arbitrary typed path.
                     $defaultFolder = [Environment]::GetFolderPath('MyDocuments')
-                    Write-ToolOutput ('Default save folder: {0}' -f $defaultFolder) -Level Detail
-                    $folderInput = Read-Host 'Save folder (Enter for current user Documents)'
-                    if ([string]::IsNullOrWhiteSpace($folderInput)) {
-                        $saveFolder = $defaultFolder
-                    } else {
-                        $saveFolder = $folderInput.Trim()
+                    $desktopFolder = [Environment]::GetFolderPath('Desktop')
+                    $folderChoice = Read-ToolChoice `
+                        -Prompt ('Save folder: Documents ({0}) or Desktop ({1})?' -f $defaultFolder, $desktopFolder) `
+                        -Choices @('Documents', 'Desktop', 'Cancel') `
+                        -Default 'Cancel' `
+                        -Silent:$Silent
+                    if ($folderChoice -eq 'Cancel') {
+                        Complete-ToolRun $run -Status Skipped -Summary 'BackupToFile cancelled (no destination chosen)'
+                        return
                     }
+                    $saveFolder = if ($folderChoice -eq 'Desktop') { $desktopFolder } else { $defaultFolder }
                     if (-not (Test-Path $saveFolder -PathType Container)) {
                         Write-ToolOutput ('Folder not found: {0}' -f $saveFolder) -Level Warning
                         Complete-ToolRun $run -Status Warning `
@@ -111,17 +119,27 @@ function Get-BitLockerStatus {
                                 -Summary 'BackupToFile: no RecoveryPassword protectors found'
                         } else {
                             $keyFile = Join-Path $saveFolder ('BitLocker-Recovery-{0:yyyyMMdd-HHmmss}.txt' -f (Get-Date))
-                            Set-Content -Path $keyFile -Value $keyLines -Encoding UTF8
-                            Write-ToolOutput ('Recovery key file written: {0}' -f $keyFile) -Level Success
 
-                            # ACL-restrict to current user only; report if it fails
-                            & icacls "$keyFile" /inheritance:r /grant:r "$($env:USERNAME):F" | Out-Null
+                            # Create the file empty and lock its ACL BEFORE any recovery key
+                            # content is written - the plaintext key must never exist under
+                            # inherited (broader) permissions, even briefly. Grant by the
+                            # current user's SID rather than $env:USERNAME, which resolves to
+                            # the machine account under SYSTEM and can collide with a
+                            # same-named local account for a domain user.
+                            New-Item -Path $keyFile -ItemType File -Force -ErrorAction Stop | Out-Null
+                            $currentSid = ([Security.Principal.WindowsIdentity]::GetCurrent()).User.Value
+                            & icacls "$keyFile" /inheritance:r /grant:r "*$($currentSid):F" | Out-Null
                             $icaclsExit = $LASTEXITCODE
                             if ($icaclsExit -ne 0) {
-                                Write-ToolOutput ('WARNING: icacls ACL-lock failed (exit {0}); file is NOT restricted to current user.' -f $icaclsExit) -Level Warning
-                            } else {
-                                Write-ToolOutput 'File ACL restricted to current user only.' -Level Success
+                                Remove-Item -Path $keyFile -Force -ErrorAction SilentlyContinue
+                                Write-ToolOutput ('ACL-lock failed (exit {0}); refusing to write the recovery key file unprotected.' -f $icaclsExit) -Level Warning
+                                Complete-ToolRun $run -Status Warning -Summary ('BackupToFile aborted: could not restrict file permissions before writing (icacls exit {0})' -f $icaclsExit)
+                                return
                             }
+                            Write-ToolOutput 'File ACL restricted to current user only.' -Level Success
+
+                            Set-Content -Path $keyFile -Value $keyLines -Encoding UTF8
+                            Write-ToolOutput ('Recovery key file written: {0}' -f $keyFile) -Level Success
 
                             # Offer immediate deletion (safe default: Yes)
                             $deleteChoice = Read-ToolChoice `
@@ -136,13 +154,8 @@ function Get-BitLockerStatus {
                             } else {
                                 $fileNote = 'created and retained'
                             }
-                            if ($icaclsExit -eq 0) {
-                                $aclNote = 'ACL-locked'
-                            } else {
-                                $aclNote = 'ACL-lock failed'
-                            }
                             Complete-ToolRun $run -Status Success `
-                                -Summary ('BackupToFile: key file {0} ({1})' -f $fileNote, $aclNote)
+                                -Summary ('BackupToFile: key file {0} (ACL-locked)' -f $fileNote)
                         }
                     }
                 }

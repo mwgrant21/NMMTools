@@ -113,18 +113,29 @@ function Remove-AdobeCC {
         $cleanerBase = if ($env:TEMP) { $env:TEMP } else { 'C:\Windows\Temp' }
         $cleanerPath = Join-Path $cleanerBase 'AdobeCreativeCloudCleanerTool.exe'
         try {
+            New-Item -Path $stageDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            & icacls "$stageDir" /inheritance:r /grant:r 'SYSTEM:(OI)(CI)F' /grant:r 'BUILTIN\Administrators:(OI)(CI)F' | Out-Null
+            $cleanerPath = Join-Path $stageDir 'AdobeCreativeCloudCleanerTool.exe'
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             $wc = New-Object System.Net.WebClient
             $wc.DownloadFile($cleanerUrl, $cleanerPath)
             Write-ToolOutput '  Download complete.' -Level Info
+
+            $sig = Get-AuthenticodeSignature -FilePath $cleanerPath
+            if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'O=Adobe') {
+                throw ('Downloaded cleaner tool failed signature verification (status: {0}, signer: {1}).' -f $sig.Status, $sig.SignerCertificate.Subject)
+            }
+            Write-ToolOutput '  Authenticode signature verified (Adobe).' -Level Detail
+
             $cp = Start-Process $cleanerPath `
                 -ArgumentList '--cleanupXML="" --removeAll=1 --eulaAccepted=1' `
                 -Wait -PassThru -ErrorAction SilentlyContinue
             Write-ToolOutput ("  Cleaner tool exit code: {0}" -f $cp.ExitCode) -Level Detail
-            & $removeScopedPath $cleanerPath
             Start-Sleep -Seconds 5
         } catch {
             Write-ToolOutput ("  Cleaner tool unavailable ({0}) - continuing with manual cleanup." -f $_.Exception.Message) -Level Warning
+        } finally {
+            Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue
         }
 
         # Step 5: Remove residual Adobe file paths (ALL via removeScopedPath)

@@ -84,7 +84,7 @@
             Write-ToolOutput ('Credential clearing skipped: cmdkey would delete {0} sign-ins, not {1}. The user must clear Credential Manager from their own session.' -f $ctx.ProcessName, $ctx.DisplayName) -Level Warning
         } else {
             foreach ($t in @(Get-OfficeCredTarget)) {
-                cmdkey /delete:$t 2>$null | Out-Null
+                cmdkey "/delete:$t" 2>$null | Out-Null
                 if ($LASTEXITCODE -eq 0) { $cleared++ }
             }
         }

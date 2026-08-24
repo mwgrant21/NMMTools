@@ -38,7 +38,7 @@ if ($Tool) {
 
 # Mode selection - only in interactive sessions without -Tool/-ListTools
 if ($Mode -eq 'Auto' -and [Environment]::UserInteractive) {
-    Write-Host 'NMM System Toolkit v9'
+    Write-Host ('NMM System Toolkit v{0}' -f $script:ToolkitVersion)
     Write-Host '  1 = Console  2 = GUI'
     try { $modeInput = Read-Host '' } catch { $modeInput = '' }
     if ($modeInput.Trim() -eq '2') { $script:Mode = 'GUI' } else { $script:Mode = 'Console' }

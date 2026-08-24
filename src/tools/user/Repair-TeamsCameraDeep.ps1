@@ -152,7 +152,12 @@ function Repair-TeamsCameraDeep {
         $hardenApplied = New-Object System.Collections.Generic.List[string]
 
         # Consent store fix (always applied when missing)
-        if ($failureMode -eq 'ConsentMissing') {
+        if ($failureMode -eq 'ConsentMissing' -and -not $userHive.Root) {
+            # $camStore falls back to a path under a fabricated SID when the hive can't be
+            # resolved - New-Item below would actually CREATE that bogus key under
+            # HKEY_USERS if allowed to proceed. Skip outright instead.
+            Write-ToolOutput ('Consent store fix skipped: {0}' -f $userHive.Reason) -Level Warning
+        } elseif ($failureMode -eq 'ConsentMissing') {
             if (-not (Test-Path -LiteralPath $camStore)) {
                 New-Item -LiteralPath $camStore -Force -ErrorAction SilentlyContinue | Out-Null
             }
@@ -211,11 +216,15 @@ function Repair-TeamsCameraDeep {
                     $hardenApplied.Add('USB selective suspend disabled for physical camera')
                 }
             }
-            if (-not (Test-Path -LiteralPath $camStore)) {
-                New-Item -LiteralPath $camStore -Force -ErrorAction SilentlyContinue | Out-Null
+            if (-not $userHive.Root) {
+                Write-ToolOutput ('Consent store pin skipped: {0}' -f $userHive.Reason) -Level Warning
+            } else {
+                if (-not (Test-Path -LiteralPath $camStore)) {
+                    New-Item -LiteralPath $camStore -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                Set-ItemProperty -LiteralPath $camStore -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
+                $hardenApplied.Add('Consent store pinned Allow')
             }
-            Set-ItemProperty -LiteralPath $camStore -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
-            $hardenApplied.Add('Consent store pinned Allow')
         }
 
         # Write history

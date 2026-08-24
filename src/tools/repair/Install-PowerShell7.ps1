@@ -73,31 +73,54 @@ function Install-PowerShell7 {
                     throw 'Could not locate a win-x64 MSI asset in the latest GitHub release.'
                 }
 
-                $msiPath = Join-Path $env:TEMP 'PowerShell7-latest-win-x64.msi'
+                # Stage under a freshly created, randomly-named, admin-only-ACL'd directory
+                # rather than a fixed filename in $env:TEMP (= C:\Windows\Temp under
+                # SYSTEM/PDQ, world-writable) - a predictable path lets a standard user
+                # pre-create the file and keep DACL control of it even after the download
+                # overwrites its contents, opening a swap window before the elevated install.
+                $stageDir = Join-Path $env:ProgramData ('NMMTools\stage\{0}' -f ([guid]::NewGuid().ToString('N')))
+                New-Item -Path $stageDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
+                & icacls "$stageDir" /inheritance:r /grant:r 'SYSTEM:(OI)(CI)F' /grant:r 'BUILTIN\Administrators:(OI)(CI)F' | Out-Null
+                $msiPath = Join-Path $stageDir 'PowerShell7-latest-win-x64.msi'
                 Write-ToolOutput ('Downloading: {0}' -f $asset.name) -Level Info
 
                 try {
-                    Import-Module BitsTransfer -ErrorAction Stop
-                    Start-BitsTransfer -Source $asset.browser_download_url -Destination $msiPath `
-                        -TransferType Download -ErrorAction Stop
-                    Write-ToolOutput 'Download complete via BITS.' -Level Info
-                } catch {
-                    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $msiPath `
-                        -UseBasicParsing -ErrorAction Stop
-                    Write-ToolOutput 'Download complete via WebRequest.' -Level Info
+                    try {
+                        Import-Module BitsTransfer -ErrorAction Stop
+                        Start-BitsTransfer -Source $asset.browser_download_url -Destination $msiPath `
+                            -TransferType Download -ErrorAction Stop
+                        Write-ToolOutput 'Download complete via BITS.' -Level Info
+                    } catch {
+                        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $msiPath `
+                            -UseBasicParsing -ErrorAction Stop
+                        Write-ToolOutput 'Download complete via WebRequest.' -Level Info
+                    }
+
+                    $fileSize = (Get-Item $msiPath -ErrorAction SilentlyContinue).Length
+                    if (-not $fileSize -or $fileSize -lt 50MB) {
+                        throw ('Downloaded MSI appears invalid (size: {0} bytes).' -f $fileSize)
+                    }
+                    Write-ToolOutput ('File size: {0} MB' -f [math]::Round($fileSize / 1MB, 1)) -Level Detail
+
+                    # A size floor is not an integrity check - verify the file is
+                    # Authenticode-signed and actually signed by Microsoft before running it
+                    # elevated.
+                    $sig = Get-AuthenticodeSignature -FilePath $msiPath
+                    if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+                        throw ('Downloaded MSI failed signature verification (status: {0}, signer: {1}).' -f $sig.Status, $sig.SignerCertificate.Subject)
+                    }
+                    Write-ToolOutput 'Authenticode signature verified (Microsoft Corporation).' -Level Detail
+
+                    Write-ToolOutput 'Running silent MSI install...' -Level Info
+                    # ENABLE_PSREMOTING=1 previously opened a WinRM listener as an undocumented
+                    # side effect of this install path only (the winget path does not enable
+                    # it), leaving posture dependent on which branch happened to run. Dropped so
+                    # both install paths converge on the same (remoting-off) default.
+                    $msiArgs = '/i "{0}" /qn ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 REGISTER_MANIFEST=1' -f $msiPath
+                    $proc    = Start-Process -FilePath 'msiexec.exe' -ArgumentList $msiArgs -Wait -PassThru -ErrorAction Stop
+                } finally {
+                    Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue
                 }
-
-                $fileSize = (Get-Item $msiPath -ErrorAction SilentlyContinue).Length
-                if (-not $fileSize -or $fileSize -lt 50MB) {
-                    throw ('Downloaded MSI appears invalid (size: {0} bytes).' -f $fileSize)
-                }
-                Write-ToolOutput ('File size: {0} MB' -f [math]::Round($fileSize / 1MB, 1)) -Level Detail
-
-                Write-ToolOutput 'Running silent MSI install...' -Level Info
-                $msiArgs = '/i "{0}" /qn ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1' -f $msiPath
-                $proc    = Start-Process -FilePath 'msiexec.exe' -ArgumentList $msiArgs -Wait -PassThru -ErrorAction Stop
-
-                Remove-Item $msiPath -Force -ErrorAction SilentlyContinue
 
                 if ($proc.ExitCode -eq 0) {
                     $installed = $true
