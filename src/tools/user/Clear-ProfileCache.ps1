@@ -6,11 +6,22 @@
     try {
         $run = New-ToolRun -Id 'profile-cache'
 
-        $prof = $env:USERPROFILE
+        # Every folder below lives in one specific person's profile. Gate before
+        # the report, not just the action: sizing the technician's caches and
+        # calling them the user's is a misdiagnosis, and clearing them is worse.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot read or clear the profile cache - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
+
+        $prof = $ctx.ProfilePath
         # Cleanable=$true folders have their CONTENTS cleared. OneDrive (app folder) and Downloads
         # (user data) are REPORT-ONLY - clearing them would break OneDrive / delete user files.
         $folders = @(
-            @{ Name = 'Temp';      Path = $env:TEMP; Cleanable = $true },
+            @{ Name = 'Temp';      Path = (Join-Path $ctx.LocalAppData 'Temp'); Cleanable = $true },
             @{ Name = 'Teams';     Path = (Join-Path $prof 'AppData\Local\Microsoft\Teams'); Cleanable = $true },
             @{ Name = 'Office';    Path = (Join-Path $prof 'AppData\Local\Microsoft\Office\16.0\OfficeFileCache'); Cleanable = $true },
             @{ Name = 'Chrome';    Path = (Join-Path $prof 'AppData\Local\Google\Chrome\User Data\Default\Cache'); Cleanable = $true },
@@ -52,8 +63,10 @@
                 } else {
                     foreach ($f in ($folders | Where-Object { $_.Cleanable })) {
                         if (Test-Path -LiteralPath $f.Path) {
-                            Get-ChildItem -LiteralPath $f.Path -Force -ErrorAction SilentlyContinue |
-                                Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                            # Containment-gated: every cleanable folder here is
+                            # inside the target user's own profile, so all of them
+                            # are junction-plantable by that user.
+                            [void](Remove-UserPathContent -Context $ctx -Path $f.Path)
                         }
                     }
                     $totalAfter = [int64]0

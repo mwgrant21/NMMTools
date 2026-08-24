@@ -120,7 +120,7 @@ $sizeKB = [math]::Round((Get-Item $artifact).Length / 1KB)
 Write-Host ('Built {0} ({1} KB, v{2} {3})' -f $artifact, $sizeKB, $Version, $commit) -ForegroundColor Green
 
 # ---- 6. PDQ per-tool scripts (opt-in) ---------------------------------------
-# Each emitted script is self-contained: the seven headless core files, a
+# Each emitted script is self-contained: the eight headless core files, a
 # single-entry registry, one tool function, and an entry point. The console
 # menu, usage store, WPF GUI and Jira cores are omitted - nothing under
 # src\tools references them, and they are 2152 of the 2770 core lines.
@@ -134,7 +134,7 @@ if ($Pdq) {
     $registryData = Import-PowerShellDataFile (Join-Path $root 'src\registry\tools.psd1')
     $headlessCore = @('01-bootstrap.ps1','02-output.ps1','03-results.ps1','04-dispatch.ps1',
                       '07-repair-helpers.ps1','08-browser-helpers.ps1',
-                      '11-diagnostic-bundle-helpers.ps1')
+                      '11-diagnostic-bundle-helpers.ps1','12-user-context.ps1')
 
     $q = { param([string]$s) $s -replace "'", "''" }
 

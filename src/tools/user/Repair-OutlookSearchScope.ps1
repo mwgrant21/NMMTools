@@ -6,7 +6,24 @@ function Repair-OutlookSearchScope {
     try {
         $run = New-ToolRun -Id 'outlook-search-all'
 
-        $olKey     = 'HKCU:\Software\Microsoft\Office\16.0\Outlook'
+        # Profile layout and search scope are per-user; the WSearch keys below
+        # are HKLM and stay machine-wide.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+
+        # This gate must sit BEFORE the profile lookup, not next to the action.
+        # Every reported value here - profile name, data files, search scope -
+        # comes from the user hive, so an unresolved context would silently
+        # describe (and then fix) the technician's own Outlook instead. The
+        # "no profile found" early return below would otherwise hide that on any
+        # machine where the technician has no profile.
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot read or fix Outlook search scope - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
+
+        $olKey     = Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Office\16.0\Outlook'
         $searchKey = Join-Path $olKey 'Search'
         $profRoot  = Join-Path $olKey 'Profiles'
 
@@ -106,6 +123,12 @@ function Repair-OutlookSearchScope {
         if ($action -eq 'None') {
             Complete-ToolRun $run -Status Success `
                 -Summary ('{0} file(s) found; scope={1}; no action taken' -f $dataFiles.Count, $currentScope)
+            return
+        }
+
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot fix the search scope - {0}. Nothing was changed.' -f $ctx.Reason)
             return
         }
 

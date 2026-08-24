@@ -27,6 +27,26 @@ function Test-VPNHealth {
     try {
         $run = New-ToolRun -Id 'vpn-health'
 
+        # Gate the WHOLE tool, not just the phonebook action. Get-VpnConnection
+        # without -AllUserConnection returns the CALLING account's profiles, and
+        # rasdial connects/disconnects in the calling session - so under
+        # redirection every line of this tool describes and acts on the
+        # technician's VPN. The "no profiles configured" early return below would
+        # otherwise skip a guard placed further down.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+        if ($ctx.IsRedirected) {
+            Write-ToolOutput ('VPN profiles and rasdial are per-session: this would report and act on {0}, not {1}.' -f $ctx.ProcessName, $ctx.DisplayName) -Level Error
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('VPN health refused - profiles belong to {0}, not {1}. Nothing was changed.' -f $ctx.ProcessName, $ctx.DisplayName)
+            return
+        }
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot read VPN health - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
+
         $vpnConnections = @(Get-VpnConnection -ErrorAction SilentlyContinue)
 
         if ($vpnConnections.Count -eq 0) {
@@ -100,7 +120,15 @@ function Test-VPNHealth {
                 }
             }
             'ClearPhonebook' {
-                $pbkPath = Join-Path $env:APPDATA 'Microsoft\Network\Connections\Pbk'
+                # The RAS phonebook is per-user; the DNS flush below is not.
+                $ctx = Get-TargetUserContext
+                Write-UserContextNotice -Context $ctx
+                if (-not $ctx.Resolved) {
+                    Complete-ToolRun $run -Status Failed `
+                        -Summary ('Cannot clear the VPN phonebook - {0}. Nothing was changed.' -f $ctx.Reason)
+                    return
+                }
+                $pbkPath = Join-Path $ctx.AppData 'Microsoft\Network\Connections\Pbk'
                 $gate = Read-ToolChoice `
                     -Prompt 'Clear VPN phonebook? Deletes saved VPN connection files and flushes DNS. Type CONFIRM to proceed' `
                     -Choices @('CONFIRM', 'Cancel') `
@@ -109,8 +137,9 @@ function Test-VPNHealth {
                 if ($gate -eq 'CONFIRM') {
                     Write-ToolOutput ('Clearing VPN phonebook: {0}' -f $pbkPath) -Level Info
                     if (Test-Path $pbkPath) {
-                        Get-ChildItem -Path $pbkPath -Force -ErrorAction SilentlyContinue |
-                            Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+                        # Containment-gated: the phonebook directory lives under
+                        # the target user's AppData and is fully writable by them.
+                        [void](Remove-UserPathContent -Context $ctx -Path $pbkPath)
                     }
                     ipconfig /flushdns 2>&1 | Out-Null
                     Write-ToolOutput 'Phonebook cleared and DNS flushed' -Level Success

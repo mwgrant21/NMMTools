@@ -28,20 +28,41 @@
         $run = New-ToolRun -Id 'teams-deep-diagnostic'
         $report = @()
         $issues = @()
-        $msixPath = Join-Path $env:LOCALAPPDATA 'Packages\MSTeams_8wekyb3d8bbwe'
+        # Several checks below are SESSION-bound rather than path-bound: the
+        # credential vault and the Azure AD PRT belong to the logon session, not
+        # to a directory that can be redirected. Answering them from the
+        # technician's session would be worse than not answering them, so they
+        # report SKIP instead.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+        if ($ctx.IsRedirected) {
+            Write-ToolOutput ('Session-bound checks (credentials, Azure AD PRT) cannot be read for {0} from this session; they report SKIP.' -f $ctx.DisplayName) -Level Warning
+        }
 
-        # Check 1: MSTeams AppX registration
-        $pkg = Get-AppxPackage -Name 'MSTeams' -ErrorAction SilentlyContinue
-        if ($pkg) {
+        $msixPath = $null
+        if ($ctx.Resolved) { $msixPath = Join-Path $ctx.LocalAppData 'Packages\MSTeams_8wekyb3d8bbwe' }
+
+        # Check 1: MSTeams AppX registration (per-user; -User needs elevation)
+        $pkg      = $null
+        $pkgKnown = $true
+        if ($ctx.IsRedirected) {
+            try { $pkg = Get-AppxPackage -Name 'MSTeams' -User $ctx.Sid -ErrorAction Stop } catch { $pkgKnown = $false }
+        } else {
+            $pkg = Get-AppxPackage -Name 'MSTeams' -ErrorAction SilentlyContinue
+        }
+        if (-not $pkgKnown) {
+            Write-ToolOutput ('[SKIP] MSTeams registration for {0} not readable (needs elevation)' -f $ctx.DisplayName) -Level Warning
+            $report += 'MSTeams: not readable'
+        } elseif ($pkg) {
             Write-ToolOutput ('[PASS] MSTeams registered: v{0}' -f $pkg.Version) -Level Success
             $report += ('MSTeams: v{0}' -f $pkg.Version)
         } else {
-            Write-ToolOutput '[FAIL] MSTeams NOT registered for current user' -Level Error
+            Write-ToolOutput ('[FAIL] MSTeams NOT registered for {0}' -f $ctx.DisplayName) -Level Error
             $report += 'MSTeams: not registered'; $issues += 'teams_not_registered'
         }
 
         # Check 2: MSIX package folder
-        if (Test-Path -LiteralPath $msixPath) {
+        if ($msixPath -and (Test-Path -LiteralPath $msixPath)) {
             $sz = (Get-ChildItem -LiteralPath $msixPath -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
             $mb = [math]::Round(($sz / 1MB), 1)
             Write-ToolOutput ('[PASS] MSIX folder present ({0} MB)' -f $mb) -Level Success
@@ -52,7 +73,21 @@
         }
 
         # Check 3: dsregcmd AAD / WAM / PRT
+        # dsregcmd reports the CALLING session. AzureAdJoined is device-wide and
+        # stays valid, but WamDefaultSet and AzureAdPrt are per-user: under a
+        # redirected session they describe the technician's token state, which
+        # would send the whole diagnosis down the wrong path.
         $dsreg = (dsregcmd /status 2>&1) -join "`n"
+        if ($ctx.IsRedirected) {
+            if ($dsreg -match 'AzureAdJoined\s*:\s*YES') {
+                Write-ToolOutput '[PASS] Azure AD Joined: YES (device-wide)' -Level Success; $report += 'AAD Joined: YES'
+            } else {
+                Write-ToolOutput '[WARN] Azure AD Joined: NO (device-wide)' -Level Warning; $report += 'AAD Joined: NO'; $issues += 'not_aad_joined'
+            }
+            Write-ToolOutput ('[SKIP] WAM Default / Azure AD PRT are per-user and cannot be read for {0} from this session' -f $ctx.DisplayName) -Level Warning
+            $report += 'WAM Default: not readable'
+            $report += 'AAD PRT: not readable'
+        } else {
         if ($dsreg -match 'AzureAdJoined\s*:\s*YES') {
             Write-ToolOutput '[PASS] Azure AD Joined: YES' -Level Success; $report += 'AAD Joined: YES'
         } else {
@@ -68,6 +103,7 @@
         Write-ToolOutput ('[INFO] Azure AD PRT: {0}' -f $prt) -Level Detail
         $report += ('AAD PRT: {0}' -f $prt)
         if ($prt -ne 'YES') { $issues += 'prt_missing' }
+        }
 
         # Check 4: AAD/WAM event log (needs elevation; degrade gracefully)
         try {
@@ -85,6 +121,13 @@
         }
 
         # Check 5: Credential Manager Teams/M365 entries
+        # The credential vault belongs to the logon session. cmdkey has no way to
+        # target another user, so under redirection this would enumerate the
+        # technician's credentials and report them as the user's.
+        if ($ctx.IsRedirected) {
+            Write-ToolOutput ('[SKIP] Credential Manager is session-bound and cannot be read for {0}' -f $ctx.DisplayName) -Level Warning
+            $report += 'Cred Manager: not readable'
+        } else {
         $credOut = (cmdkey /list 2>&1) | Out-String
         $teamsCreds = @(($credOut -split "`n") | Where-Object { $_ -match 'MicrosoftOffice|\bTeams\b|microsoftteams|aadg\.windows\.net|login\.microsoft' })
         if ($teamsCreds.Count -gt 0) {
@@ -92,6 +135,7 @@
             $report += ('Cred Manager: {0} entries' -f $teamsCreds.Count); $issues += 'stale_credentials'
         } else {
             Write-ToolOutput '[PASS] No stale Teams/M365 credentials' -Level Success; $report += 'Cred Manager: clean'
+        }
         }
 
         # Check 6: Network reachability (timeout-bounded)
@@ -145,7 +189,9 @@
 
         # Check 8: Proxy configuration
         $winHttp = (netsh winhttp show proxy 2>&1) | Out-String
-        $ieProp = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction SilentlyContinue
+        $ieSettings = Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+        $ieProp = $null
+        if ($ctx.Resolved) { $ieProp = Get-ItemProperty -LiteralPath $ieSettings -ErrorAction SilentlyContinue }
         if ($ieProp.ProxyEnable -eq 1 -and $ieProp.ProxyServer) {
             Write-ToolOutput ('[WARN] User proxy enabled: {0}' -f $ieProp.ProxyServer) -Level Warning
             $report += ('Proxy: {0}' -f $ieProp.ProxyServer); $issues += 'proxy_configured'
@@ -172,8 +218,9 @@
         $report += ('Sched tasks: {0}' -f $tasks.Count)
 
         # Check 11: newest Teams log tail for auth errors
-        $logBase = Join-Path $msixPath 'LocalCache\Microsoft\MSTeams\Logs'
-        if (Test-Path -LiteralPath $logBase) {
+        $logBase = $null
+        if ($msixPath) { $logBase = Join-Path $msixPath 'LocalCache\Microsoft\MSTeams\Logs' }
+        if ($logBase -and (Test-Path -LiteralPath $logBase)) {
             $latest = Get-ChildItem -LiteralPath $logBase -Filter '*.log' -ErrorAction SilentlyContinue |
                 Sort-Object LastWriteTime -Descending | Select-Object -First 1
             if ($latest) {
@@ -204,6 +251,25 @@
         switch ($action) {
 
             'ApplyRepairs' {
+                # Hard refusal, before the confirm prompt. Every repair below is
+                # session-bound: cmdkey /delete removes credentials from the
+                # CALLING account's vault, and Add-AppxPackage -Register
+                # registers Teams for the CALLING account. Run from an elevated
+                # session on someone else's laptop, this would wipe the
+                # technician's own M365 credentials and leave the reported fault
+                # untouched - a worse outcome than doing nothing.
+                if ($ctx.IsRedirected) {
+                    Write-ToolOutput ('Deep repair cannot run from this session: it would clear credentials and re-register Teams for {0}, not {1}.' -f $ctx.ProcessName, $ctx.DisplayName) -Level Error
+                    Write-ToolOutput ('Sign in as {0} (or have them run the toolkit) and re-run this repair there.' -f $ctx.DisplayName) -Level Info
+                    Complete-ToolRun $run -Status Failed `
+                        -Summary ('Diagnostic complete ({0} issue(s)); deep repair refused - session-bound operations would target {1}, not {2}. Nothing was changed.' -f $issues.Count, $ctx.ProcessName, $ctx.DisplayName)
+                    return
+                }
+                if (-not $ctx.Resolved) {
+                    Complete-ToolRun $run -Status Failed `
+                        -Summary ('Diagnostic complete ({0} issue(s)); deep repair refused - {1}. Nothing was changed.' -f $issues.Count, $ctx.Reason)
+                    return
+                }
                 Write-ToolOutput 'WARNING: this CLOSES Teams and CLEARS its credentials/WAM tokens/cache - you will be signed out and must sign in again.' -Level Warning
                 $confirm = Read-ToolChoice -Prompt 'Apply deep repairs (sign-out required)?' `
                     -Choices @('Yes','No') -Default 'No' -Silent:$Silent
@@ -222,14 +288,18 @@
                         if ($t) { cmdkey /delete:$t 2>&1 | Out-Null; $removed++ }
                     }
                     Write-ToolOutput ('Cleared {0} credential entr(ies).' -f $removed) -Level Detail
+                    # Containment-gated. The MSIX package tree lives under the
+                    # user's LocalAppData\Packages and is fully writable by them,
+                    # so a junction planted here would otherwise be followed out
+                    # of the profile by this elevated process.
                     foreach ($wp in @((Join-Path $msixPath 'Settings'), (Join-Path $msixPath 'AC\TokenBroker'))) {
                         if (Test-Path -LiteralPath $wp) {
-                            Get-ChildItem -LiteralPath $wp -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                            [void](Remove-UserPathContent -Context $ctx -Path $wp)
                         }
                     }
                     $lc = Join-Path $msixPath 'LocalCache'
                     if (Test-Path -LiteralPath $lc) {
-                        Get-ChildItem -LiteralPath $lc -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                        [void](Remove-UserPathContent -Context $ctx -Path $lc)
                     }
                     $appxOk = $false
                     $manifest = Join-Path $msixPath 'AppxManifest.xml'

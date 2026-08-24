@@ -30,14 +30,24 @@ function Repair-ProxySettings {
             }
         }
 
-        # Step 2: WinINET proxy registry (HKCU)
-        Write-ToolOutput 'Clearing WinINET proxy registry keys (HKCU)...' -Level Info
-        $regPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'
-        Set-ItemProperty    -Path $regPath -Name ProxyEnable   -Value 0 -ErrorAction SilentlyContinue
-        Remove-ItemProperty -Path $regPath -Name ProxyServer    -ErrorAction SilentlyContinue
-        Remove-ItemProperty -Path $regPath -Name ProxyOverride  -ErrorAction SilentlyContinue
-        Remove-ItemProperty -Path $regPath -Name AutoConfigURL  -ErrorAction SilentlyContinue
-        Write-ToolOutput 'WinINET: ProxyEnable=0; ProxyServer/ProxyOverride/AutoConfigURL removed.' -Level Info
+        # Step 2: WinINET proxy registry (per-user)
+        # WinHTTP, DNS and Winsock are machine-wide and still worth doing, so an
+        # unreachable user hive downgrades this step rather than the whole tool.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+        $winInetDone = $false
+        if ($ctx.Resolved) {
+            Write-ToolOutput ('Clearing WinINET proxy registry keys for {0}...' -f $ctx.DisplayName) -Level Info
+            $regPath = Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+            Set-ItemProperty    -Path $regPath -Name ProxyEnable   -Value 0 -ErrorAction SilentlyContinue
+            Remove-ItemProperty -Path $regPath -Name ProxyServer    -ErrorAction SilentlyContinue
+            Remove-ItemProperty -Path $regPath -Name ProxyOverride  -ErrorAction SilentlyContinue
+            Remove-ItemProperty -Path $regPath -Name AutoConfigURL  -ErrorAction SilentlyContinue
+            Write-ToolOutput 'WinINET: ProxyEnable=0; ProxyServer/ProxyOverride/AutoConfigURL removed.' -Level Info
+            $winInetDone = $true
+        } else {
+            Write-ToolOutput ('WinINET (per-user) proxy keys NOT cleared - {0}. The machine-wide steps below still run.' -f $ctx.Reason) -Level Warning
+        }
 
         # Step 3: Flush DNS
         Write-ToolOutput 'Flushing DNS cache...' -Level Info
@@ -49,8 +59,13 @@ function Repair-ProxySettings {
         & netsh winsock reset 2>&1 | Out-Null
         Write-ToolOutput 'Winsock reset queued.' -Level Info
 
-        Complete-ToolRun $run -Status Success `
-            -Summary 'WinHTTP + WinINET proxy reset; DNS flushed; Winsock reset - REBOOT required to finish'
+        if ($winInetDone) {
+            Complete-ToolRun $run -Status Success `
+                -Summary 'WinHTTP + WinINET proxy reset; DNS flushed; Winsock reset - REBOOT required to finish'
+        } else {
+            Complete-ToolRun $run -Status Warning `
+                -Summary ('WinHTTP proxy reset; DNS flushed; Winsock reset - REBOOT required. WinINET (per-user) keys NOT cleared: {0}' -f $ctx.Reason)
+        }
     }
     catch {
         Complete-ToolRun $run -Status Failed -Summary $_.Exception.Message

@@ -1,16 +1,24 @@
-﻿function Repair-OutlookAddins {
+function Repair-OutlookAddins {
     [CmdletBinding()]
     param([switch]$Silent)
 
-    # Scan Outlook add-in keys (HKCU + HKLM) read-only.
+    # Scan Outlook add-in keys (per-user + HKLM) read-only.
     function Get-OutlookAddin {
+        param([Parameter(Mandatory)]$Context)
+
+        # The Hive label is set explicitly, NOT derived from the path. Once the
+        # per-user root can be 'Registry::HKEY_USERS\<sid>\...', splitting the
+        # path on ':' yields 'Registry', so every later "is this the user's
+        # hive?" test would silently stop matching and the LoadBehavior repair
+        # would quietly do nothing.
         $roots = @(
-            'HKCU:\Software\Microsoft\Office\16.0\Outlook\Addins',
-            'HKLM:\Software\Microsoft\Office\16.0\Outlook\Addins',
-            'HKLM:\Software\WOW6432Node\Microsoft\Office\16.0\Outlook\Addins'
+            @{ Path = (Get-UserHivePath -Context $Context -SubPath 'Software\Microsoft\Office\16.0\Outlook\Addins'); Hive = 'HKCU' },
+            @{ Path = 'HKLM:\Software\Microsoft\Office\16.0\Outlook\Addins';                Hive = 'HKLM' },
+            @{ Path = 'HKLM:\Software\WOW6432Node\Microsoft\Office\16.0\Outlook\Addins';    Hive = 'HKLM' }
         )
         $list = New-Object System.Collections.Generic.List[object]
-        foreach ($root in $roots) {
+        foreach ($entry in $roots) {
+            $root = $entry.Path
             if (-not (Test-Path -LiteralPath $root)) { continue }
             foreach ($k in @(Get-ChildItem -LiteralPath $root -ErrorAction SilentlyContinue)) {
                 $props = Get-ItemProperty -LiteralPath $k.PSPath -ErrorAction SilentlyContinue
@@ -22,7 +30,7 @@
                     Name         = $k.PSChildName
                     FriendlyName = $fn
                     LoadBehavior = $lb
-                    Hive         = ($root -split ':')[0]
+                    Hive         = $entry.Hive
                     PSPath       = $k.PSPath
                 })
             }
@@ -33,15 +41,28 @@
     $run = $null
     try {
         $run = New-ToolRun -Id 'outlook-addin-repair'
-        $resiliencyRoot  = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Resiliency'
+
+        # Outlook resiliency state and the per-user add-in registrations belong
+        # to the person whose Outlook is broken, not to whoever launched the
+        # toolkit. Resolve the target account before building any key path.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot read or repair Outlook add-ins - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
+
+        $resiliencyRoot  = Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Office\16.0\Outlook\Resiliency'
         $disabledKey     = Join-Path $resiliencyRoot 'DisabledItems'
         $crashKey        = Join-Path $resiliencyRoot 'CrashingAddinList'
         $doNotDisable    = Join-Path $resiliencyRoot 'DoNotDisableAddinList'
-        $policyRoot      = 'HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Resiliency'
+        $policyRoot      = Get-UserHivePath -Context $ctx -SubPath 'Software\Policies\Microsoft\Office\16.0\Outlook\Resiliency'
         $policyAddinList = Join-Path $policyRoot 'AddinList'
 
         # --- Report ---
-        $addins = @(Get-OutlookAddin)
+        $addins = @(Get-OutlookAddin -Context $ctx)
         Write-ToolOutput ('Outlook add-ins found: {0}' -f $addins.Count) -Level Info
         foreach ($a in $addins) {
             $lbText = 'n/a'
@@ -83,6 +104,15 @@
 
         # --- Action menu ---
         $action = Read-ToolChoice -Prompt 'Outlook add-in repair' -Choices @('None','ReEnable','PinOnBase') -Default 'None' -Silent:$Silent
+
+        # Both actions below write only to the target user's hive, so one gate
+        # covers them. Writing these to the wrong hive would leave the reported
+        # Outlook fault untouched while pinning add-ins for the technician.
+        if ($action -ne 'None' -and -not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot repair Outlook add-ins - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
 
         if ($action -eq 'ReEnable') {
             if (Test-Path -LiteralPath $disabledKey) { Remove-Item -LiteralPath $disabledKey -Recurse -Force -ErrorAction SilentlyContinue }

@@ -1,10 +1,13 @@
-﻿function Repair-StartMenuTaskbar {
+function Repair-StartMenuTaskbar {
     [CmdletBinding()]
     param([switch]$Silent)
 
     $run = $null
     try {
         $run = New-ToolRun -Id 'start-menu-taskbar'
+
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
 
         # --- Report ---
         $explorer = @(Get-Process -Name 'explorer' -ErrorAction SilentlyContinue)
@@ -15,6 +18,23 @@
         # --- Action menu ---
         $action = Read-ToolChoice -Prompt 'Start Menu / Taskbar action' `
             -Choices @('None','RestartExplorer','ResetStartLayout','ReRegisterStartMenu') -Default 'None' -Silent:$Silent
+
+        # All three actions restart explorer, and ReRegisterStartMenu also calls
+        # Add-AppxPackage -Register, which registers for the CALLING account.
+        # From an elevated session the kill hits the user's shell while the
+        # relaunch and the AppX registration land on the technician - so the
+        # user can end up with no desktop and an unchanged Start Menu.
+        if ($action -ne 'None' -and $ctx.IsRedirected) {
+            Write-ToolOutput ('Start Menu / Explorer actions must run in the user session: the restart and AppX re-registration would target {0}, not {1}.' -f $ctx.ProcessName, $ctx.DisplayName) -Level Error
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Start Menu action refused - would target {0}, not {1}. Nothing was changed.' -f $ctx.ProcessName, $ctx.DisplayName)
+            return
+        }
+        if ($action -ne 'None' -and -not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot repair the Start Menu / Taskbar - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
 
         switch ($action) {
 
@@ -33,7 +53,7 @@
                 if ($confirm -ne 'Yes') {
                     Complete-ToolRun $run -Status Skipped -Summary 'ResetStartLayout cancelled'
                 } else {
-                    $shell = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Shell'
+                    $shell = Join-Path $ctx.LocalAppData 'Microsoft\Windows\Shell'
                     $backup = Join-Path $env:TEMP ('StartMenu_Backup_{0}' -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
                     $backupTaken = $false
                     Stop-Process -Name 'explorer' -Force -ErrorAction SilentlyContinue
@@ -45,10 +65,10 @@
                             Write-ToolOutput ('Backed up layout to {0}' -f $backup) -Level Detail
                         }
                     }
-                    $caches = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Caches'
+                    $caches = Join-Path $ctx.LocalAppData 'Microsoft\Windows\Caches'
                     if (Test-Path -LiteralPath $caches) {
-                        Get-ChildItem -LiteralPath $caches -Force -ErrorAction SilentlyContinue |
-                            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                        # Containment-gated: see Remove-UserPathContent.
+                        [void](Remove-UserPathContent -Context $ctx -Path $caches)
                     }
                     $layoutXml = Join-Path $shell 'LayoutModification.xml'
                     if (Test-Path -LiteralPath $layoutXml) { Remove-Item -LiteralPath $layoutXml -Force -ErrorAction SilentlyContinue }

@@ -34,14 +34,31 @@ function Repair-TouchpadKeyboard {
         }
 
         # --- FilterKeys / StickyKeys flags (report phase) ---
-        $filterFlags = (Get-ItemProperty -Path 'HKCU:\Control Panel\Accessibility\Keyboard Response' `
-            -Name 'Flags' -ErrorAction SilentlyContinue).Flags
-        $stickyFlags = (Get-ItemProperty -Path 'HKCU:\Control Panel\Accessibility\StickyKeys' `
-            -Name 'Flags' -ErrorAction SilentlyContinue).Flags
+        # Accessibility flags are per-user. The HID device scan above is
+        # machine-wide and stays valid either way, so only this half is gated.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+
+        # Built lazily: Get-UserHivePath now throws on an unresolved target, and
+        # the HID device scan above is machine-wide and must still run.
+        $filterKey   = $null
+        $stickyKey   = $null
+        $filterFlags = $null
+        $stickyFlags = $null
+        if ($ctx.Resolved) {
+            $filterKey = Get-UserHivePath -Context $ctx -SubPath 'Control Panel\Accessibility\Keyboard Response'
+            $stickyKey = Get-UserHivePath -Context $ctx -SubPath 'Control Panel\Accessibility\StickyKeys'
+            $filterFlags = (Get-ItemProperty -Path $filterKey -Name 'Flags' -ErrorAction SilentlyContinue).Flags
+            $stickyFlags = (Get-ItemProperty -Path $stickyKey -Name 'Flags' -ErrorAction SilentlyContinue).Flags
+        } else {
+            Write-ToolOutput ('Filter/Sticky Keys state not readable - {0}' -f $ctx.Reason) -Level Warning
+        }
 
         # Flag values 122/510 indicate the feature was triggered/activated
         $accessTriggered = ($filterFlags -eq '122' -or $stickyFlags -eq '510')
-        if ($accessTriggered) {
+        if (-not $ctx.Resolved) {
+            # No report line: an unreadable state is not the same as 'OK'.
+        } elseif ($accessTriggered) {
             Write-ToolOutput ('Filter/Sticky Keys activated (FilterKeys={0}, StickyKeys={1}) - may cause unexpected typing behavior' -f $filterFlags, $stickyFlags) -Level Warning
         } else {
             Write-ToolOutput ('Filter/Sticky Keys: FilterKeys={0}, StickyKeys={1} (OK)' -f $filterFlags, $stickyFlags) -Level Detail
@@ -94,10 +111,8 @@ function Repair-TouchpadKeyboard {
                         -Default 'No' `
                         -Silent:$Silent
                     if ($gate -eq 'Yes') {
-                        Set-ItemProperty -Path 'HKCU:\Control Panel\Accessibility\Keyboard Response' `
-                            -Name 'Flags' -Value '126' -ErrorAction SilentlyContinue
-                        Set-ItemProperty -Path 'HKCU:\Control Panel\Accessibility\StickyKeys' `
-                            -Name 'Flags' -Value '506' -ErrorAction SilentlyContinue
+                        Set-ItemProperty -Path $filterKey -Name 'Flags' -Value '126' -ErrorAction SilentlyContinue
+                        Set-ItemProperty -Path $stickyKey -Name 'Flags' -Value '506' -ErrorAction SilentlyContinue
                         Write-ToolOutput 'Filter Keys and Sticky Keys disabled' -Level Success
                         Complete-ToolRun $run -Status Success -Summary 'Filter Keys and Sticky Keys cleared'
                     } else {

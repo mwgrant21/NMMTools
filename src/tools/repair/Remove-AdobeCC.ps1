@@ -24,12 +24,27 @@ function Remove-AdobeCC {
         }
 
         # Safe scoped Remove-Item for file system paths:
-        # guards empty, too-short, and drive-root paths before acting
+        # guards empty, too-short, and drive-root paths before acting.
+        #
+        # This list mixes machine-wide Adobe paths (Program Files, ProgramData)
+        # with two paths inside the target user's profile. Only the latter are
+        # writable by a standard user and therefore junction-plantable, so those
+        # go through the containment gate; the machine paths would be (correctly)
+        # refused by it for being outside the profile.
         $removeScopedPath = {
             param([string]$Path)
             if ([string]::IsNullOrWhiteSpace($Path)) { return }
             if ($Path -match '^[A-Za-z]:\\?$' -or $Path.Length -lt 8) { return }
-            if (Test-Path $Path) {
+            if (-not (Test-Path $Path)) { return }
+
+            $inProfile = $false
+            if ($ctx.Resolved -and -not [string]::IsNullOrWhiteSpace($ctx.ProfilePath)) {
+                $inProfile = $Path.StartsWith($ctx.ProfilePath, [System.StringComparison]::OrdinalIgnoreCase)
+            }
+            if ($inProfile) {
+                if (-not (Remove-UserPathContent -Context $ctx -Path $Path)) { return }
+                Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+            } else {
                 Remove-Item $Path -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
@@ -91,6 +106,10 @@ function Remove-AdobeCC {
         # Step 4: Download and run Adobe Creative Cloud Cleaner Tool (try/catch guarded)
         Write-ToolOutput 'Step 4: Downloading Adobe Creative Cloud Cleaner Tool...' -Level Info
         $cleanerUrl  = 'https://swupdl.adobe.com/updates/oobe/CreativeCloudDesktop/windows/AdobeCreativeCloudCleanerTool.exe'
+        # Deliberately the CALLING process's temp, not the target user's: this is
+        # scratch space for downloading and running the Adobe cleaner exe, and
+        # the running process is the one that needs write+execute access here.
+        # Not user state, so it is exempt from target-user redirection.
         $cleanerBase = if ($env:TEMP) { $env:TEMP } else { 'C:\Windows\Temp' }
         $cleanerPath = Join-Path $cleanerBase 'AdobeCreativeCloudCleanerTool.exe'
         try {
@@ -110,15 +129,23 @@ function Remove-AdobeCC {
 
         # Step 5: Remove residual Adobe file paths (ALL via removeScopedPath)
         Write-ToolOutput 'Step 5: Removing residual Adobe files...' -Level Info
+        # The machine-wide Adobe trees are removed regardless; only the two
+        # per-user trees depend on knowing whose profile to clean.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
         $adobePaths = @(
             "$env:ProgramFiles\Adobe",
             "${env:ProgramFiles(x86)}\Adobe",
             "$env:ProgramData\Adobe",
-            "$env:LOCALAPPDATA\Adobe",
-            "$env:APPDATA\Adobe",
             "$env:CommonProgramFiles\Adobe",
             "${env:CommonProgramFiles(x86)}\Adobe"
         )
+        if ($ctx.Resolved) {
+            $adobePaths += (Join-Path $ctx.LocalAppData 'Adobe')
+            $adobePaths += (Join-Path $ctx.AppData      'Adobe')
+        } else {
+            Write-ToolOutput ('Per-user Adobe folders NOT removed - {0}. Machine-wide removal continues.' -f $ctx.Reason) -Level Warning
+        }
         foreach ($aPath in $adobePaths) {
             & $removeScopedPath $aPath
             if (-not [string]::IsNullOrWhiteSpace($aPath) -and $aPath.Length -ge 8 -and (Test-Path $aPath)) {
@@ -131,9 +158,13 @@ function Remove-AdobeCC {
         Write-ToolOutput 'Step 6: Removing Adobe registry keys...' -Level Info
         $regKeys = @(
             'HKLM:\SOFTWARE\Adobe',
-            'HKLM:\SOFTWARE\WOW6432Node\Adobe',
-            'HKCU:\SOFTWARE\Adobe'
+            'HKLM:\SOFTWARE\WOW6432Node\Adobe'
         )
+        if ($ctx.Resolved) {
+            $regKeys += (Get-UserHivePath -Context $ctx -SubPath 'SOFTWARE\Adobe')
+        } else {
+            Write-ToolOutput ('Per-user Adobe registry key NOT removed - {0}.' -f $ctx.Reason) -Level Warning
+        }
         foreach ($regKey in $regKeys) {
             if (Test-Path $regKey) {
                 Remove-Item $regKey -Recurse -Force -ErrorAction SilentlyContinue

@@ -1,4 +1,4 @@
-﻿function Repair-OutlookSearch {
+function Repair-OutlookSearch {
     [CmdletBinding()]
     param([switch]$Silent)
 
@@ -18,8 +18,16 @@
     $run = $null
     try {
         $run = New-ToolRun -Id 'outlook-search-repair'
+        # Only the Outlook catalog key is per-user. The index DB, the WSearch
+        # service and both policy keys are machine-wide, so FixConfig and
+        # RestartService stay fully available even when the user hive cannot be
+        # reached - refusing those would be over-correction.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+
         $edb = "$env:ProgramData\Microsoft\Search\Data\Applications\Windows\Windows.edb"
-        $catalogKey = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Search'
+        $catalogKey = $null
+        if ($ctx.Resolved) { $catalogKey = Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Office\16.0\Outlook\Search' }
         $searchPolicyKey = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'
         $searchSetupKey  = 'HKLM:\SOFTWARE\Microsoft\Windows Search'
 
@@ -40,11 +48,17 @@
         }
         $olRunning = @(Get-Process -Name 'OUTLOOK' -ErrorAction SilentlyContinue).Count -gt 0
         Write-ToolOutput ('Outlook running: {0}' -f $olRunning) -Level Detail
+        # The only per-user reading in this report. Reporting the technician's
+        # catalog state as the user's would be a quiet misdiagnosis.
         $catalogRegistered = $false
-        if (Test-Path -LiteralPath $catalogKey) {
-            $catalogRegistered = $null -ne (Get-ItemProperty -LiteralPath $catalogKey -Name 'Catalog' -ErrorAction SilentlyContinue)
+        if ($ctx.Resolved) {
+            if (Test-Path -LiteralPath $catalogKey) {
+                $catalogRegistered = $null -ne (Get-ItemProperty -LiteralPath $catalogKey -Name 'Catalog' -ErrorAction SilentlyContinue)
+            }
+            Write-ToolOutput ('Outlook search catalog registered: {0}' -f $catalogRegistered) -Level Detail
+        } else {
+            Write-ToolOutput ('Outlook search catalog state not readable - {0}' -f $ctx.Reason) -Level Warning
         }
-        Write-ToolOutput ('Outlook search catalog registered: {0}' -f $catalogRegistered) -Level Detail
 
         # Config diagnosis (the usual recurring-breakage causes).
         $preventOutlook = 0
@@ -130,8 +144,16 @@
                     Get-ChildItem -LiteralPath $dir -Filter '*.log' -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
                     $deleted = -not (Test-Path -LiteralPath $edb)
                 }
-                if (Test-Path -LiteralPath $catalogKey) {
-                    Remove-ItemProperty -LiteralPath $catalogKey -Name 'Catalog' -ErrorAction SilentlyContinue
+                # The index itself is machine-wide and has already been rebuilt.
+                # Only the per-user catalog re-registration needs the target
+                # hive, so an unresolved context degrades to a warning rather
+                # than failing a repair that mostly succeeded.
+                if ($ctx.Resolved) {
+                    if (Test-Path -LiteralPath $catalogKey) {
+                        Remove-ItemProperty -LiteralPath $catalogKey -Name 'Catalog' -ErrorAction SilentlyContinue
+                    }
+                } else {
+                    Write-ToolOutput ('Outlook catalog re-registration skipped - {0}. Outlook may need a manual re-index.' -f $ctx.Reason) -Level Warning
                 }
                 Start-Service -Name 'WSearch' -ErrorAction SilentlyContinue
                 Start-Sleep -Seconds 2

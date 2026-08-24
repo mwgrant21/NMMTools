@@ -20,11 +20,13 @@ header comment).
 - `src\entry\` - `00-param.ps1` (artifact param block, first) and
   `99-main.ps1` (entry point, last)
 - `src\core\` - numeric prefix = build concatenation order (01-bootstrap ..
-  10-jira). New core files continue the sequence.
+  12-user-context). New core files continue the sequence. A core file that
+  tools depend on must also be added to `$headlessCore` in `build.ps1`, or
+  the `-Pdq` self-containment gate will reject the tools that call it.
 - `src\registry\tools.psd1` - THE tool registry. Pure data, one entry per tool.
 - `src\tools\<category>\<Verb-Noun>.ps1` - one file per tool, filename equals
-  function name. Category dirs (lowercase): browser, cloud, diagnostics,
-  laptop, quickfix, repair, security, user.
+  function name. Category dirs (lowercase): browser, business, cloud,
+  diagnostics, laptop, quickfix, repair, security, user.
 - `tests\` - Pester: registry consistency, template compliance, artifact
   parse/smoke, encoding checks.
 - `docs\superpowers\specs\` - approved design specs. The v9 tool template is

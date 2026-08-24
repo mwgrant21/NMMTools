@@ -6,12 +6,26 @@ function Repair-OnBaseAddinPermanent {
     try {
         $run = New-ToolRun -Id 'onbase-addin-fix'
 
+        # Add-in registration and Outlook resiliency state are per-user. Resolve
+        # the target account before building key paths.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+
+        # Hive labels are explicit, not inferred from the path: once the
+        # per-user root can be 'Registry::HKEY_USERS\<sid>\...', any pattern
+        # test against the path string is a silent-failure waiting to happen.
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot read or repair the OnBase add-in - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
+
         $addinRoots = @(
-            'HKCU:\Software\Microsoft\Office\16.0\Outlook\Addins',
-            'HKLM:\Software\Microsoft\Office\16.0\Outlook\Addins',
-            'HKLM:\Software\WOW6432Node\Microsoft\Office\16.0\Outlook\Addins'
+            @{ Path = (Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Office\16.0\Outlook\Addins'); Hive = 'HKCU' },
+            @{ Path = 'HKLM:\Software\Microsoft\Office\16.0\Outlook\Addins';             Hive = 'HKLM' },
+            @{ Path = 'HKLM:\Software\WOW6432Node\Microsoft\Office\16.0\Outlook\Addins'; Hive = 'HKLM' }
         )
-        $resilRoot     = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Resiliency'
+        $resilRoot     = Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Office\16.0\Outlook\Resiliency'
         $disabledKey   = Join-Path $resilRoot 'DisabledItems'
         $crashKey      = Join-Path $resilRoot 'CrashedAddinList'
         $doNotDisKey   = Join-Path $resilRoot 'DoNotDisableAddinList'
@@ -20,7 +34,8 @@ function Repair-OnBaseAddinPermanent {
 
         # --- Find OnBase/Hyland add-in across all hives ---
         $onbaseAddins = New-Object System.Collections.Generic.List[object]
-        foreach ($root in $addinRoots) {
+        foreach ($entry in $addinRoots) {
+            $root = $entry.Path
             if (-not (Test-Path -LiteralPath $root)) { continue }
             foreach ($k in @(Get-ChildItem -LiteralPath $root -ErrorAction SilentlyContinue)) {
                 if ($k.PSChildName -match 'OnBase|Hyland') {
@@ -35,7 +50,7 @@ function Repair-OnBaseAddinPermanent {
                         ProgId       = $k.PSChildName
                         FriendlyName = $fn
                         LoadBehavior = $lb
-                        Hive         = if ($root -match '^HKLM') { 'HKLM' } else { 'HKCU' }
+                        Hive         = $entry.Hive
                         PSPath       = $k.PSPath
                     })
                 }
@@ -125,6 +140,14 @@ function Repair-OnBaseAddinPermanent {
             return
         }
 
+        # Everything past this point writes per-user state. Applying it to the
+        # technician's hive would leave the reported Outlook fault untouched.
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot apply the OnBase add-in fix - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
+
         $changes = New-Object System.Collections.Generic.List[string]
 
         # Clear resiliency blocks
@@ -194,41 +217,60 @@ function Repair-OnBaseAddinPermanent {
                 }
             }
 
-            # HKLM registration fallback (requires admin -- tool is RequiresAdmin=$true)
-            foreach ($a in ($onbaseAddins | Where-Object { $_.Hive -eq 'HKCU' })) {
-                $hklmPath = Join-Path $hklmBase $a.ProgId
-                if (-not (Test-Path -LiteralPath $hklmPath)) {
-                    try {
-                        New-Item -LiteralPath $hklmPath -Force -ErrorAction Stop | Out-Null
-                        $srcProps = Get-ItemProperty -LiteralPath $a.PSPath -ErrorAction SilentlyContinue
-                        if ($srcProps) {
-                            foreach ($propName in @('FriendlyName', 'Description', 'Manifest')) {
-                                $val = $srcProps.PSObject.Properties[$propName]
-                                if ($val) {
-                                    New-ItemProperty -LiteralPath $hklmPath -Name $propName `
-                                        -Value $val.Value -PropertyType String -Force `
-                                        -ErrorAction SilentlyContinue | Out-Null
-                                }
-                            }
-                            New-ItemProperty -LiteralPath $hklmPath -Name 'LoadBehavior' `
-                                -Value 3 -PropertyType DWord -Force `
-                                -ErrorAction SilentlyContinue | Out-Null
-                        }
-                        $changes.Add(('{0} added to HKLM (survives profile resets)' -f $a.ProgId))
-                    } catch {
-                        Write-ToolOutput ('HKLM registration for {0} failed: {1}' -f $a.ProgId, $_.Exception.Message) -Level Warning
-                    }
-                } else {
-                    Write-ToolOutput ('{0} already registered in HKLM' -f $a.ProgId) -Level Detail
-                }
+            # HKLM registration fallback: REMOVED, deliberately.
+            #
+            # This used to copy an add-in registration found under the target
+            # user's HKCU into HKLM so it would survive a profile reset. That is
+            # a privilege escalation, not a repair: HKCU\...\Outlook\Addins is
+            # writable by the standard user who owns the profile, so they can
+            # create a key matching /OnBase|Hyland/ with a Manifest or CLSID of
+            # their choosing, open a ticket, and have the elevated toolkit
+            # promote it to a machine-wide registration that loads in Outlook
+            # for every user of the box. Nothing here can distinguish a genuine
+            # Hyland registration from one the user planted a minute earlier.
+            #
+            # Machine-wide registration is legitimate, but it has to come from a
+            # trusted source (the vendor installer or a PDQ package), never from
+            # data copied out of a user-writable hive.
+            $hkcuOnly = @($onbaseAddins | Where-Object { $_.Hive -eq 'HKCU' })
+            if ($hkcuOnly.Count -gt 0) {
+                Write-ToolOutput ('{0} add-in(s) are registered only in the user hive.' -f $hkcuOnly.Count) -Level Warning
+                Write-ToolOutput 'Not promoting them to HKLM: that hive is user-writable, so a planted key would become a machine-wide Outlook add-in.' -Level Warning
+                Write-ToolOutput ('To make OnBase survive a profile reset, deploy the vendor installer machine-wide (HKLM {0}) via PDQ instead.' -f $hklmBase) -Level Info
             }
 
-            # Self-heal scheduled task
-            $progIds = ($onbaseAddins | ForEach-Object { "'{0}'" -f $_.ProgId }) -join ','
+            # Self-heal scheduled task.
+            #
+            # ProgIds are REGISTRY KEY NAMES read from a hive the standard user
+            # can write. The previous version pasted them into the generated
+            # script as quoted literals, so a key named
+            #     OnBase'; <arbitrary code>; '
+            # became executable code inside a scheduled task. Two independent
+            # defences now apply, because either one alone is a single point of
+            # failure:
+            #
+            #   1. Whitelist. A real Outlook ProgID is dotted alphanumerics.
+            #      Anything else is dropped, loudly, and never reaches the task.
+            #   2. Data, not code. The survivors are carried as a base64 blob and
+            #      decoded at runtime. The base64 alphabet has no quote or
+            #      statement separator in it, so the value provably cannot
+            #      terminate the string literal that holds it.
+            $validProgId = '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'
+            $safeProgIds = New-Object System.Collections.Generic.List[string]
+            foreach ($a in $onbaseAddins) {
+                if ($a.ProgId -match $validProgId) {
+                    $safeProgIds.Add($a.ProgId)
+                } else {
+                    Write-ToolOutput ('SECURITY: add-in key name is not a valid ProgID and was excluded from the self-heal task: {0}' -f $a.ProgId) -Level Warning
+                }
+            }
+            $progIdBlob = [Convert]::ToBase64String(
+                [Text.Encoding]::Unicode.GetBytes(($safeProgIds -join ';'))
+            )
             $healScript = @"
 `$resil = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Resiliency'
 `$log   = (Join-Path `$env:ProgramData 'NMMTools\onbase-addin-heal.log')
-`$addins = @($progIds)
+`$addins = @(([Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('$progIdBlob')) -split ';') | Where-Object { `$_ })
 foreach (`$progId in `$addins) {
     `$roots = @(
         "HKCU:\Software\Microsoft\Office\16.0\Outlook\Addins\`$progId",
@@ -253,10 +295,17 @@ foreach (`$progId in `$addins) {
             $encodedCmd = [Convert]::ToBase64String(
                 [Text.Encoding]::Unicode.GetBytes($healScript)
             )
-            $loggedOnUser = (Get-WmiObject Win32_ComputerSystem).UserName
-            # UserName is 'DOMAIN\user' or '' if no one is logged on
-            if ([string]::IsNullOrWhiteSpace($loggedOnUser)) { $loggedOnUser = $env:USERNAME }
-            $taskPrincipal = New-ScheduledTaskPrincipal -UserId $loggedOnUser -LogonType Interactive -RunLevel Highest
+            # The task runs AS the target user, which is why the HKCU: paths in
+            # the generated heal script above are correct as written and must
+            # NOT be redirected: inside that task HKCU: already resolves to the
+            # right hive. The principal is what makes that true, so it comes
+            # from the resolved context rather than from this process.
+            # RunLevel Limited, not Highest. The heal script only writes the
+            # user's own HKCU LoadBehavior, which needs no elevation. Highest
+            # bought nothing (an end user who is not a local admin cannot elevate
+            # anyway) while making the task a high-value target if its command
+            # line were ever influenced again.
+            $taskPrincipal = New-ScheduledTaskPrincipal -UserId $ctx.UserName -LogonType Interactive -RunLevel Limited
 
             $taskAction  = New-ScheduledTaskAction -Execute 'PowerShell.exe' `
                 -Argument ('-NonInteractive -WindowStyle Hidden -EncodedCommand {0}' -f $encodedCmd)
@@ -264,18 +313,25 @@ foreach (`$progId in `$addins) {
             $taskSettings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 5) `
                 -StartWhenAvailable
 
-            if ($taskExists) {
-                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-            }
-            Register-ScheduledTask -TaskName $taskName `
-                -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings `
-                -Principal $taskPrincipal -Force -ErrorAction SilentlyContinue | Out-Null
-
-            $verifyTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-            if ($verifyTask) {
-                $changes.Add('Self-heal task created (weekly Monday 8AM)')
+            if ($safeProgIds.Count -eq 0) {
+                # Every candidate failed the ProgID whitelist. Registering a task
+                # with an empty list would be pointless; more importantly, that
+                # combination is itself a signal worth surfacing.
+                Write-ToolOutput 'No add-in passed the ProgID validation, so no self-heal task was created.' -Level Warning
             } else {
-                Write-ToolOutput 'Could not create self-heal task (check task scheduler permissions)' -Level Warning
+                if ($taskExists) {
+                    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+                }
+                Register-ScheduledTask -TaskName $taskName `
+                    -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings `
+                    -Principal $taskPrincipal -Force -ErrorAction SilentlyContinue | Out-Null
+
+                $verifyTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+                if ($verifyTask) {
+                    $changes.Add('Self-heal task created (weekly Monday 8AM)')
+                } else {
+                    Write-ToolOutput 'Could not create self-heal task (check task scheduler permissions)' -Level Warning
+                }
             }
         }
 

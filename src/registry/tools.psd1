@@ -1007,7 +1007,7 @@
             Name          = 'Orphaned Profile Cleanup'
             Category      = 'User'
             Function      = 'Remove-OrphanedProfile'
-            Description   = 'Audit local user profiles and flag orphaned ones (SID no longer resolves to an account, or the profile folder is missing); on typed confirm, remove the registration and quarantine the folder (rename, not delete) after a ProfileList registry backup. Affected users must be logged off.'
+            Description   = 'Audit local user profiles and flag orphaned ones (SID no longer resolves to an account, or the profile folder is missing); on typed confirm, remove the registration and quarantine the folder (rename, not delete) after a ProfileList registry backup. Affected users must be logged off'
             RequiresAdmin = $true
             SilentCapable = $true
             PdqDeployable = $false
@@ -1319,7 +1319,7 @@
             Name          = 'Teams Camera Deep Fix'
             Category      = 'User'
             Function      = 'Repair-TeamsCameraDeep'
-            Description   = 'Detect dock type (Dell D6000 DisplayLink or WD19 Thunderbolt), identify camera failure mode (consent store wiped, DisplayLink virtual camera priority, or IR camera conflict), apply targeted fix, and harden against recurrence (USB suspend off, power mgmt pinned). Logs fix history to %PROGRAMDATA%\NMMTools\camera-fix-history.json.'
+            Description   = 'Detect dock type (Dell D6000 DisplayLink or WD19 Thunderbolt), identify camera failure mode (consent store wiped, DisplayLink virtual camera priority, or IR camera conflict), apply targeted fix, and harden against recurrence (USB suspend off, power mgmt pinned). Logs fix history to %PROGRAMDATA%\NMMTools\camera-fix-history.json'
             RequiresAdmin = $true
             SilentCapable = $true
             PdqDeployable = $false
@@ -1332,7 +1332,7 @@
             Name          = 'Teams Meeting Quality Diagnostic'
             Category      = 'Cloud'
             Function      = 'Get-TeamsMeetingQuality'
-            Description   = 'Read-only meeting quality check: detect active NIC (flags D6000 DisplayLink USB NIC), measure latency/jitter/packet-loss to M365 endpoints, check VPN tunnel status, QoS/DSCP marking, hardware video encoder, CPU/RAM, and sample Teams logs for recent quality events. Produces a scored verdict.'
+            Description   = 'Read-only meeting quality check: detect active NIC (flags D6000 DisplayLink USB NIC), measure latency/jitter/packet-loss to M365 endpoints, check VPN tunnel status, QoS/DSCP marking, hardware video encoder, CPU/RAM, and sample Teams logs for recent quality events. Produces a scored verdict'
             RequiresAdmin = $false
             SilentCapable = $true
             PdqDeployable = $false
@@ -1345,7 +1345,7 @@
             Name          = 'Outlook Search: All Mailboxes Fix'
             Category      = 'User'
             Function      = 'Repair-OutlookSearchScope'
-            Description   = 'Fix Outlook search showing results only from the current mailbox. Sets SearchDefaultScope=1 (All Mailboxes), checks each .ost/.pst data file in the active profile for Windows Search coverage, raises the per-file size limit for oversized archives, and triggers a targeted scope re-index. See also outlook-search-repair for full index rebuild.'
+            Description   = 'Fix Outlook search showing results only from the current mailbox. Sets SearchDefaultScope=1 (All Mailboxes), checks each .ost/.pst data file in the active profile for Windows Search coverage, raises the per-file size limit for oversized archives, and triggers a targeted scope re-index. See also outlook-search-repair for full index rebuild'
             RequiresAdmin = $false
             SilentCapable = $true
             PdqDeployable = $false
@@ -1358,7 +1358,7 @@
             Name          = 'OnBase Add-in Permanent Enable'
             Category      = 'User'
             Function      = 'Repair-OnBaseAddinPermanent'
-            Description   = 'Permanently prevent Outlook from auto-disabling the Hyland/OnBase add-in. Detects Resiliency DisabledItems/CrashedAddinList state, re-enables LoadBehavior=3, adds to DoNotDisableAddinList, raises the add-in startup timeout to 5s, optionally adds HKLM registration (survives profile resets), and creates a weekly self-heal scheduled task (NMMTools-OnBaseAddinCheck). See also outlook-addin-repair.'
+            Description   = 'Permanently prevent Outlook from auto-disabling the Hyland/OnBase add-in. Detects Resiliency DisabledItems/CrashedAddinList state, re-enables LoadBehavior=3, adds to DoNotDisableAddinList, raises the add-in startup timeout to 5s, optionally adds HKLM registration (survives profile resets), and creates a weekly self-heal scheduled task (NMMTools-OnBaseAddinCheck). See also outlook-addin-repair'
             RequiresAdmin = $true
             SilentCapable = $true
             PdqDeployable = $false

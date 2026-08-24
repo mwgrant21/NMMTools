@@ -6,7 +6,21 @@ function Repair-TeamsCameraDeep {
     try {
         $run = New-ToolRun -Id 'teams-camera-deep'
 
-        $camStore    = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam'
+        # Consent store and Teams preferences are per-user. Resolve the target
+        # account before building any path: in an elevated session HKCU: and
+        # $env:APPDATA belong to the technician, not to the person whose camera
+        # is broken.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+
+        # Built lazily: Get-UserHivePath now throws on an unresolved target, and
+        # the dock detection / camera enumeration below are machine-wide.
+        $camStore = $null
+        if ($ctx.Resolved) {
+            $camStore = Get-UserHivePath -Context $ctx `
+                -SubPath 'Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam'
+        }
+        # ProgramData is machine-wide, so the fix history needs no redirection.
         $historyPath = Join-Path $env:ProgramData 'NMMTools\camera-fix-history.json'
 
         # --- Detect dock type ---
@@ -53,12 +67,19 @@ function Repair-TeamsCameraDeep {
 
         # --- Detect failure mode ---
         $failureMode = 'None'
-        $consentVal = (Get-ItemProperty -LiteralPath $camStore -Name 'Value' -ErrorAction SilentlyContinue).Value
-        if ([string]::IsNullOrWhiteSpace($consentVal) -or $consentVal -eq 'Deny') {
-            $failureMode = 'ConsentMissing'
-            Write-ToolOutput ('Consent store webcam value: {0} -- UNAVAILABLE mode' -f $consentVal) -Level Warning
+        if (-not $ctx.Resolved) {
+            # Falling back to HKCU: here would report the technician's consent
+            # value and send the entire diagnosis down the wrong branch, which is
+            # worse than reporting nothing.
+            Write-ToolOutput ('Consent store not readable - {0}' -f $ctx.Reason) -Level Warning
         } else {
-            Write-ToolOutput ('Consent store webcam value: {0}' -f $consentVal) -Level Detail
+            $consentVal = (Get-ItemProperty -LiteralPath $camStore -Name 'Value' -ErrorAction SilentlyContinue).Value
+            if ([string]::IsNullOrWhiteSpace($consentVal) -or $consentVal -eq 'Deny') {
+                $failureMode = 'ConsentMissing'
+                Write-ToolOutput ('Consent store webcam value: {0} -- UNAVAILABLE mode' -f $consentVal) -Level Warning
+            } else {
+                Write-ToolOutput ('Consent store webcam value: {0}' -f $consentVal) -Level Detail
+            }
         }
 
         if ($failureMode -eq 'None') {
@@ -118,6 +139,15 @@ function Repair-TeamsCameraDeep {
             return
         }
 
+        # Single gate for every mutating path below. Both the consent-store
+        # writes and the Teams preference file depend on a resolved target, and
+        # applying them to the wrong account is worse than not applying them.
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot apply camera fixes - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
+
         $fixApplied    = New-Object System.Collections.Generic.List[string]
         $hardenApplied = New-Object System.Collections.Generic.List[string]
 
@@ -140,7 +170,7 @@ function Repair-TeamsCameraDeep {
             Disable-PnpDevice -InstanceId $displayLinkCam.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
             $fixApplied.Add(('DisplayLink virtual camera disabled: {0}' -f $displayLinkCam.FriendlyName))
             # Clear Teams camera preference (new Teams)
-            $teamsPrefs = Join-Path $env:APPDATA 'Microsoft\Teams\desktop-config.json'
+            $teamsPrefs = Join-Path $ctx.AppData 'Microsoft\Teams\desktop-config.json'
             if (Test-Path -LiteralPath $teamsPrefs) {
                 try {
                     $cfg = Get-Content $teamsPrefs -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -156,7 +186,7 @@ function Repair-TeamsCameraDeep {
 
         # IR camera conflict fix
         if ($failureMode -eq 'IRCameraConflict' -and $irCam -and $physicalCam) {
-            $teamsPrefs = Join-Path $env:APPDATA 'Microsoft\Teams\desktop-config.json'
+            $teamsPrefs = Join-Path $ctx.AppData 'Microsoft\Teams\desktop-config.json'
             if (Test-Path -LiteralPath $teamsPrefs) {
                 try {
                     $cfg = Get-Content $teamsPrefs -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -202,7 +232,11 @@ function Repair-TeamsCameraDeep {
             $newEntry = [PSCustomObject]@{
                 Date         = (Get-Date -Format 'yyyy-MM-dd HH:mm')
                 ComputerName = $env:COMPUTERNAME
-                User         = $env:USERNAME
+                # The account the fix was APPLIED to, not the one that ran the
+                # tool. Under an elevated session those differ, and this history
+                # only earns its keep if it identifies the affected user.
+                User         = $ctx.UserName
+                RanAs        = $ctx.ProcessName
                 DockType     = $dockType
                 FailureMode  = $failureMode
                 FixApplied   = ($fixApplied -join '; ')

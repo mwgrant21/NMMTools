@@ -6,8 +6,25 @@
     try {
         $run = New-ToolRun -Id 'teams-camera-repair'
 
-        $camStore = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam'
-        $micStore = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone'
+        # Camera and mic consent are per-user settings, so resolve WHOSE settings
+        # to touch before building any path. When a technician elevates with
+        # their own credentials on a standard user's laptop, HKCU: is the
+        # technician's hive and every fix below would miss the reported fault.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+
+        # Gate BEFORE building any per-user path. Everything this tool reports
+        # about permissions comes from the consent store, so an unresolved
+        # target means the whole diagnosis is unavailable - not "clean".
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot read or repair camera/mic permissions - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
+
+        $consentBase = 'Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore'
+        $camStore = Get-UserHivePath -Context $ctx -SubPath ('{0}\webcam' -f $consentBase)
+        $micStore = Get-UserHivePath -Context $ctx -SubPath ('{0}\microphone' -f $consentBase)
 
         # --- Report ---
         $cams = @(Get-PnpDevice -Class Camera -ErrorAction SilentlyContinue)
@@ -47,6 +64,11 @@
         switch ($action) {
 
             'FixPermissions' {
+                if (-not $ctx.Resolved) {
+                    Complete-ToolRun $run -Status Failed `
+                        -Summary ('Cannot set camera/mic permissions - {0}. Nothing was changed.' -f $ctx.Reason)
+                    return
+                }
                 foreach ($store in @($camStore, $micStore)) {
                     if (-not (Test-Path -LiteralPath $store)) { New-Item -LiteralPath $store -Force -ErrorAction SilentlyContinue | Out-Null }
                     Set-ItemProperty -LiteralPath $store -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue
@@ -73,13 +95,22 @@
                 $micOk = (Get-ItemProperty -LiteralPath $micStore -Name 'Value' -ErrorAction SilentlyContinue).Value -eq 'Allow'
                 foreach ($p in @('ms-teams','MSTeams','Teams')) { Stop-Process -Name $p -Force -ErrorAction SilentlyContinue }
                 Start-Sleep -Seconds 2
-                Start-Process 'ms-teams:' -ErrorAction SilentlyContinue
-                if ($policyBlock) {
-                    Complete-ToolRun $run -Status Warning -Summary ('Camera/mic set to Allow ({0} Teams deny entries fixed) but an IT policy block is in effect' -f $fixed)
-                } elseif (-not ($camOk -and $micOk)) {
-                    Complete-ToolRun $run -Status Warning -Summary ('Camera/mic permission write could not be confirmed (camera={0}, mic={1}); a higher-level block may be present' -f $camOk, $micOk)
+                # Start-Process would launch Teams as the ELEVATED account, in the
+                # wrong session and against the wrong profile. Only relaunch when
+                # this process already belongs to the logged-on user.
+                $teamsNote = 'ask the user to reopen Teams'
+                if (-not $ctx.IsRedirected) {
+                    Start-Process 'ms-teams:' -ErrorAction SilentlyContinue
+                    $teamsNote = 'Teams restarted'
                 } else {
-                    Complete-ToolRun $run -Status Success -Summary ('Camera/mic set to Allow ({0} Teams deny entries fixed); Teams restarted' -f $fixed)
+                    Write-ToolOutput 'Teams was closed. Ask the user to reopen it - it cannot be relaunched as them from an elevated session.' -Level Warning
+                }
+                if ($policyBlock) {
+                    Complete-ToolRun $run -Status Warning -Summary ('Camera/mic set to Allow for {0} ({1} Teams deny entries fixed) but an IT policy block is in effect' -f $ctx.UserName, $fixed)
+                } elseif (-not ($camOk -and $micOk)) {
+                    Complete-ToolRun $run -Status Warning -Summary ('Camera/mic permission write could not be confirmed for {0} (camera={1}, mic={2}); a higher-level block may be present' -f $ctx.UserName, $camOk, $micOk)
+                } else {
+                    Complete-ToolRun $run -Status Success -Summary ('Camera/mic set to Allow for {0} ({1} Teams deny entries fixed); {2}' -f $ctx.UserName, $fixed, $teamsNote)
                 }
             }
 
@@ -95,26 +126,36 @@
                 } else {
                     foreach ($p in $hogs) { Get-Process -Name $p -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }
                     Start-Sleep -Seconds 2
-                    $cachePaths = @(
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\Cache'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\blob_storage'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\databases'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\GPUCache'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\IndexedDB'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\Local Storage'),
-                        (Join-Path $env:APPDATA 'Microsoft\Teams\tmp'),
-                        (Join-Path $env:LOCALAPPDATA 'Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\Cache'),
-                        (Join-Path $env:LOCALAPPDATA 'Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\EBWebView')
-                    )
+                    # $env:APPDATA is the CALLING account's profile. Under an
+                    # elevated session that is the technician, so clearing it
+                    # would wipe their Teams cache and leave the user's intact.
                     $cleared = 0
-                    foreach ($cp in $cachePaths) {
-                        if (Test-Path -LiteralPath $cp) {
-                            Get-ChildItem -LiteralPath $cp -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-                            $cleared++
+                    if ($ctx.Resolved) {
+                        $cachePaths = @(
+                            (Join-Path $ctx.AppData 'Microsoft\Teams\Cache'),
+                            (Join-Path $ctx.AppData 'Microsoft\Teams\blob_storage'),
+                            (Join-Path $ctx.AppData 'Microsoft\Teams\databases'),
+                            (Join-Path $ctx.AppData 'Microsoft\Teams\GPUCache'),
+                            (Join-Path $ctx.AppData 'Microsoft\Teams\IndexedDB'),
+                            (Join-Path $ctx.AppData 'Microsoft\Teams\Local Storage'),
+                            (Join-Path $ctx.AppData 'Microsoft\Teams\tmp'),
+                            (Join-Path $ctx.LocalAppData 'Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\Cache'),
+                            (Join-Path $ctx.LocalAppData 'Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\EBWebView')
+                        )
+                        foreach ($cp in $cachePaths) {
+                            if (Test-Path -LiteralPath $cp) {
+                                # Containment-gated: this is the exact path shape
+                                # (LocalCache under the MSIX package) proven to be
+                                # junction-hijackable by a non-elevated user.
+                                if (-not (Remove-UserPathContent -Context $ctx -Path $cp)) { continue }
+                                $cleared++
+                            }
                         }
+                    } else {
+                        Write-ToolOutput ('Skipping Teams cache clear - {0}.' -f $ctx.Reason) -Level Warning
                     }
                     # Camera-focused reset (v8 tool 97); mic permissions are handled by the FixPermissions action.
-                    if (Test-Path -LiteralPath $camStore) { Set-ItemProperty -LiteralPath $camStore -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue }
+                    if ($ctx.Resolved -and (Test-Path -LiteralPath $camStore)) { Set-ItemProperty -LiteralPath $camStore -Name 'Value' -Value 'Allow' -ErrorAction SilentlyContinue }
                     try {
                         Stop-Service -Name 'FrameServer' -Force -ErrorAction Stop
                         Start-Sleep -Seconds 2

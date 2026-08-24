@@ -1,4 +1,4 @@
-﻿function Repair-AutoDiscover {
+function Repair-AutoDiscover {
     [CmdletBinding()]
     param([switch]$Silent)
 
@@ -15,14 +15,28 @@
     $run = $null
     try {
         $run = New-ToolRun -Id 'autodiscover-fix'
-        $adGlob = "$env:LOCALAPPDATA\Microsoft\Outlook\*autodiscover*"
-        $adKey  = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\AutoDiscover'
+
+        # The AutoDiscover cache and its registry key are per-user.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+
+        $adGlob = $null
+        if ($ctx.Resolved) { $adGlob = Join-Path $ctx.LocalAppData 'Microsoft\Outlook\*autodiscover*' }
+        $adKey  = $null
+        if ($ctx.Resolved) { $adKey = Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Office\16.0\Outlook\AutoDiscover' }
 
         # --- Report ---
         Write-ToolOutput ('AutoDiscover endpoint: {0}' -f (Test-AutoDiscoverEndpoint)) -Level Info
-        $adFiles = @(Get-ChildItem -Path $adGlob -ErrorAction SilentlyContinue)
-        Write-ToolOutput ('AutoDiscover cache files: {0}' -f $adFiles.Count) -Level Detail
-        Write-ToolOutput ('AutoDiscover registry key present: {0}' -f (Test-Path -LiteralPath $adKey)) -Level Detail
+        # The endpoint test above is machine-wide and stays useful either way;
+        # the two per-user readings below would describe the technician's own
+        # AutoDiscover state if the target hive is unreachable.
+        if ($ctx.Resolved) {
+            $adFiles = @(Get-ChildItem -Path $adGlob -ErrorAction SilentlyContinue)
+            Write-ToolOutput ('AutoDiscover cache files: {0}' -f $adFiles.Count) -Level Detail
+            Write-ToolOutput ('AutoDiscover registry key present: {0}' -f (Test-Path -LiteralPath $adKey)) -Level Detail
+        } else {
+            Write-ToolOutput ('AutoDiscover cache/registry state not readable - {0}' -f $ctx.Reason) -Level Warning
+        }
 
         # --- Action menu ---
         $action = Read-ToolChoice -Prompt 'AutoDiscover fix' -Choices @('None','Fix') -Default 'None' -Silent:$Silent
@@ -31,7 +45,13 @@
             Complete-ToolRun $run -Status Success -Summary 'AutoDiscover state reported; no action taken'
             return
         }
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot clear the AutoDiscover cache - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
 
+        # DNS cache is machine-wide, so this is correct regardless of account.
         ipconfig /flushdns | Out-Null
         $before = @(Get-ChildItem -Path $adGlob -ErrorAction SilentlyContinue)
         $before | Remove-Item -Force -ErrorAction SilentlyContinue

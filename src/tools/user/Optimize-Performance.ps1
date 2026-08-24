@@ -6,6 +6,12 @@
     try {
         $run = New-ToolRun -Id 'perf-optimizer'
 
+        # The report below is machine-wide (CPU/RAM/processes), but three of the
+        # four actions touch per-user state: the user TEMP folder, the visual
+        # effects key, and a Settings page that opens in the calling session.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+
         # --- Report (read-only) ---
         $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
         $cpu = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -43,22 +49,43 @@
         switch ($action) {
 
             'OpenStartupManager' {
-                Start-Process 'ms-settings:startupapps' -ErrorAction SilentlyContinue
-                Write-ToolOutput 'Startup Apps settings opened; disable unneeded entries there.' -Level Info
-                Complete-ToolRun $run -Status Success -Summary 'Opened Startup Apps settings'
+                # ms-settings: opens in the CALLING session. From an elevated
+                # session the window appears on the technician's desktop, not
+                # the user's, and shows the technician's startup apps.
+                if ($ctx.IsRedirected) {
+                    Write-ToolOutput ('Startup Apps settings would open as {0} and show their startup entries, not {1}. Ask the user to open Settings > Apps > Startup.' -f $ctx.ProcessName, $ctx.DisplayName) -Level Warning
+                    Complete-ToolRun $run -Status Skipped -Summary 'Startup Apps settings not opened - would show the wrong account'
+                } else {
+                    Start-Process 'ms-settings:startupapps' -ErrorAction SilentlyContinue
+                    Write-ToolOutput 'Startup Apps settings opened; disable unneeded entries there.' -Level Info
+                    Complete-ToolRun $run -Status Success -Summary 'Opened Startup Apps settings'
+                }
             }
 
             'ClearTempCaches' {
                 $confirm = Read-ToolChoice -Prompt 'Clear the user and Windows TEMP folders?' -Choices @('Yes','No') -Default 'No' -Silent:$Silent
                 if ($confirm -ne 'Yes') {
                     Complete-ToolRun $run -Status Skipped -Summary 'ClearTempCaches cancelled'
+                } elseif (-not $ctx.Resolved) {
+                    Complete-ToolRun $run -Status Failed `
+                        -Summary ('Cannot clear the user TEMP folder - {0}. Nothing was changed.' -f $ctx.Reason)
                 } else {
                     $freed = [int64]0
-                    foreach ($tp in @($env:TEMP, (Join-Path $env:SystemRoot 'Temp'))) {
+                    # Windows\Temp is machine-wide; the first path is per-user.
+                    foreach ($tp in @((Join-Path $ctx.LocalAppData 'Temp'), (Join-Path $env:SystemRoot 'Temp'))) {
                         if ($tp -and (Test-Path -LiteralPath $tp)) {
                             $before = [int64]0
                             try { $s = (Get-ChildItem -LiteralPath $tp -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s) { $before = [int64]$s } } catch { }
-                            Get-ChildItem -LiteralPath $tp -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                            # This loop mixes a per-user Temp with the machine-wide
+                            # %SystemRoot%\Temp. Only the former is inside a tree the
+                            # standard user controls, so only it needs the containment
+                            # gate; the containment helper would (correctly) refuse
+                            # the machine path for being outside the profile.
+                            if ($tp.StartsWith($ctx.LocalAppData, [System.StringComparison]::OrdinalIgnoreCase)) {
+                                [void](Remove-UserPathContent -Context $ctx -Path $tp)
+                            } else {
+                                Get-ChildItem -LiteralPath $tp -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                            }
                             $after = [int64]0
                             try { $s = (Get-ChildItem -LiteralPath $tp -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; if ($s) { $after = [int64]$s } } catch { }
                             $freed += [math]::Max([int64]0, $before - $after)
@@ -72,8 +99,11 @@
                 $confirm = Read-ToolChoice -Prompt 'Set visual effects to best performance (current user)?' -Choices @('Yes','No') -Default 'No' -Silent:$Silent
                 if ($confirm -ne 'Yes') {
                     Complete-ToolRun $run -Status Skipped -Summary 'SetPerformanceVisualEffects cancelled'
+                } elseif (-not $ctx.Resolved) {
+                    Complete-ToolRun $run -Status Failed `
+                        -Summary ('Cannot set visual effects - {0}. Nothing was changed.' -f $ctx.Reason)
                 } else {
-                    $vfx = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects'
+                    $vfx = Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects'
                     try {
                         if (-not (Test-Path -LiteralPath $vfx)) { New-Item -LiteralPath $vfx -Force -ErrorAction Stop | Out-Null }
                         Set-ItemProperty -LiteralPath $vfx -Name 'VisualFXSetting' -Value 2 -Type DWord -ErrorAction Stop

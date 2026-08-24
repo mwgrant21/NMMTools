@@ -17,8 +17,29 @@
     $run = $null
     try {
         $run = New-ToolRun -Id 'outlook-profile-repair'
-        $profilesKey = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Profiles'
-        $outlookKey  = 'HKCU:\Software\Microsoft\Office\16.0\Outlook'
+
+        # Outlook profiles live entirely in the mailbox owner's hive.
+        $ctx = Get-TargetUserContext
+        Write-UserContextNotice -Context $ctx
+
+        # Gate before the report, not just before the action: every line of the
+        # diagnostic below reads the user hive, so an unresolved context would
+        # list the technician's own Outlook profiles as if they were the user's.
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot read or repair Outlook profiles - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
+
+        $profilesKey = Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Office\16.0\Outlook\Profiles'
+        $outlookKey  = Get-UserHivePath -Context $ctx -SubPath 'Software\Microsoft\Office\16.0\Outlook'
+
+        # reg.exe takes registry-native roots, not PowerShell provider paths, so
+        # the backup target is built separately from the provider paths above.
+        $regBackupRoot = 'HKCU\Software\Microsoft\Office\16.0\Outlook\Profiles'
+        if ($ctx.IsRedirected -and $ctx.Sid) {
+            $regBackupRoot = 'HKU\{0}\Software\Microsoft\Office\16.0\Outlook\Profiles' -f $ctx.Sid
+        }
 
         # --- Report ---
         $profiles = @(Get-ChildItem -LiteralPath $profilesKey -ErrorAction SilentlyContinue)
@@ -36,6 +57,12 @@
             return
         }
 
+        if (-not $ctx.Resolved) {
+            Complete-ToolRun $run -Status Failed `
+                -Summary ('Cannot recreate the Outlook profile - {0}. Nothing was changed.' -f $ctx.Reason)
+            return
+        }
+
         # Nuclear: require typed confirmation (free-text after an interactive choice; never reached under -Silent)
         $typed = Read-Host 'Type REBUILD to delete and recreate the Outlook profile'
         if ($typed -ne 'REBUILD') {
@@ -46,7 +73,7 @@
         [void](Stop-OutlookGraceful)
 
         $backup = Join-Path $env:TEMP ('OutlookProfiles_{0}.reg' -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
-        reg export 'HKCU\Software\Microsoft\Office\16.0\Outlook\Profiles' $backup /y 2>$null | Out-Null
+        reg export $regBackupRoot $backup /y 2>$null | Out-Null
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $backup)) {
             Complete-ToolRun $run -Status Failed -Summary 'Registry backup failed; profile NOT deleted (aborted to avoid unrecoverable data loss)'
             return
