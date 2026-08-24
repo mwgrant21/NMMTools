@@ -1,4 +1,4 @@
-﻿function Repair-AudioAdvanced {
+function Repair-AudioAdvanced {
     [CmdletBinding()]
     param([switch]$Silent)
 

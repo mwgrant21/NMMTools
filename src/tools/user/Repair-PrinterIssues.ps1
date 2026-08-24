@@ -1,4 +1,4 @@
-﻿function Repair-PrinterIssues {
+function Repair-PrinterIssues {
     [CmdletBinding()]
     param([switch]$Silent)
 

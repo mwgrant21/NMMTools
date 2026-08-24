@@ -1,4 +1,4 @@
-﻿function Get-DefenderStatus {
+function Get-DefenderStatus {
     [CmdletBinding()]
     param([switch]$Silent)
 

@@ -1,4 +1,4 @@
-﻿function Clear-ProfileCache {
+function Clear-ProfileCache {
     [CmdletBinding()]
     param([switch]$Silent)
 

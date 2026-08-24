@@ -1,4 +1,4 @@
-﻿function Repair-TeamsDeep {
+function Repair-TeamsDeep {
     [CmdletBinding()]
     param([switch]$Silent)
 

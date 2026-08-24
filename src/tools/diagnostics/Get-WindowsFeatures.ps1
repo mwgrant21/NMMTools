@@ -1,4 +1,4 @@
-﻿function Get-WindowsFeatures {
+function Get-WindowsFeatures {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 

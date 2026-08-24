@@ -1,4 +1,4 @@
-﻿BeforeAll {
+BeforeAll {
     $repoRoot = Split-Path $PSScriptRoot -Parent
     . (Join-Path $repoRoot 'src\core\02-output.ps1')
     . (Join-Path $repoRoot 'src\core\03-results.ps1')

@@ -1,4 +1,4 @@
-﻿function Get-PendingRebootStatus {
+function Get-PendingRebootStatus {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 

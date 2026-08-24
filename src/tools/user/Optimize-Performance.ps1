@@ -1,4 +1,4 @@
-﻿function Optimize-Performance {
+function Optimize-Performance {
     [CmdletBinding()]
     param([switch]$Silent)
 

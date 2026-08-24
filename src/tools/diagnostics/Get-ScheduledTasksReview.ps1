@@ -1,4 +1,4 @@
-﻿function Get-ScheduledTasksReview {
+function Get-ScheduledTasksReview {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 

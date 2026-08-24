@@ -1,4 +1,4 @@
-﻿function Invoke-VpnQuickFix {
+function Invoke-VpnQuickFix {
     [CmdletBinding()]
     param([switch]$Silent)
 

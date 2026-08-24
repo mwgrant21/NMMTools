@@ -1,4 +1,4 @@
-﻿function Set-DefaultApps {
+function Set-DefaultApps {
     [CmdletBinding()]
     param([switch]$Silent)
 

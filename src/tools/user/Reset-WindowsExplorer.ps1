@@ -1,4 +1,4 @@
-﻿function Reset-WindowsExplorer {
+function Reset-WindowsExplorer {
     [CmdletBinding()]
     param([switch]$Silent)
 

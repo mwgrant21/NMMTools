@@ -1,4 +1,4 @@
-﻿function Invoke-LoginQuickFix {
+function Invoke-LoginQuickFix {
     [CmdletBinding()]
     param([switch]$Silent)
 

@@ -1,4 +1,4 @@
-﻿# Shared browser helpers for browser-backup-restore and browser-clear.
+# Shared browser helpers for browser-backup-restore and browser-clear.
 # Plain functions (no registry entries). Single source of truth for where each
 # browser stores its data, so the backup set and the clear set cannot drift apart.
 

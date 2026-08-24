@@ -1,4 +1,4 @@
-﻿function Get-PerformanceMetrics {
+function Get-PerformanceMetrics {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 

@@ -1,4 +1,4 @@
-﻿function Clear-SavedCredentials {
+function Clear-SavedCredentials {
     [CmdletBinding()]
     param([switch]$Silent)
 

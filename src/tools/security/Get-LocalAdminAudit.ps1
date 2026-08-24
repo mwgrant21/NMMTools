@@ -1,4 +1,4 @@
-﻿function Get-LocalAdminAudit {
+function Get-LocalAdminAudit {
     [CmdletBinding()]
     param([switch]$Silent)
 

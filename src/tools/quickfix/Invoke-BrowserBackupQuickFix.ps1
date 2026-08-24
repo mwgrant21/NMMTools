@@ -1,4 +1,4 @@
-﻿function Invoke-BrowserBackupQuickFix {
+function Invoke-BrowserBackupQuickFix {
     [CmdletBinding()]
     param([switch]$Silent)
 

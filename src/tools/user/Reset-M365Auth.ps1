@@ -1,4 +1,4 @@
-﻿function Reset-M365Auth {
+function Reset-M365Auth {
     [CmdletBinding()]
     param([switch]$Silent)
 

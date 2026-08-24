@@ -1,4 +1,4 @@
-﻿function Repair-OutlookProfile {
+function Repair-OutlookProfile {
     [CmdletBinding()]
     param([switch]$Silent)
 

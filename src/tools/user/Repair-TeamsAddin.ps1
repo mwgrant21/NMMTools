@@ -1,4 +1,4 @@
-﻿function Repair-TeamsAddin {
+function Repair-TeamsAddin {
     [CmdletBinding()]
     param([switch]$Silent)
 

@@ -1,4 +1,4 @@
-﻿function Reset-OutlookOst {
+function Reset-OutlookOst {
     [CmdletBinding()]
     param([switch]$Silent)
 

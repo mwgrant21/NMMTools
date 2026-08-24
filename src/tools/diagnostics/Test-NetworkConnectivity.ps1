@@ -1,4 +1,4 @@
-﻿function Test-NetworkConnectivity {
+function Test-NetworkConnectivity {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 

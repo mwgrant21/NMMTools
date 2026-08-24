@@ -1,4 +1,4 @@
-﻿function Invoke-TeamsQuickFix {
+function Invoke-TeamsQuickFix {
     [CmdletBinding()]
     param([switch]$Silent)
 

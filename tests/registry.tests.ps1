@@ -1,4 +1,4 @@
-﻿BeforeAll {
+BeforeAll {
     $repoRoot = Split-Path $PSScriptRoot -Parent
     $script:Registry = Import-PowerShellDataFile (Join-Path $repoRoot 'src\registry\tools.psd1')
     $script:Tools = @($script:Registry.Tools)

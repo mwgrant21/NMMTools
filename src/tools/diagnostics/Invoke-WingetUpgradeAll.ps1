@@ -1,4 +1,4 @@
-﻿function Invoke-WingetUpgradeAll {
+function Invoke-WingetUpgradeAll {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 

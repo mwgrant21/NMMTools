@@ -1,4 +1,4 @@
-﻿function Set-RemoteDesktop {
+function Set-RemoteDesktop {
     [CmdletBinding()]
     param([switch]$Silent)
 

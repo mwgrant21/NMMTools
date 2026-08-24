@@ -1,4 +1,4 @@
-﻿function Reset-WindowsSearch {
+function Reset-WindowsSearch {
     [CmdletBinding()]
     param([switch]$Silent)
 

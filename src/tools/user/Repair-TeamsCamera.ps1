@@ -1,4 +1,4 @@
-﻿function Repair-TeamsCamera {
+function Repair-TeamsCamera {
     [CmdletBinding()]
     param([switch]$Silent)
 

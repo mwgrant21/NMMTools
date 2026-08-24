@@ -1,4 +1,4 @@
-﻿function Invoke-AvPrepQuickFix {
+function Invoke-AvPrepQuickFix {
     [CmdletBinding()]
     param([switch]$Silent)
 

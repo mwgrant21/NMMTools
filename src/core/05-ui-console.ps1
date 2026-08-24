@@ -1,4 +1,4 @@
-﻿# Console UI. Landing screen lists EVERY tool in two color-coded columns grouped under
+# Console UI. Landing screen lists EVERY tool in two color-coded columns grouped under
 # a v8-style banner per category; everything is driven by the registry, so new tools
 # appear automatically. Run a tool by typing its number/Q#/Id, or type text to search.
 

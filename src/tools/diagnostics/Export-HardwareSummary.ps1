@@ -1,4 +1,4 @@
-﻿function Export-HardwareSummary {
+function Export-HardwareSummary {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 

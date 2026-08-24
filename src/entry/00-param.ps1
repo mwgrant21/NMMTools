@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [string]$Tool,        # run one tool by slug or legacy number, then exit
     [switch]$Silent,      # no prompts; Read-ToolChoice returns declared defaults

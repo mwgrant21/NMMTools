@@ -1,4 +1,4 @@
-﻿function Repair-NetworkDrives {
+function Repair-NetworkDrives {
     [CmdletBinding()]
     param([switch]$Silent)
 

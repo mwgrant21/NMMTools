@@ -1,4 +1,4 @@
-﻿function Invoke-OfficeQuickFix {
+function Invoke-OfficeQuickFix {
     [CmdletBinding()]
     param([switch]$Silent)
 

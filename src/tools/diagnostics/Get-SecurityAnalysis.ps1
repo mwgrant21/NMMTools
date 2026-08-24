@@ -1,4 +1,4 @@
-﻿function Get-SecurityAnalysis {
+function Get-SecurityAnalysis {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 

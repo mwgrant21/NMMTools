@@ -1,4 +1,4 @@
-﻿function Repair-TimeSync {
+function Repair-TimeSync {
     [CmdletBinding()]
     param([switch]$Silent)
 

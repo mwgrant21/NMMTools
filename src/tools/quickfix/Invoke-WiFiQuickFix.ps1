@@ -1,4 +1,4 @@
-﻿function Invoke-WiFiQuickFix {
+function Invoke-WiFiQuickFix {
     [CmdletBinding()]
     param([switch]$Silent)
 

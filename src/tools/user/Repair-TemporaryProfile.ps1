@@ -1,4 +1,4 @@
-﻿function Repair-TemporaryProfile {
+function Repair-TemporaryProfile {
     [CmdletBinding()]
     param([switch]$Silent)
 

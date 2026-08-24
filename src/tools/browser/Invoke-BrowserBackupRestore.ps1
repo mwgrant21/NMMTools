@@ -1,4 +1,4 @@
-﻿function Invoke-BrowserBackupRestore {
+function Invoke-BrowserBackupRestore {
     [CmdletBinding()]
     param([switch]$Silent)
 

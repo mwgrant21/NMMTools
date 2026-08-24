@@ -1,4 +1,4 @@
-﻿# Admin detection and interactive elevation. CLI/PDQ mode never auto-elevates;
+# Admin detection and interactive elevation. CLI/PDQ mode never auto-elevates;
 # PDQ runs as SYSTEM, and a UAC prompt would hang an unattended deployment.
 
 function Test-IsAdmin {

@@ -1,4 +1,4 @@
-﻿function Invoke-DockingQuickFix {
+function Invoke-DockingQuickFix {
     [CmdletBinding()]
     param([switch]$Silent)
 

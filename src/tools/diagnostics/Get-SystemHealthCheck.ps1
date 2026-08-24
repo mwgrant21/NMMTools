@@ -1,4 +1,4 @@
-﻿function Get-SystemHealthCheck {
+function Get-SystemHealthCheck {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 

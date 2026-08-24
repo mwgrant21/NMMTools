@@ -1,4 +1,4 @@
-﻿function Start-FileSystemCheck {
+function Start-FileSystemCheck {
     [CmdletBinding()]
     param([switch]$Silent)   # required by dispatcher even when unused
 

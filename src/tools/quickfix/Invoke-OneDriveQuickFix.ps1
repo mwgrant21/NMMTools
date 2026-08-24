@@ -1,4 +1,4 @@
-﻿function Invoke-OneDriveQuickFix {
+function Invoke-OneDriveQuickFix {
     [CmdletBinding()]
     param([switch]$Silent)
 

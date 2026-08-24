@@ -1,4 +1,4 @@
-﻿function Clear-BrowserData {
+function Clear-BrowserData {
     [CmdletBinding()]
     param([switch]$Silent)
 

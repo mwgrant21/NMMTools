@@ -1,4 +1,4 @@
-﻿function Repair-DomainTrust {
+function Repair-DomainTrust {
     [CmdletBinding()]
     param([switch]$Silent)
 
