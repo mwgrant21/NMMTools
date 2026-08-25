@@ -17,10 +17,16 @@
       3. IS THE FILE INTACT - parse it and confirm the GUI functions are really
          defined, and that the reported failing lines are the calls we expect.
          Catches truncation and partial copies.
-      4. DOES THE STRUCTURE ACTUALLY FAIL HERE - rebuild the artifact's own
-         pattern (script-scope function called from a DispatcherTimer tick
-         bound with .GetNewClosure()) using THIS machine's PowerShell, and see
-         whether it resolves. This is the part that cannot be answered remotely.
+      4. IS THIS WINDOW THE KIND THAT BREAKS by-name resolution - rebuild the
+         pre-9.3.3 pattern (script-scope function called from a DispatcherTimer
+         tick bound with .GetNewClosure()) and see whether it resolves here.
+
+    On (4), read the result carefully. It measures THIS SCRIPT's own scope, not
+    the toolkit's, and it deliberately keeps the old by-name shape so it stays a
+    detector. A FAILED result on a 9.3.3 machine is EXPECTED and correct - it
+    means the window reproduces the conditions that used to kill the GUI, not
+    that the GUI is still broken. The line that answers "does this machine have
+    the fix" is the version, and the handler-call shapes under file integrity.
 
 .PARAMETER Artifact
     Path to NMMTools.ps1. Defaults to the Desktop copy, then C:\NMMTools.ps1,
@@ -160,15 +166,36 @@ if ([string]::IsNullOrWhiteSpace($Artifact) -or -not (Test-Path -LiteralPath $Ar
     }
     $src = Get-Content -LiteralPath $Artifact
     Add-Line ('  total lines     : {0}' -f $src.Count)
-    # Locate the reported call sites by CONTENT, not by hardcoded line number -
-    # those shift with every build and would make this report quietly wrong.
-    foreach ($needle in @('Add-GuiOutputRecord -Sync', 'Show-GuiPrompt -Sync')) {
-        $found = @(Select-String -LiteralPath $Artifact -Pattern ([regex]::Escape($needle)) |
-                   Where-Object { $_.Line.TrimStart() -notmatch '^#' })
-        if ($found.Count -eq 0) {
-            Add-Line ('  call site       : {0} -- NOT FOUND' -f $needle)
+    # Locate the handler calls by CONTENT, not by hardcoded line number - those
+    # shift with every build and would make this report quietly wrong.
+    #
+    # Report WHICH SHAPE is present, never the absence of one. This block used to
+    # grep only for the by-name calls, so 9.3.3 - where the fix replaced them with
+    # captured references - reported 'NOT FOUND' on a perfectly correct file:
+    # success printed in the vocabulary of failure, on the one line a reader
+    # scans for trouble. A detector that has not been taught about the fix is
+    # worse than no detector, because its output still looks authoritative.
+    $handlerShapes = @(
+        @{ Name = 'Add-GuiOutputRecord'; Old = 'Add-GuiOutputRecord -Sync'; New = '& $fnAddGuiOutputRecord -Sync' },
+        @{ Name = 'Show-GuiPrompt';      Old = 'Show-GuiPrompt -Sync';      New = '& $fnShowGuiPrompt -Sync' },
+        @{ Name = 'Show-GuiTextPrompt';  Old = 'Show-GuiTextPrompt -Sync';  New = '& $fnShowGuiTextPrompt -Sync' }
+    )
+    foreach ($shape in $handlerShapes) {
+        $liveLines = { param($needle)
+            @(Select-String -LiteralPath $Artifact -Pattern ([regex]::Escape($needle)) |
+              Where-Object { $_.Line.TrimStart() -notmatch '^#' })
+        }
+        $newHits = @(& $liveLines $shape.New)
+        $oldHits = @(& $liveLines $shape.Old)
+        if ($newHits.Count -gt 0) {
+            Add-Line ('  handler call    : {0,-20} FIXED (captured reference) line {1}' -f $shape.Name, $newHits[0].LineNumber)
+        } elseif ($oldHits.Count -gt 0) {
+            Add-Line ('  handler call    : {0,-20} *** BY-NAME, line {1}' -f $shape.Name, $oldHits[0].LineNumber)
+            Add-Line '                    *** This build predates 9.3.3. The GUI will fail with'
+            Add-Line '                    *** CommandNotFoundException when launched from an ALREADY'
+            Add-Line '                    *** ELEVATED window. Deploy 9.3.3 or later.'
         } else {
-            foreach ($f in $found) { Add-Line ('  call site       : line {0,-6} {1}' -f $f.LineNumber, $f.Line.Trim()) }
+            Add-Line ('  handler call    : {0,-20} neither shape present - unexpected build' -f $shape.Name)
         }
     }
 }
@@ -176,8 +203,12 @@ if ([string]::IsNullOrWhiteSpace($Artifact) -or -not (Test-Path -LiteralPath $Ar
 # ---- 4. does the pattern actually fail on THIS machine? ------------------
 Add-Line ''
 Add-Line '--- live structural test (this machine, this PowerShell) ---'
-Add-Line '  Rebuilds the artifact pattern: a script-scope function called from a'
+Add-Line '  Rebuilds the PRE-9.3.3 pattern: a script-scope function called from a'
 Add-Line '  DispatcherTimer tick bound with .GetNewClosure().'
+Add-Line '  NOTE: this measures THIS script''s scope, not the toolkit''s. FAILED here'
+Add-Line '  on a 9.3.3 machine is EXPECTED - it means this window reproduces the'
+Add-Line '  conditions that used to kill the GUI. Judge the fix by the version and'
+Add-Line '  the handler-call shapes above, not by this line.'
 try {
     Add-Type -AssemblyName PresentationFramework, WindowsBase -ErrorAction Stop
     Add-Line '  WPF assemblies  : loaded'
@@ -198,9 +229,21 @@ try {
         [System.Windows.Threading.Dispatcher]::CurrentDispatcher.InvokeShutdown()
     }.GetNewClosure())
 
+    # A Dispatcher, once shut down, can never be restarted on that thread - and the
+    # tick above shuts it down deliberately. So a SECOND run of this script in the
+    # same PowerShell session could only ever throw, and used to surface as a raw
+    # 'Cannot perform requested operation because the Dispatcher shut down', which
+    # reads like a fault on the machine under test rather than on this script.
+    # Say what actually happened and what to do about it.
+    $dispatcher = [System.Windows.Threading.Dispatcher]::CurrentDispatcher
     if ($apartment -ne 'STA') {
         Add-Line '  SKIPPED - host is MTA, so a Dispatcher cannot run on this thread.'
         Add-Line '  That by itself is consistent with the reported failure.'
+    } elseif ($dispatcher.HasShutdownStarted -or $dispatcher.HasShutdownFinished) {
+        Add-Line '  SKIPPED - this session has already run the live test once, and a'
+        Add-Line '  Dispatcher cannot be restarted on a thread that has shut one down.'
+        Add-Line '  Not a fault on this machine. Re-run in a fresh PowerShell window'
+        Add-Line '  if you need this measurement.'
     } else {
         $timer.Start()
         [System.Windows.Threading.Dispatcher]::Run()
@@ -212,8 +255,13 @@ try {
 
 Add-Line ''
 Add-Line ('=' * 70)
-Add-Line 'Send this file back. The lines that matter most: APARTMENT STATE,'
-Add-Line 'SHA256 vs expected, any MISSING function, and the live test RESULT.'
+Add-Line 'Send this file back. The lines that matter most, in order:'
+Add-Line '  1. version        - is the fix even on this machine (9.3.3 or later)?'
+Add-Line '  2. handler call   - FIXED, or BY-NAME meaning the build predates 9.3.3?'
+Add-Line '  3. any MISSING function or parse error - truncated or partial copy?'
+Add-Line '  4. APARTMENT STATE and elevated - which launch path was taken?'
+Add-Line 'The live test RESULT is about THIS WINDOW, not the toolkit - see the note'
+Add-Line 'above it before drawing any conclusion from it.'
 
 [System.IO.File]::WriteAllText($report, (($lines -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
 Write-Host ''
