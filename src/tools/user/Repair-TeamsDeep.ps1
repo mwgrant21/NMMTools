@@ -329,8 +329,31 @@ function Repair-TeamsDeep {
                     } catch {
                         Write-ToolOutput 'Could not restart TokenBroker (needs elevation; reboot recommended).' -Level Warning
                     }
-                    Start-Process 'ms-teams:' -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 2
+                    # Relaunching Teams is a convenience, not part of the repair, so it
+                    # must never be able to change the outcome. Two defects here:
+                    #
+                    # -ErrorAction only suppresses NON-terminating errors, and Start-Process
+                    # raises a TERMINATING one when it cannot resolve the target as an
+                    # application. The flag did nothing; the throw skipped every
+                    # Complete-ToolRun below and landed in the outer catch, so a fully
+                    # successful repair reported Failed. -ErrorAction Stop inside a try
+                    # catches both kinds.
+                    #
+                    # It also ignored $ctx. Everything above repairs the LOGGED-ON user's
+                    # Teams; this launched Teams as whatever account the process runs as,
+                    # so under over-the-shoulder elevation it started in the technician's
+                    # profile - the mix-up $ctx exists to prevent. Test IsCurrentUser, never
+                    # '-not IsRedirected', which is also false when nothing was resolved.
+                    if ($ctx.IsCurrentUser) {
+                        try {
+                            Start-Process 'ms-teams:' -ErrorAction Stop
+                            Start-Sleep -Seconds 2
+                        } catch {
+                            Write-ToolOutput 'Could not relaunch Teams automatically - start it from the Start menu. The repair itself is unaffected.' -Level Detail
+                        }
+                    } else {
+                        Write-ToolOutput ('Not relaunching Teams: this session is {0}, not {1}. Have the user start Teams and sign in.' -f $ctx.ProcessName, $ctx.DisplayName) -Level Detail
+                    }
                     # Final status previously depended only on $appxOk - a run that cleared
                     # all WAM/MSAL caches and credentials but never got TokenBroker to
                     # reinitialize (so the sign-in loop this tool exists to fix may not
