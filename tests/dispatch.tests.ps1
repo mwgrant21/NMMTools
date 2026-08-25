@@ -19,6 +19,10 @@ BeforeAll {
                Function = 'Invoke-RiskyTool'; Description = 'silent-capable but disruptive'
                RequiresAdmin = $false; SilentCapable = $true; Risk = 'Disruptive'
                Tags = @('risky') }
+            @{ Id = 'ghost-caller'; LegacyId = '78'; Name = 'Ghost Caller'; Category = 'Test'
+               Function = 'Invoke-GhostCaller'; Description = 'calls a command that does not exist'
+               RequiresAdmin = $false; SilentCapable = $true; Risk = 'ReadOnly'
+               Tags = @('ghost') }
         )
     }
     function Invoke-SafeTool {
@@ -31,6 +35,15 @@ BeforeAll {
         param([switch]$Silent)
         $run = New-ToolRun -Id 'risky-tool'
         Complete-ToolRun $run -Status Success -Summary 'risky but fine'
+    }
+    # Mirrors the real tools (Get-RingCentralStatus, Repair-PrinterIssues, ...) that
+    # call a module cmdlet BEFORE entering their try/catch, so a missing command
+    # escapes the tool and reaches Invoke-NmmTool's own handler.
+    function Invoke-GhostCaller {
+        param([switch]$Silent)
+        Get-NoSuchCommandAtAll | Out-Null
+        $run = New-ToolRun -Id 'ghost-caller'
+        Complete-ToolRun $run -Status Success -Summary 'never reached'
     }
 }
 
@@ -98,5 +111,35 @@ Describe 'Invoke-NmmTool guards' {
                     Function = 'Invoke-DoesNotExist'; Description = 'x'
                     RequiresAdmin = $false; SilentCapable = $true; Risk = 'ReadOnly'; Tags = @('x') }
         Invoke-NmmTool -Tool $ghost -Silent | Should -Be 'Failed'
+    }
+}
+
+Describe 'Invoke-NmmTool CommandNotFoundException reporting' {
+    BeforeEach {
+        $script:ToolRuns = New-Object System.Collections.ArrayList
+    }
+
+    It 'names the missing command, not the tool, when the tool body calls a command that does not exist' {
+        $tool = Resolve-NmmTool -Query 'ghost-caller'
+        Start-ToolOutputCapture
+        $status = Invoke-NmmTool -Tool $tool -Silent
+        $text = Stop-ToolOutputCapture
+
+        $status | Should -Be 'Failed'
+        $text   | Should -Match 'Get-NoSuchCommandAtAll'
+        $text   | Should -Not -Match 'registry/implementation drift'
+    }
+
+    It 'still blames registry/implementation drift when the tool function itself is missing' {
+        $ghost = @{ Id = 'ghost'; LegacyId = '0'; Name = 'Ghost'; Category = 'Test'
+                    Function = 'Invoke-DoesNotExist'; Description = 'x'
+                    RequiresAdmin = $false; SilentCapable = $true; Risk = 'ReadOnly'; Tags = @('x') }
+        Start-ToolOutputCapture
+        $status = Invoke-NmmTool -Tool $ghost -Silent
+        $text = Stop-ToolOutputCapture
+
+        $status | Should -Be 'Failed'
+        $text   | Should -Match 'registry/implementation drift'
+        $text   | Should -Match 'Invoke-DoesNotExist'
     }
 }

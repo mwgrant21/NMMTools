@@ -45,7 +45,18 @@ function Invoke-NmmTool {
     try {
         & $Tool.Function -Silent:$Silent
     } catch [System.Management.Automation.CommandNotFoundException] {
-        Write-ToolOutput ("'{0}': function '{1}' not found - registry/implementation drift." -f $Tool.Name, $Tool.Function) -Level Error
+        # Two very different causes land here and they need different answers.
+        # Only a missing TOOL function is registry/implementation drift. A command
+        # missing from inside the tool body - a module cmdlet that did not autoload,
+        # or a helper absent from the GUI's cloned tool Runspace - is a machine or
+        # session problem, and naming the tool instead of the real command sends the
+        # technician chasing the registry when nothing is wrong with it.
+        $missing = $_.Exception.CommandName
+        if ([string]::IsNullOrWhiteSpace($missing) -or $missing -eq $Tool.Function) {
+            Write-ToolOutput ("'{0}': function '{1}' not found - registry/implementation drift." -f $Tool.Name, $Tool.Function) -Level Error
+        } else {
+            Write-ToolOutput ("'{0}': required command '{1}' is not available in this session - the module that provides it is missing or did not load." -f $Tool.Name, $missing) -Level Error
+        }
         return 'Failed'
     } catch {
         Write-ToolOutput ("'{0}': unhandled error - {1}" -f $Tool.Name, $_) -Level Error
