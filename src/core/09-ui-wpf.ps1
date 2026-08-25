@@ -889,6 +889,16 @@ function Invoke-GuiToolRun {
     $capturedTool   = $Tool
     $capturedSync   = $sync
 
+    # Capture helpers as VALUES, not names. .GetNewClosure() wraps the handler in
+    # a dynamic module whose command lookup chains to the SESSION scope, never to
+    # this script's scope. Under -File those are the same scope and by-name calls
+    # work, which is why this never reproduced on a bench. Launched from an
+    # already-elevated window - where Invoke-ElevationCheck returns instead of
+    # relaunching with -File - the script scope is a child of global, the lookup
+    # walks straight past it, and the handler dies with CommandNotFoundException.
+    # Closures capture variables by contract, so this resolves under every mode.
+    $fnSetGuiIdle = ${function:Set-GuiIdle}
+
     $timer          = [System.Windows.Threading.DispatcherTimer]::new()
     $timer.Interval = [System.TimeSpan]::FromMilliseconds(100)
 
@@ -916,7 +926,7 @@ function Invoke-GuiToolRun {
                        Select-Object -Last 1
             $finalStatus = if ($lastRun) { $lastRun.Status } else { 'Unknown' }
 
-            Set-GuiIdle -ToolName $capturedTool.Name -Status $finalStatus
+            & $fnSetGuiIdle -ToolName $capturedTool.Name -Status $finalStatus
         }
     }.GetNewClosure())
 
@@ -1054,6 +1064,8 @@ function Show-NmmJiraSetupDialog {
     $capturedStatus = $statusLbl
     $capturedState  = $state
     $capturedWin    = $win
+    # Captured as a value - see the note in Invoke-GuiToolRun.
+    $fnSaveNmmJiraConfig = ${function:Save-NmmJiraConfig}
 
     $saveBtn.Add_Click({
         $url   = $capturedUrl.Text.Trim()
@@ -1077,7 +1089,7 @@ function Show-NmmJiraSetupDialog {
         }
 
         try {
-            Save-NmmJiraConfig -BaseUrl $url -Email $email -Token $token
+            & $fnSaveNmmJiraConfig -BaseUrl $url -Email $email -Token $token
             $capturedState.Saved = $true
             $capturedWin.Close()
         } catch {
@@ -1165,13 +1177,21 @@ function Invoke-TicketExportDialog {
         $capStatus = $StatusLbl
         $capTicket = $TicketBox
 
+        # Captured as values - see the note in Invoke-GuiToolRun. New-NmmToolRunspace
+        # especially: it seeds the tool Runspace from Get-ChildItem Function:, so
+        # running it inside the module's session state would clone the wrong (empty)
+        # function table and every tool in that Runspace would go missing too.
+        $fnTestNmmJiraKey     = ${function:Test-NmmJiraKey}
+        $fnConvertToWpfBrush  = ${function:ConvertTo-WpfBrush}
+        $fnNewNmmToolRunspace = ${function:New-NmmToolRunspace}
+
         $KeyBox.Add_TextChanged({
             $upper = $capKB.Text.ToUpper()
             if ($capKB.Text -cne $upper) {
                 $capKB.Text = $upper
                 $capKB.CaretIndex = $upper.Length
             }
-            $capSend.IsEnabled = (Test-NmmJiraKey -Key $capKB.Text)
+            $capSend.IsEnabled = (& $fnTestNmmJiraKey -Key $capKB.Text)
         }.GetNewClosure())
 
         $SendBtn.Add_Click({
@@ -1179,10 +1199,10 @@ function Invoke-TicketExportDialog {
             $body = $capTicket.Text
             $capSend.IsEnabled   = $false
             $capSend.Content     = 'Sending...'
-            $capStatus.Foreground = ConvertTo-WpfBrush '#858585'
+            $capStatus.Foreground = & $fnConvertToWpfBrush '#858585'
             $capStatus.Text       = ('Sending to {0}...' -f $key)
 
-            $rs = New-NmmToolRunspace
+            $rs = & $fnNewNmmToolRunspace
             $ps = [System.Management.Automation.PowerShell]::Create()
             $ps.Runspace = $rs
             [void]$ps.AddScript({ param($k, $b) Send-NmmJiraComment -Key $k -Body $b })
@@ -1209,13 +1229,13 @@ function Invoke-TicketExportDialog {
 
                     $capturedSend.Content = 'Send to Jira'
                     if ($result -and $result.Success) {
-                        $capturedStatus.Foreground = ConvertTo-WpfBrush '#4EC94E'
+                        $capturedStatus.Foreground = & $fnConvertToWpfBrush '#4EC94E'
                         $capturedStatus.Text       = [string]$result.Message
                     } else {
-                        $capturedStatus.Foreground = ConvertTo-WpfBrush '#F44747'
+                        $capturedStatus.Foreground = & $fnConvertToWpfBrush '#F44747'
                         $capturedStatus.Text = if ($result) { [string]$result.Message } else { 'Send failed (no response).' }
                     }
-                    $capturedSend.IsEnabled = (Test-NmmJiraKey -Key $capturedKeyBox.Text)
+                    $capturedSend.IsEnabled = (& $fnTestNmmJiraKey -Key $capturedKeyBox.Text)
                 }
             }.GetNewClosure())
             $timer.Start()
@@ -1241,15 +1261,20 @@ function Invoke-TicketExportDialog {
         $capTicket   = $ticketBox
         $capDlg      = $dlg
 
+        # Captured as values - see the note in Invoke-GuiToolRun.
+        $fnShowNmmJiraSetupDialog   = ${function:Show-NmmJiraSetupDialog}
+        $fnRegisterJiraSendHandlers = ${function:Register-JiraSendHandlers}
+        $fnConvertToWpfBrush        = ${function:ConvertTo-WpfBrush}
+
         $setupJira.Add_Click({
-            $saved = Show-NmmJiraSetupDialog -Owner $capDlg
+            $saved = & $fnShowNmmJiraSetupDialog -Owner $capDlg
             if ($saved) {
                 $capSetup.Visibility  = [System.Windows.Visibility]::Collapsed
                 $capKeyBox.Visibility = [System.Windows.Visibility]::Visible
                 $capSend.Visibility   = [System.Windows.Visibility]::Visible
-                $capStatus.Foreground = ConvertTo-WpfBrush '#4EC94E'
+                $capStatus.Foreground = & $fnConvertToWpfBrush '#4EC94E'
                 $capStatus.Text       = 'Jira configured. Enter an issue key to send.'
-                Register-JiraSendHandlers -KeyBox $capKeyBox -SendBtn $capSend `
+                & $fnRegisterJiraSendHandlers -KeyBox $capKeyBox -SendBtn $capSend `
                     -SetupBtn $capSetup -StatusLbl $capStatus -TicketBox $capTicket -Dialog $capDlg
             }
         }.GetNewClosure())
@@ -1324,6 +1349,19 @@ function Start-GuiMenuSTA {
         ToolRunspace         = $null
         SessionStart         = $script:SessionStart
     })
+
+    # Capture helpers as VALUES, not names. .GetNewClosure() wraps the handler in
+    # a dynamic module whose command lookup chains to the SESSION scope, never to
+    # this script's scope. Under -File those are the same scope and by-name calls
+    # work, which is why this never reproduced on a bench. Launched from an
+    # already-elevated window - where Invoke-ElevationCheck returns instead of
+    # relaunching with -File - the script scope is a child of global, the lookup
+    # walks straight past it, and the handler dies with CommandNotFoundException.
+    # Closures capture variables by contract, so this resolves under every mode.
+    $fnUpdateToolList      = ${function:Update-ToolList}
+    $fnAddGuiOutputRecord  = ${function:Add-GuiOutputRecord}
+    $fnShowGuiPrompt       = ${function:Show-GuiPrompt}
+    $fnShowGuiTextPrompt   = ${function:Show-GuiTextPrompt}
 
     $sync = $script:GuiSync
 
@@ -1421,7 +1459,7 @@ function Start-GuiMenuSTA {
             $capturedAccent.Visibility = [System.Windows.Visibility]::Visible
             $sync.SelectedCategory = $capturedCat
             $sync.SearchBox.Text   = ''
-            Update-ToolList -Window $null
+            & $fnUpdateToolList -Window $null
         }.GetNewClosure())
 
         [void]$sync.CategoryNavPanel.Children.Add($btn)
@@ -1595,7 +1633,7 @@ function Start-GuiMenuSTA {
         $rec = $null
         $appended = $false
         while ($s.OutputQueue.TryDequeue([ref]$rec)) {
-            Add-GuiOutputRecord -Sync $s -Record $rec
+            & $fnAddGuiOutputRecord -Sync $s -Record $rec
             $appended = $true
         }
         if ($appended) {
@@ -1609,9 +1647,9 @@ function Start-GuiMenuSTA {
         if ($null -ne $req) {
             $s.PromptRequest = $null
             if ($req.Kind -eq 'Text') {
-                Show-GuiTextPrompt -Sync $s -Request $req
+                & $fnShowGuiTextPrompt -Sync $s -Request $req
             } else {
-                Show-GuiPrompt -Sync $s -Request $req
+                & $fnShowGuiPrompt -Sync $s -Request $req
             }
         }
     }.GetNewClosure())
