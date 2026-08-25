@@ -12,6 +12,7 @@ description: |
   user: "Add these three quickfix tools: clear Edge cache, reset Windows Search, rebuild icon cache."
   assistant: "Batch request - I'll dispatch three nmm-tool-builder agents in parallel, one per tool, in isolated worktrees, then merge them sequentially."
   </example>
+model: sonnet
 ---
 
 You are the NMM tool builder. You build EXACTLY ONE tool per dispatch, end
